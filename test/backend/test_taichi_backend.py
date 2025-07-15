@@ -1014,7 +1014,6 @@ def test_abs():
             for k in range(result.shape[2]):
                 assert result[i, j, k] == expected[i][j][k]
 
-@pytest.mark.ut
 # 测试 acos 函数
 def test_acos():
     
@@ -1321,19 +1320,21 @@ def test_atan2():
     assert result.dtype == ti.f64
     assert np.allclose(result[0], np.arctan(0.5))
 
-    # # field 1d
-    # field = ti.field(ti.f64, shape=(3,))             # TODO: 广播机制未实现
-    # field[1] = -0.7
-    # field[2] = 0.9
-    # field[3] = 0.5
-    # Field = ti.field(ti.f64, shape=(1,))
-    # Field[0] = 1.0
-    # result = bm.atan2(field, Field)
-    # assert result.shape == (3,)
-    # assert isinstance(result, ti.Field)
-    # assert result.dtype == ti.f64
-    # for i in range(result.shape[0]):
-    #     assert np.allclose(result[i], ti.atan2(field[i], Field[0]))
+    # field 1d
+    field = ti.field(ti.f64, shape=(3,))
+    field[1] = -0.7
+    field[2] = 0.9
+    field[3] = 0.5
+    Field = ti.field(ti.f64, shape=(3,))
+    Field[0] = 1.0
+    Field[1] = 2.0
+    Field[2] = 3.0
+    result = bm.atan2(field, Field)
+    assert result.shape == (3,)
+    assert isinstance(result, ti.Field)
+    assert result.dtype == ti.f64
+    for i in range(result.shape[0]):
+        assert np.allclose(result[i], ti.atan2(field[i], Field[0]))
 
     # field 2d
     field = ti.field(ti.f64, shape = (2, 3))
@@ -1867,31 +1868,22 @@ def test_floor_divide():
     assert result.dtype == ti.f64
     assert result[0] == -4
 
-    # # field 1d
-    # field = ti.field(ti.f64, shape=(3,))           # TODO: 广播机制未完成
-    # field[0] = 10
-    # field[1] = -12.6
-    # field[2] = 1
-    # Field = ti.field(ti.f64, shape=(3,))
-    # Field[0] = 2
-    # result = bm.floor_divide(field, Field)
-    # expected = [5, -5, 0]
-    # assert result.shape == (3,)
-    # assert isinstance(result, ti.Field)
-    # assert result.dtype == ti.f64
-    # for i in range(result.shape[0]):
-    #     assert result[i] == expected[0]
-    
-    # field = ti.field(ti.f64, shape=(3,))
-    # field[0] = -1
-    # field[1] = 0
-    # field[2] = 1
-    # result1 = bm.floor_divide(field[0], 0)
-    # result2 = bm.floor_divide(field[1], 0)
-    # result3 = bm.floor_divide(field[2], 0)
-    # assert np.isinf(result1)
-    # assert np.isnan(result2)
-    # assert np.isinf(result3)
+    # field 1d
+    field = ti.field(ti.f64, shape=(3,))
+    field[0] = 10
+    field[1] = -12.6
+    field[2] = 1
+    Field = ti.field(ti.f64, shape=(3,))
+    Field[0] = 2
+    Field[1] = 3
+    Field[2] = 2
+    result = bm.floor_divide(field, Field)
+    expected = [5, -5, 0]
+    assert result.shape == (3,)
+    assert isinstance(result, ti.Field)
+    assert result.dtype == ti.f64
+    for i in range(result.shape[0]):
+        assert result[i] == expected[0]
 
     # field 2d
     field = ti.field(ti.f64, shape=(2, 3))
@@ -2113,94 +2105,6 @@ def test_sinh():
         for j in range(result.shape[1]):
             for k in range(result.shape[2]):
                 assert result[i, j, k] == expected[i][j][k]
-                
-# # 测试 trace 函数
-# def test_trace():
-
-#     # 2d field(三阶方阵)
-#     field = ti.field(ti.f64, shape=(3, 3))
-#     field.fill(1)
-#     field[1, 1] = 2
-#     result = bm.trace(field)
-#     assert result == 4
-
-#     # 2d field(一阶方阵)
-#     field = ti.field(ti.f64, shape=(1, 1))
-#     field[0, 0] = 2
-#     result = bm.trace(field)
-#     assert result == 2
-
-# # 测试 insert 函数
-# def test_insert():
-
-#     pass
-
-# # 测试 unique 函数
-# def test_unique():
-
-#     # 空
-#     field = ti.field(ti.f64, shape=())
-#     field[None] = 1
-#     result = bm.unique(field)
-#     assert result.shape == (1,)
-#     assert isinstance(result, ti.Field)
-#     assert result.dtype == ti.f64
-#     assert result[0] == 1
-
-#     # 数字型
-#     field = ti.field(ti.f64, shape=(1,))
-#     field[0] = 1
-#     result = bm.unique(field)
-#     assert result.shape == (1,)
-#     assert result.dtype == ti.f64
-#     assert result[0] == 1
-
-#     # 1d
-#     field = ti.field(ti.f64, shape=(3,))
-#     field[0] = 1
-#     field[1] = 2
-#     field[2] = 1
-#     result = bm.unique(field)
-#     excepted = [1, 2]
-#     assert result.shape == (2,)
-#     assert isinstance(result, ti.Field)
-#     assert result.dtype == ti.f64
-#     for i in range(result.shape[0]):
-#         assert result[i] == excepted[i]
-
-#     # 2d
-#     field = ti.field(ti.f64, shape=(2, 3))
-#     field[0, 0] = 1
-#     field[0, 1] = 2
-#     field[0, 2] = 3
-#     field[1, 0] = 2
-#     field[1, 1] = 1
-#     field[1, 2] = 3
-#     result = bm.unique(field)
-#     excepted = [1, 2, 3]
-#     assert isinstance(result, ti.Field)
-#     assert result.shape == (3,)
-#     assert result.dtype == ti.f64
-#     for i in range(result.shape[0]):
-#         assert result[i] == excepted[i]
-
-#     # 3d
-#     field = ti.field(ti.f64, shape=(2, 2, 2))
-#     field[0, 0, 0] = 1
-#     field[0, 0, 1] = 2
-#     field[0, 1, 0] = 3
-#     field[0, 1, 1] = 2
-#     field[1, 0, 0] = 2
-#     field[1, 0, 1] = 1
-#     field[1, 1, 0] = 3
-#     field[1, 1, 1] = 2
-#     result = bm.unique(field)
-#     excepted = [1, 2, 3]
-#     assert isinstance(result, ti.Field)
-#     assert result.shape == (3,)
-#     assert result.dtype == ti.f64
-#     for i in range(result.shape[0]):
-#         assert result[i] == excepted[i]
 
 if __name__ == "__main__":
     pytest.main(["-q", "-s"])
