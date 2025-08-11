@@ -3537,5 +3537,160 @@ def test_triu():
                 assert result[i, j, k] == excepted[i][j][k]
 
 
+# 测试 linspace 函数
+def test_linspace():
+    # 测试默认endpoint=True的情况
+    result = bm.linspace(0, 10, 5)
+    expected = np.linspace(0, 10, 5) 
+    assert result.shape == (5,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试endpoint=False的情况
+    result = bm.linspace(0, 10, 5, endpoint=False)
+    expected = np.linspace(0, 10, 5, endpoint=False)
+    assert result.shape == (5,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试浮点数输入
+    result = bm.linspace(0.1, 1.5, 5)
+    expected = np.linspace(0.1, 1.5, 5)
+    assert result.shape == (5,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试负数值
+    result = bm.linspace(-5, 5, 11)
+    expected = np.linspace(-5, 5, 11)
+    assert result.shape == (11,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试反向范围
+    result = bm.linspace(10, 0, 5)
+    expected = np.linspace(10, 0, 5)
+    assert result.shape == (5,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试起始值和结束值相同
+    result = bm.linspace(5, 5, 3)
+    expected = np.linspace(5, 5, 3)
+    assert result.shape == (3,)
+    assert np.allclose(result.to_numpy(), expected)
+
+    # 测试num为0的无效情况
+    with pytest.raises(ValueError,match="Number of samples, 0, must be positive."):
+        result = bm.linspace(0, 10, 0)
+
+    # 测试num为负数的无效情况
+    with pytest.raises(ValueError,match="Number of samples, -1, must be positive."):
+        result = bm.linspace(0, 10, -1)
+
+    # 测试num为浮点数的无效情况
+    with pytest.raises(TypeError,match='Number of samples, 3.5, must be an integer.'):
+        result = bm.linspace(0, 10, 3.5)
+
+    # 测试小数步长
+    result = bm.linspace(0, 1, 3)
+    expected = np.linspace(0, 1, 3)
+    assert result.shape == (3,)
+    assert np.allclose(result.to_numpy(), expected)
+    assert result[0] == 0.0
+    assert result[1] == 0.5
+    assert result[2] == 1.0
+
+def test_meshgrid():
+    # 测试 'xy' 索引模式(默认模式)下的 meshgrid 功能
+    field_1 = ti.field(dtype=ti.f64, shape=(3,))
+    field_2 = ti.field(dtype=ti.f64, shape=(2,))
+    @ti.kernel
+    def fill_field_1():
+        for i in range(3):
+            field_1[i] = i + 1.0
+
+    fill_field_1()
+
+    def fill_field_2():
+        for i in range(2):
+            field_2[i] = (i + 1) * 10.0
+
+    fill_field_2()
+
+    out_x, out_y = bm.meshgrid(field_1, field_2, indexing="xy")
+    expected_x = np.array([[1.0, 2.0, 3.0],
+                          [1.0, 2.0, 3.0]])
+
+    expected_y = np.array([[10.0, 10.0, 10.0],
+                          [20.0, 20.0, 20.0]])
+    assert out_x.shape == (2, 3)
+    assert out_y.shape == (2, 3)
+    assert np.allclose(out_x.to_numpy(), expected_x)
+    assert np.allclose(out_y.to_numpy(), expected_y)
+
+    # 测试 'ij' 索引模式下的 meshgrid 功能
+    field_1 = ti.field(dtype=ti.f64, shape=(3,))
+    field_2 = ti.field(dtype=ti.f64, shape=(2,))
+    @ti.kernel
+    def fill_field_1():
+        for i in range(3):
+            field_1[i] = i + 1.0
+
+    fill_field_1()
+
+    def fill_field_2():
+        for i in range(2):
+            field_2[i] = (i + 1) * 10.0
+
+    fill_field_2()
+
+    out_x, out_y = bm.meshgrid(field_1, field_2, indexing="ij")
+    expected_x = np.array([[1.0, 1.0],
+                          [2.0, 2.0],
+                          [3.0, 3.0]])
+    
+    expected_y = np.array([[10.0, 20.0],
+                          [10.0, 20.0],
+                          [10.0, 20.0]])
+    assert out_x.shape == (3, 2)
+    assert out_y.shape == (3, 2)
+    assert np.allclose(out_x.to_numpy(), expected_x)
+    assert np.allclose(out_y.to_numpy(), expected_y)
+
+    # 测试无效索引模式的错误处理
+    field_1 = ti.field(dtype=ti.f64, shape=(3,))
+    field_2 = ti.field(dtype=ti.f64, shape=(2,))
+
+    @ti.kernel
+    def fill_field_1():
+        for i in range(3):
+            field_1[i] = i + 1.0
+
+    fill_field_1()
+
+    def fill_field_2():
+        for i in range(2):
+            field_2[i] = (i + 1) * 10.0
+
+    fill_field_2()
+    with pytest.raises(ValueError, match="Valid values for `indexing` are 'xy' and 'ij'"):
+        bm.meshgrid(field_1, field_2, indexing="invalid")
+
+    # 创建一个有效场和一个无效输入
+    field_1 = ti.field(dtype=ti.f64, shape=(3,))
+    @ti.kernel
+    def fill_field_1():
+        for i in range(3):
+            field_1[i] = i + 1.0
+
+    fill_field_1()
+
+    invalid_input = [1, 2, 3]
+    # 测试第一个参数无效
+    with pytest.raises(TypeError, match="Both inputs must be ti.Field"):
+        bm.meshgrid(invalid_input, field_1)
+    
+    # 测试第二个参数无效
+    with pytest.raises(TypeError, match="Both inputs must be ti.Field"):
+        bm.meshgrid(field_1, invalid_input)
+
+
+
 if __name__ == "__main__":
     pytest.main(["test/backend/test_taichi_backend.py", "-qs", "--disable-warnings"])
