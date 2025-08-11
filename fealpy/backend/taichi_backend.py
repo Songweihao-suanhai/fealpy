@@ -3396,3 +3396,86 @@ class TaichiBackend(BackendProxy, backend_name="taichi"):
             compute_cross_3d(field_1, field_2, result)
 
         return result
+    
+    @staticmethod
+    def linspace(
+        start: Union[int, float],
+        stop: Union[int, float],
+        num: int,
+        endpoint: bool = True,
+    ) -> ti.Field:
+        if num <= 0:
+            raise ValueError(f"Number of samples, {num}, must be positive.")
+        if not isinstance(num, int):
+            raise TypeError(f"Number of samples, {num}, must be an integer.")
+        div = (num - 1) if endpoint else num
+        dtype = ti.f64
+
+        delta = stop - start
+        if div > 0:
+            step = delta / div
+            result = ti.field(dtype, shape=(num,))
+
+            @ti.kernel
+            def fill_linspace(result: ti.template()):
+                for i in range(num):
+                    result[i] = start + i * step
+
+            fill_linspace(result)
+        else:
+            step = delta
+            result = ti.field(dtype, shape=(num,))
+
+            @ti.kernel
+            def fill_linspace(result: ti.template()):
+                for i in range(num):
+                    result[i] = start + i * step
+
+            fill_linspace(result)
+
+        return result
+
+    @staticmethod
+    def meshgrid(field_1: ti.Field, field_2: ti.Field, indexing="xy") -> ti.Field:
+        if indexing not in ["xy", "ij"]:  # TODO: 仅实现二维，未实现更高维数
+            raise ValueError("Valid values for `indexing` are 'xy' and 'ij'.")
+
+        if not isinstance(field_1, ti.Field) or not isinstance(field_2, ti.Field):
+            raise TypeError("Both inputs must be ti.Field")
+        shape_1 = field_1.shape[0]
+        shape_2 = field_2.shape[0]
+        if indexing == "xy":
+            out_x = ti.field(dtype=ti.f64, shape=(shape_2, shape_1))
+            out_y = ti.field(dtype=ti.f64, shape=out_x.shape)
+
+            @ti.kernel
+            def taichi_meshgrid(
+                x: ti.template(),
+                y: ti.template(),
+                out_x: ti.template(),
+                out_y: ti.template(),
+            ):
+                for i, j in out_x:
+                    out_x[i, j] = x[j]
+                    out_y[i, j] = y[i]
+
+            taichi_meshgrid(field_1, field_2, out_x, out_y)
+            return out_x, out_y
+
+        elif indexing == "ij":
+            out_x = ti.field(dtype=ti.f64, shape=(shape_1, shape_2))
+            out_y = ti.field(dtype=ti.f64, shape=out_x.shape)
+
+            @ti.kernel
+            def taichi_meshgrid(
+                x: ti.template(),
+                y: ti.template(),
+                out_x: ti.template(),
+                out_y: ti.template(),
+            ):
+                for i, j in out_x:
+                    out_x[i, j] = x[i]
+                    out_y[i, j] = y[j]
+
+            taichi_meshgrid(field_1, field_2, out_x, out_y)
+            return out_x, out_y
