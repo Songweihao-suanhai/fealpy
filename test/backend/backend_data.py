@@ -1,4 +1,140 @@
 import numpy as np
+arange_test_data = [
+    # 格式：(start, stop, step, expected)
+    # ===== 基础功能 =====
+    (5, None, None, np.array([0, 1, 2, 3, 4])),  # 单参数整型
+    (2.0, 10.0, None, np.array([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])),  # 双参数浮点型
+    (0.5, 10, 3, np.array([0.5, 3.5, 6.5, 9.5])),  # 三参数浮点型
+    # ===== 边界情况 =====
+    (0, 4, 6, np.array([0])),  # 步长大于区间
+    (4, 2, 1, np.array([])),  # start > stop
+    (2, 2, 1, np.array([])),  # start = stop
+    (5, 0, -1, np.array([5, 4, 3, 2, 1])),  # 负步长正常
+    (0, 5, -1, np.array([])),  # 负步长但方向不对
+    (0, 1000000, 100000, np.array([0, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000])),  # 大数测试
+    # ===== 负数区间 =====
+    (-5, 0.0, 2, np.array([-5.0, -3.0, -1.0])),  # 负起点
+    (2, -5, -1, np.array([2, 1, 0, -1, -2, -3, -4])),  # 负起点+负方向
+    # ===== 精度问题 =====
+    (0.0, 0.3, 0.05, np.array([0.0, 0.05, 0.1, 0.15, 0.2, 0.25])),  # 很小的浮点步长
+    (1e-10, 1e-9, 1e-10, np.array([1e-10, 2e-10, 3e-10, 4e-10, 5e-10, 6e-10, 7e-10, 8e-10, 9e-10])),  # 极小数值
+    # ===== 负浮点步长 =====
+    (1.0, -1.0, -0.5, np.array([1.0, 0.5, 0.0, -0.5])),
+    # ====== 单元素 =====
+    (3, 4, 10, np.array([3])),  # 只生成一个元素
+    (0.5, 0.6, 0.2, np.array([0.5])),  # 浮点单元素
+]
+
+astype_test_data = [
+    # 格式：(array, dtype, expected)
+    # ===== int 型 =====
+    (np.array([2, 3, 4, 5, 6]), 'float64', np.array([2.0, 3.0, 4.0, 5.0, 6.0])),
+    (np.array([2, -3, 0, 1, -5]), 'bool', np.array([True, True, False, True, True])),
+    # ===== float 型 =====
+    (np.array([1.0, 3.0, -5.0, 7.0, 9.0]), 'int64', np.array([1, 3, -5, 7, 9])),
+    (np.array([-2.0, 3.0, 0.0, 1.0, -5.0]), 'bool', np.array([True, True, False, True, True])),
+    (np.array([np.nan, np.inf]), 'bool', np.array([True, True])),
+    # ===== bool 型 =====
+    (np.array([True, True, False, True, True]), 'int64', np.array([1, 1, 0, 1, 1])),
+    (np.array([True, True, False, True, True]), 'float64', np.array([1.0, 1.0, 0.0, 1.0, 1.0])),
+    (np.array([True, False, True, False, True]), 'complex64', np.array([1+0j, 0+0j, 1+0j, 0+0j, 1+0j])),
+    # ===== complex 型 =====
+    (np.array([0+0j, 1+1j, 4+2j, -3+3j]), 'bool', np.array([False, True, True, True])),
+    (np.array([1+2j, 3+4j, -5+6j]).real, 'int64', np.array([1, 3, -5])),
+    (np.array([1+2j, 3+4j, -5+6j]).imag, 'float64', np.array([2.0, 4.0, 6.0])),
+    # ===== 边界情况 =====
+    (np.array([], dtype=int), 'float64', np.array([], dtype=float)),
+    (np.array([], dtype=bool), 'int64', np.array([], dtype=int)),
+    (np.array([], dtype=float), 'complex64', np.array([], dtype=complex)),
+]
+
+repeat_test_data = [
+    # 格式：(array, repeat_counts, axis, expected)
+    # ===== 1D =====
+    (np.array([]), 2, None, np.array([])),  # 空数组重复，结果仍为空
+    (np.array([1.0, 2.0, 3.0]), 1, None, np.array([1.0, 2.0, 3.0])),  # repeat=1，结果等于原数组
+    (np.array([1, 2, 3]), np.array([1, 2, 3]), None, np.array([1, 2, 2, 3, 3, 3])),  # 每个元素不同重复次数
+    (np.array([1, 2, 3]), 0, None, np.array([])),  # repeat=0，结果为空
+    # ===== 2D =====
+    (np.array([[]]), 2, 1, np.array([[]])),  # 空二维数组，沿 axis=1 重复，结果仍为空
+    (np.array([[1, 2], [3, 4]]), 2, 0, np.array([[1, 2], [1, 2], [3, 4], [3, 4]])),  # 沿 axis=0 重复行
+    (np.array([[1, 2], [3, 4]]), 2, 1, np.array([[1, 1, 2, 2], [3, 3, 4, 4]])),  # 沿 axis=1 重复列
+    (np.array([[True, True], [False, True]]), 3, None,
+     np.array([True, True, True, True, True, True, False, False, False, True, True, True])),  # axis=None，展平后整体重复
+    (np.array([[1, 2], [3, 4]]), 0, 0, np.empty((0, 2))),  # 沿 axis=0，repeat=0，结果 shape=(0,2)
+    (np.array([[1, 2], [3, 4]]), 0, 1, np.empty((2, 0))),  # 沿 axis=1，repeat=0，结果 shape=(2,0)
+    (np.array([[1, 2], [3, 4]]), np.array([1, 2]), 0, np.array([[1, 2], [3, 4], [3, 4]])),  # 每行不同重复次数
+    (np.array([[1, 2], [3, 4]]), np.array([2, 1]), 1, np.array([[1, 1, 2], [3, 3, 4]])),  # 每列不同重复次数
+    # ===== 3D =====
+    (np.array([[[]]]), 2, 2, np.array([[[]]])),  # 空三维数组，沿 axis=2 重复，结果仍为空
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 2, 0,
+     np.array([[[1, 2], [3, 4]], [[1, 2], [3, 4]], [[5, 6], [7, 8]], [[5, 6], [7, 8]]])),  # 沿 axis=0 重复 block
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 2, 1,
+     np.array([[[1, 2], [1, 2], [3, 4], [3, 4]], [[5, 6], [5, 6], [7, 8], [7, 8]]])),  # 沿 axis=1 重复行
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 2, 2,
+     np.array([[[1, 1, 2, 2], [3, 3, 4, 4]], [[5, 5, 6, 6], [7, 7, 8, 8]]])),  # 沿 axis=2 重复列
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 4, None,
+     np.array([1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
+               5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8])),  # axis=None，展平后整体重复
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 0, 0, np.empty((0, 2, 2))),  # 沿 axis=0，repeat=0
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 0, 1, np.empty((2, 0, 2))),  # 沿 axis=1，repeat=0
+    (np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), 0, 2, np.empty((2, 2, 0))),  # 沿 axis=2，repeat=0
+]
+
+add_at_test_data = [
+    # (array,indices,values,expected)
+    # 1d
+    (np.array([1, 2, 3, 4, 5]), np.array([0, 0, 1, 1, 1]), np.array([2, 4, 6, 8, 10]), np.array([7, 26, 3, 4, 5])), # 重复索引累加
+    (np.array([1, 2, 3, 4]), np.array([1, 3, 2]), np.array([1, 3, 5]), np.array([1, 3, 8, 7])), # 单索引
+    (np.array([1, 2, 3, 4]), np.array([], dtype=np.int64), np.array([]), np.array([1, 2, 3, 4])), # 空数组的数据类型为float型，而索引只支持整型或者bool型
+    (np.array([2, 4, 6, 8]), np.array([-1, -2]), np.array([5, 10]), np.array([2, 4, 16, 13])), # 单个负索引
+    (np.array([0, 0, 0, 0]), np.array([1, 3]), 2, np.array([0, 2, 0, 2])), # 广播
+    # 2d元组类型
+    (np.array([[1, 2], [3, 4]]), (np.array([0, 0]), np.array([1, 1])), np.array([2, 3]), np.array([[1, 7], [3, 4]])),
+    (np.zeros((3, 3)), (np.array([0, 1, 2]), np.array([0, 1, 2])), np.array([1, 2, 3]), np.array([[1, 0, 0], [0, 2, 0], [0, 0, 3]])),
+    # 2d列表类型(把indices展平)
+    (np.array([[1, 2], [3, 4]]), np.array([[0, 0]]), np.array([1, 2]), np.array([[3, 6], [3, 4]])),
+    (np.zeros((3, 3)), np.array([[0, 1], [0, 0]]), np.array([1, 2, 3]), np.array([[3, 6, 9], [1, 2 ,3], [0, 0, 0]])),
+    # 3d元组类型
+    (np.zeros((2, 3, 3)), (np.array([1, 1, 0, 0]), 
+                           np.array([0, 1, 2, 2]), 
+                           np.array([1, 2, 1, 2])), np.array([2, 4 ,6, 8]), np.array([[[0, 0, 0], [0, 0, 0], [0, 6, 8]], 
+                                                                                      [[0 ,2 ,0], [0, 0, 4], [0, 0, 0]]])), # 单索引
+    (np.zeros((2, 2, 2)), (np.array([0, 1, 1]),
+                           np.array([0, 1, 1]),
+                           np.array([0, 1, 1])), np.array([1, 2, 3]), np.array([[[1, 0], [0, 0]], [[0, 0], [0, 5]]])), # 重复索引累加
+    # 3d列表类型(把indices展平)
+    (np.zeros((3, 3, 3)), np.array([[1, 1], [0, 2], [1, 1]]), np.array([[1, 2, 3],
+                                                                        [2, 3, 4],
+                                                                        [3, 4, 5]]), np.array([[[1, 2, 3], [2, 3, 4], [3, 4, 5]], 
+                                                                                               [[4, 8, 12], [8, 12, 16], [12, 16, 20]],
+                                                                                               [[1, 2, 3], [2, 3, 4], [3, 4, 5]]])),
+]
+
+tensordot_test_data = [
+    # 格式：(a, b, axes, expected)
+    # 1d
+    (np.array([1, 2, 3]), np.array([4, 5, 6]), 0, np.array([[4, 5, 6], [8, 10, 12], [12, 15, 18]])), # 外积
+    (np.array([1, 2, 3]), np.array([4, 5, 6]), 1, np.array([32])), # 内积
+    # 2d(axes 为 int 型)
+    (np.array([[1, 2], [3, 4]]), np.array([[5, 6], [7, 8]]), 0, np.array([[[[5, 6], [7, 8]],
+                                                                          [[10, 12], [14, 16]]],
+                                                                          [[[15, 18], [21, 24]],
+                                                                          [[20, 24], [28, 32]]]])), 
+    (np.array([[1, 3], [5, 7]]), np.array([[2, 4], [6, 8]]), 1, np.array([[20, 28], [52, 76]])),
+    (np.array([[1, 2], [3, 4]]), np.array([[5, 6], [7, 8]]), 2, np.array([70])),
+    # 2d(axes 为 tuple 型)
+    (np.array([[1, 2], [3, 4]]), np.array([[5, 6], [7, 8]]), (0, 0), np.array([[26, 30], [38, 44]])), # TODO:pytorch不支持tuple类型
+    (np.array([[1, 3], [5, 7]]), np.array([[2, 4], [6, 8]]), (1, 1), np.array([[14, 30], [38, 86]])),
+    # 1d、2d 混合(axes 为 int 型)
+    (np.array([1, 2, 3]), np.array([[2, 4], [1, 3]]), 0, np.array([[[2, 4], [1, 3]], 
+                                                                   [[4, 8], [2, 6]], 
+                                                                   [[6, 12], [3, 9]]])),
+    (np.array([1, 2]), np.array([[1, 3], [5, 7]]), 1, np.array([11, 17])),
+    # 1d、2d 混合(axes 为 tuple 型)
+    (np.array([1, 2]), np.array([[1, 3], [5, 7]]), (0, 1), np.array([7, 19])),
+]
+
 unique_data = [
         {
             "input": np.array([[0, 3], [2, 5], [0, 3], [1, 4], [7, 8], [1, 4]], dtype=np.int32),
