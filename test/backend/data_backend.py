@@ -1,4 +1,5 @@
 import numpy as np
+
 unique_data = [
         {
             "input": np.array([[0, 3], [2, 5], [0, 3], [1, 4], [7, 8], [1, 4]], dtype=np.int32),

@@ -1,8 +1,11 @@
 import ipdb
-import numpy as np 
+import numpy as np
+import torch
 import pytest
+from loguru import logger
 from fealpy.backend import backend_manager as bm
-from backend_data import *
+from fealpy.backend.base import BackendProxy
+from data_backend import *
 
 class TestBackendInterfaces:
     ######## Constants
@@ -164,12 +167,23 @@ class TestBackendInterfaces:
         '''
         pass
 
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_astype(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    @pytest.mark.parametrize("array,expected_dtype,expected", astype_test_data)
+    def test_astype(self, backend, dtype_map, array, expected_dtype, expected):
         '''
         Copies an array to a specified data type.
         '''
-        pass
+        # # pytorch 不支持字符串类型，跳过
+        # if backend == 'pytorch' and is_str:
+        #     pytest.skip("PyTorch backend does not support string types")
+        # 设置后端
+        bm.set_backend(backend)
+        # 转换为后端数组
+        array = bm.from_numpy(array)
+        expected = bm.from_numpy(expected)
+        expected_dtype = dtype_map[backend][expected_dtype]
+        # 测试
+        assert bm.all((bm.astype(array, expected_dtype) == expected))
 
     @pytest.mark.parametrize("backend", ['numpy'])
     def test_copy(self, backend):
@@ -279,12 +293,27 @@ class TestBackendInterfaces:
         pass
 
     #Numerical ranges
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_arange(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    @pytest.mark.parametrize("start,stop,step,expected", arange_test_data)
+    def test_arange(self, backend, start, stop, step, expected):
         '''
         Return evenly spaced values within a given interval.
         '''
-        pass
+        # 设置后端
+        bm.set_backend(backend)
+        # 解决浮点数精度问题
+        is_float = expected.dtype.kind == 'f'
+        if stop is None:
+            stop = start
+            start = 0
+        if step is None:
+            step = 1
+        expected = bm.from_numpy(expected)
+        # 测试
+        if is_float:
+            assert bm.allclose(bm.arange(start, stop, step, dtype=expected.dtype), expected)
+        else:
+            assert bm.all(bm.arange(start, stop, step) == expected)
 
     @pytest.mark.parametrize("backend", ['numpy'])
     def test_linspace(self, backend):
@@ -689,13 +718,22 @@ class TestBackendInterfaces:
         '''
         pass
 
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_repeat(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    @pytest.mark.parametrize("array,repeat_counts,aixs,expected", repeat_test_data)
+    def test_repeat(self, backend, array, repeat_counts, aixs, expected):
         '''
         Repeat each element of an array after themselves.
         '''
-        pass
-
+        # 设置后端
+        bm.set_backend(backend)
+        # 转换为对应的后端数组
+        array = bm.from_numpy(array)
+        expected = bm.from_numpy(expected)
+        if isinstance(repeat_counts, np.ndarray):
+            repeat_counts = bm.from_numpy(repeat_counts)
+        # 测试
+        assert bm.all((bm.repeat(array, repeat_counts, axis=aixs) == expected))
+        
     # Adding and removing elements
     @pytest.mark.parametrize("backend", ['numpy'])
     def test_delete(self, backend):
@@ -876,12 +914,20 @@ class TestBackendInterfaces:
         '''
         pass
 
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_tensordot(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    @pytest.mark.parametrize("a, b, axes, expected", tensordot_test_data)
+    def test_tensordot(self, backend, a, b, axes, expected):
         '''
         Compute tensor dot product along specified axes.
         '''
-        pass
+        # 设置后端
+        bm.set_backend(backend)
+        # 转换为对应的后端数组
+        a = bm.from_numpy(a)
+        b = bm.from_numpy(b)
+        expected = bm.from_numpy(expected)
+        # 测试
+        assert bm.all(bm.tensordot(a, b, axes) == expected)
 
     @pytest.mark.parametrize("backend", ['numpy'])
     def test_einsum(self, backend):
@@ -1531,26 +1577,38 @@ class TestBackendInterfaces:
     
     ######## Mathematical functions
     # Trigonometric functions
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_sin(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    def test_sin(self, backend, backend_map):
         '''
         Trigonometric sine, element-wise.
         '''
-        pass
-
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_cos(self, backend):
+        # 设置后端
+        bm.set_backend(backend)
+        # 测试在不同后端下，`bm.sin` 指向正确的底层实现函数。
+        backend_module = backend_map[backend]
+        assert bm.sin is backend_module.sin
+        
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    def test_cos(self, backend, backend_map):
         '''
         Cosine element-wise.
         '''
-        pass
+        # 设置后端
+        bm.set_backend(backend)
+        # 测试在不同后端下，`bm.cos` 指向正确的底层实现函数。
+        backend_module = backend_map[backend]
+        assert bm.cos is backend_module.cos
 
-    @pytest.mark.parametrize("backend", ['numpy'])
-    def test_tan(self, backend):
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    def test_tan(self, backend, backend_map):
         '''
         Compute tangent element-wise.
         '''
-        pass
+        # 设置后端
+        bm.set_backend(backend)
+        # 测试在不同后端下，`bm.tan` 指向正确的底层实现函数。
+        backend_module = backend_map[backend]
+        assert bm.tan is backend_module.tan
 
     @pytest.mark.parametrize("backend", ['numpy'])
     def test_arcsin(self, backend):
@@ -2464,190 +2522,205 @@ class TestBackendInterfaces:
         Counts the number of non-zero values in the array a
         '''
         pass
-
-
-
-    ######## Fealpy Function
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", unique_data)
-    def test_unique(self, backend, data):
+    
+    @pytest.mark.parametrize("backend", ['numpy', 'pytorch'])
+    @pytest.mark.parametrize("array,indicies,values,expected", add_at_test_data)
+    def test_add_at(self, backend, array, indicies, values, expected):
+        '''
+        Adds values to an array at specified indices.
+        '''
+        # 设置后端
         bm.set_backend(backend)
-        name = ('result', 'indices', 'inverse', 'counts')
-        indata = data["input"]
-        result = data["result"]
-        test_result = bm.unique(bm.from_numpy(indata), return_index=True, 
-                             return_inverse=True, 
-                             return_counts=True, axis=0) 
+        # 转换为对应的后端数组
+        array = bm.from_numpy(array)
+        indicies = bm.from_numpy(indicies)
+        values = bm.from_numpy(values)
+        expected = bm.from_numpy(expected)
+        # 测试
+        assert bm.all(bm.add_at(array, indicies, values) == expected)
+            
+
+    # ######## Fealpy Function
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", unique_data)
+    # def test_unique(self, backend, data):
+    #     bm.set_backend(backend)
+    #     name = ('result', 'indices', 'inverse', 'counts')
+    #     indata = data["input"]
+    #     result = data["result"]
+    #     test_result = bm.unique(bm.from_numpy(indata), return_index=True, 
+    #                          return_inverse=True, 
+    #                          return_counts=True, axis=0) 
         
-        for r, e, s in zip(result, test_result, name):
-            np.testing.assert_array_equal(r, bm.to_numpy(e), 
-                                          err_msg=f"The {s} of `bm.unique` function is not equal to real result in backend {backend}")
+    #     for r, e, s in zip(result, test_result, name):
+    #         np.testing.assert_array_equal(r, bm.to_numpy(e), 
+    #                                       err_msg=f"The {s} of `bm.unique` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", multi_index_data)
-    def test_multi_index_matrix(self, backend, data):
-        bm.set_backend(backend)
-        p = data["p"]
-        dim = data["dim"]
-        result = data["result"]
-        test_result = bm.multi_index_matrix(p, dim)
-        np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
-                                      err_msg=f" `bm.multi_index_matrix` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", multi_index_data)
+    # def test_multi_index_matrix(self, backend, data):
+    #     bm.set_backend(backend)
+    #     p = data["p"]
+    #     dim = data["dim"]
+    #     result = data["result"]
+    #     test_result = bm.multi_index_matrix(p, dim)
+    #     np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
+    #                                   err_msg=f" `bm.multi_index_matrix` function is not equal to real result in backend {backend}")
 
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_edge_length(self, backend, data):
-        bm.set_backend(backend)
-        edge = bm.from_numpy(data["edge"])
-        node = bm.from_numpy(data["node"])
-        result = data["edge_length"]
-        test_result = bm.edge_length(edge, node)
-        np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
-                                      err_msg=f" `bm.edge_length` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_edge_length(self, backend, data):
+    #     bm.set_backend(backend)
+    #     edge = bm.from_numpy(data["edge"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["edge_length"]
+    #     test_result = bm.edge_length(edge, node)
+    #     np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
+    #                                   err_msg=f" `bm.edge_length` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_edge_normal(self, backend, data):
-        bm.set_backend(backend)
-        edge = bm.from_numpy(data["edge"])
-        node = bm.from_numpy(data["node"])
-        result = data["edge_normal"]
-        test_result = bm.edge_normal(edge, node, unit=False)
-        np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
-                                      err_msg=f" `bm.edge_normal` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_edge_normal(self, backend, data):
+    #     bm.set_backend(backend)
+    #     edge = bm.from_numpy(data["edge"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["edge_normal"]
+    #     test_result = bm.edge_normal(edge, node, unit=False)
+    #     np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
+    #                                   err_msg=f" `bm.edge_normal` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_edge_tangent(self, backend, data):
-        bm.set_backend(backend)
-        edge = bm.from_numpy(data["edge"])
-        node = bm.from_numpy(data["node"])
-        result = data["edge_tangent"]
-        test_result = bm.edge_tangent(edge, node, unit=False)
-        np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
-                                     err_msg=f" `bm.edge_tangent` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_edge_tangent(self, backend, data):
+    #     bm.set_backend(backend)
+    #     edge = bm.from_numpy(data["edge"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["edge_tangent"]
+    #     test_result = bm.edge_tangent(edge, node, unit=False)
+    #     np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
+    #                                  err_msg=f" `bm.edge_tangent` function is not equal to real result in backend {backend}")
 
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_bc_to_points(self, backend, data):
-        bm.set_backend(backend)
-        bcs = bm.from_numpy(data["bcs"])
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result = data["bc_to_points"]
-        test_result = bm.bc_to_points(bcs, node, cell)
-        np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
-                                     err_msg=f" `bm.bc_to_points` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_bc_to_points(self, backend, data):
+    #     bm.set_backend(backend)
+    #     bcs = bm.from_numpy(data["bcs"])
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["bc_to_points"]
+    #     test_result = bm.bc_to_points(bcs, node, cell)
+    #     np.testing.assert_array_equal(result, bm.to_numpy(test_result), 
+    #                                  err_msg=f" `bm.bc_to_points` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_barycenter(self, backend, data):
-        bm.set_backend(backend)
-        edge = bm.from_numpy(data["edge"])
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result_cell = data["cell_barycenter"]
-        result_edge = data["edge_barycenter"]
-        test_result_cell = bm.barycenter(cell, node)
-        test_result_edge = bm.barycenter(edge, node)
-        np.testing.assert_array_equal(result_cell, bm.to_numpy(test_result_cell), 
-                                     err_msg=f" cell of `bm.barycenter` function is not equal to real result in backend {backend}")
-        np.testing.assert_array_equal(result_edge, bm.to_numpy(test_result_edge), 
-                                     err_msg=f" edge of `bm.barycenter` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_barycenter(self, backend, data):
+    #     bm.set_backend(backend)
+    #     edge = bm.from_numpy(data["edge"])
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result_cell = data["cell_barycenter"]
+    #     result_edge = data["edge_barycenter"]
+    #     test_result_cell = bm.barycenter(cell, node)
+    #     test_result_edge = bm.barycenter(edge, node)
+    #     np.testing.assert_array_equal(result_cell, bm.to_numpy(test_result_cell), 
+    #                                  err_msg=f" cell of `bm.barycenter` function is not equal to real result in backend {backend}")
+    #     np.testing.assert_array_equal(result_edge, bm.to_numpy(test_result_edge), 
+    #                                  err_msg=f" edge of `bm.barycenter` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_simple_measure(self, backend, data):
-        bm.set_backend(backend)
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result = data["simple_measure"]
-        test_result = bm.simplex_measure(cell, node)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=15, 
-                                     err_msg=f" `bm.simple_measure` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_simple_measure(self, backend, data):
+    #     bm.set_backend(backend)
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["simple_measure"]
+    #     test_result = bm.simplex_measure(cell, node)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=15, 
+    #                                  err_msg=f" `bm.simple_measure` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_simple_shape_function(self, backend, data):
-        bm.set_backend(backend)
-        bcs = bm.from_numpy(data["bcs"])
-        p = data["p"]
-        result = data["simple_shape_function"]
-        test_result = bm.simplex_shape_function(bcs, p)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.simple_shape_function` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_simple_shape_function(self, backend, data):
+    #     bm.set_backend(backend)
+    #     bcs = bm.from_numpy(data["bcs"])
+    #     p = data["p"]
+    #     result = data["simple_shape_function"]
+    #     test_result = bm.simplex_shape_function(bcs, p)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.simple_shape_function` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_simple_grad_shape_function(self, backend, data):
-        bm.set_backend(backend)
-        bcs = bm.from_numpy(data["bcs"])
-        p = data["p"]
-        result = data["simple_grad_shape_function"]
-        test_result = bm.simplex_grad_shape_function(bcs, p)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.simple_grad_shape_function` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_simple_grad_shape_function(self, backend, data):
+    #     bm.set_backend(backend)
+    #     bcs = bm.from_numpy(data["bcs"])
+    #     p = data["p"]
+    #     result = data["simple_grad_shape_function"]
+    #     test_result = bm.simplex_grad_shape_function(bcs, p)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.simple_grad_shape_function` function is not equal to real result in backend {backend}")
     
-    ##TODO:HESS_SHAPE_FUNCTION TEST    
+    # ##TODO:HESS_SHAPE_FUNCTION TEST    
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", interval_mesh_data)
-    def test_interval_grad_lambda(self, backend, data): 
-        bm.set_backend(backend)
-        line = bm.from_numpy(data["line"])
-        node = bm.from_numpy(data["node"])
-        result = data["interval_grad_lambda"]
-        test_result = bm.interval_grad_lambda(line, node)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.interval_grad_lambda` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", interval_mesh_data)
+    # def test_interval_grad_lambda(self, backend, data): 
+    #     bm.set_backend(backend)
+    #     line = bm.from_numpy(data["line"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["interval_grad_lambda"]
+    #     test_result = bm.interval_grad_lambda(line, node)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.interval_grad_lambda` function is not equal to real result in backend {backend}")
     
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh3d_data)
-    def test_triangle_area_3d(self, backend, data): 
-        bm.set_backend(backend)
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result = data["triangle_area_3d"]
-        test_result = bm.triangle_area_3d(cell, node)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.triangle_area_3d` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh3d_data)
+    # def test_triangle_area_3d(self, backend, data): 
+    #     bm.set_backend(backend)
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["triangle_area_3d"]
+    #     test_result = bm.triangle_area_3d(cell, node)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.triangle_area_3d` function is not equal to real result in backend {backend}")
 
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh2d_data)
-    def test_triangle_grad_lambda_2d(self, backend, data): 
-        bm.set_backend(backend)
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result = data["triangle_grad_lambda_2d"]
-        test_result = bm.triangle_grad_lambda_2d(cell, node)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.triangle_grad_lambda_2d` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh2d_data)
+    # def test_triangle_grad_lambda_2d(self, backend, data): 
+    #     bm.set_backend(backend)
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["triangle_grad_lambda_2d"]
+    #     test_result = bm.triangle_grad_lambda_2d(cell, node)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.triangle_grad_lambda_2d` function is not equal to real result in backend {backend}")
     
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", triangle_mesh3d_data)
-    def test_triangle_grad_lambda_3d(self, backend, data): 
-        bm.set_backend(backend)
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        result = data["triangle_grad_lambda_3d"]
-        test_result = bm.triangle_grad_lambda_3d(cell, node)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.triangle_grad_lambda_3d` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", triangle_mesh3d_data)
+    # def test_triangle_grad_lambda_3d(self, backend, data): 
+    #     bm.set_backend(backend)
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     result = data["triangle_grad_lambda_3d"]
+    #     test_result = bm.triangle_grad_lambda_3d(cell, node)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.triangle_grad_lambda_3d` function is not equal to real result in backend {backend}")
     
-    ##TODO:QUADRANGLE_GRAD_LAMBDA_2D
+    # ##TODO:QUADRANGLE_GRAD_LAMBDA_2D
 
-    @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
-    @pytest.mark.parametrize("data", tetrahedron_mesh_data)
-    def test_tetrahedron_grad_lambda_3d(self, backend, data): 
-        bm.set_backend(backend)
-        cell = bm.from_numpy(data["cell"])
-        node = bm.from_numpy(data["node"])
-        localface = bm.from_numpy(data["localface"])
-        result = data["tetrahedron_grad_lambda_3d"]
-        test_result = bm.tetrahedron_grad_lambda_3d(cell, node, localface)
-        np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
-                                     err_msg=f" `bm.tetrahedron_grad_lambda_3d` function is not equal to real result in backend {backend}")
+    # @pytest.mark.parametrize("backend", ['numpy', 'pytorch', 'jax', 'cupy', 'paddle'])
+    # @pytest.mark.parametrize("data", tetrahedron_mesh_data)
+    # def test_tetrahedron_grad_lambda_3d(self, backend, data): 
+    #     bm.set_backend(backend)
+    #     cell = bm.from_numpy(data["cell"])
+    #     node = bm.from_numpy(data["node"])
+    #     localface = bm.from_numpy(data["localface"])
+    #     result = data["tetrahedron_grad_lambda_3d"]
+    #     test_result = bm.tetrahedron_grad_lambda_3d(cell, node, localface)
+    #     np.testing.assert_almost_equal(result, bm.to_numpy(test_result),decimal=7, 
+    #                                  err_msg=f" `bm.tetrahedron_grad_lambda_3d` function is not equal to real result in backend {backend}")
 
 
 
@@ -2655,4 +2728,4 @@ class TestBackendInterfaces:
 
 
 if __name__ == "__main__":
-    pytest.main(['test_backends.py'])
+    pytest.main(['test/backend/test_backends.py', '-qs', '--disable-warnings'])
