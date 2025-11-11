@@ -1,5 +1,11 @@
+from fealpy.backend import backend_manager as bm
+from fealpy.backend import TensorLike
 from fealpy.fem import LinearForm, BilinearForm, BlockForm, LinearBlockForm
-from fealpy.fem import ( PressWorkIntegrator, ScalarDiffusionIntegrator, SourceIntegrator)
+from fealpy.fem import DirichletBC
+from fealpy.fem import (ScalarMassIntegrator, FluidBoundaryFrictionIntegrator,
+                     ScalarConvectionIntegrator, PressWorkIntegrator, ScalarDiffusionIntegrator,
+                     ViscousWorkIntegrator, SourceIntegrator, BoundaryFaceSourceIntegrator)
+from fealpy.decorator import barycentric
 
 from ..iterative_method import IterativeMethod 
 
@@ -12,8 +18,16 @@ class Stokes(IterativeMethod):
         q = self.q
         
         A00 = BilinearForm(uspace)
-        self.u_BVW = ScalarDiffusionIntegrator(q=q)
+        self.u_BM_netwon = ScalarMassIntegrator(q=q)
+
+        if self.equation.constitutive.value == 1:
+            self.u_BVW = ScalarDiffusionIntegrator(q=q)
+        elif self.equation.constitutive.value == 2:
+            self.u_BVW = ViscousWorkIntegrator(q=q)
+        else:
+            raise ValueError(f"未知的粘性模型")
         
+        A00.add_integrator(self.u_BM_netwon)
         A00.add_integrator(self.u_BVW)
         
         A01 = BilinearForm((pspace, uspace))
@@ -30,7 +44,7 @@ class Stokes(IterativeMethod):
 
         L0 = LinearForm(uspace)
         self.u_source_LSI = SourceIntegrator(q=q)
-        L0.add_integrator(self.u_source_LSI)
+        L0.add_integrator(self.u_source_LSI) 
         L1 = LinearForm(pspace)
         L = LinearBlockForm([L0, L1])
         return L

@@ -1,7 +1,7 @@
 from typing import Protocol, Sequence, TypeVar
 from fealpy.backend import TensorLike
 
-class StationsryNSPDEDataProtocol(Protocol):
+class IncompressibleNSPDEDataProtocol(Protocol):
     """Protocol interface for Navier-Stokes PDE data components with viscosity, convertion and source terms.
     
     Defines the recommended protocol interface for Navier-Stokes partial differential equation solvers.
@@ -27,13 +27,19 @@ class StationsryNSPDEDataProtocol(Protocol):
     def is_pressure_boundary(self, p: TensorLike) -> TensorLike: ...
     def source(self, p: TensorLike) -> TensorLike: ...
     def _init_expr(self) -> None: ...
+    # def neumann(self, p: TensorLike) -> TensorLike: ...
+    # def is_neumann_boundary(self, p: TensorLike) -> TensorLike: ...
+    # def robin(self, p: TensorLike) -> TensorLike: ...
+    # def is_robin_boundary(self, p: TensorLike) -> TensorLike: ...
 
-StationaryNSPDEDataT = TypeVar('StationaryNSPDEDataT', bound=StationsryNSPDEDataProtocol)
+StationaryNSPDEDataT = TypeVar('StationaryNSPDEDataT', bound=IncompressibleNSPDEDataProtocol)
 """
 DATA_TABLE is a registry, when adding new PDE models, 
 follow the existing examples to register them in the registry.
 """
 DATA_TABLE = {
     # example name: (file_name, class_name)
-    1: ("cylinder2d", "Cylinder2d")
+    1: ("poiseuille_2d", "Poiseuille2D"),
+    2: ("cylinder_2d", "Cylinder2D")
+    # 3: ("exp0003", "Exp0003"),
 }
