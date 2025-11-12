@@ -3,7 +3,7 @@ FEALPy Computing Graph
 ============
 """
 
-from .core import WORLD_GRAPH, Graph
+from .core import *
 from .nodetype import CNodeType, search, create, from_dict, to_dict
 from .registry import *
 
@@ -20,7 +20,8 @@ __nodes__ = [
     "opt",
     "pathplanning",
     "sampling",
-    "material"
+    "material",
+    "postreport"
 ]
 
 register_all_nodes()
