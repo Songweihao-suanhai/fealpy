@@ -11,3 +11,6 @@ from .dipole_antenna3d import DipoleAntenna3D
 from .beam2d import Beam2d
 from .truss3d import *
 from .couette_flow import CouetteFlow
+from .rayleightaylor import RayleighTaylor
+from .linear_elasticity_eigen3d import LinearElasticityEigen3d
+from .microstrip_antenna3d import *
