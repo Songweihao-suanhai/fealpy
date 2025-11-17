@@ -72,6 +72,9 @@ class RayleighTaylor(CNodeType):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian
         from fealpy.mesh import TriangleMesh
+
+        bm.set_backend('pytorch')
+        bm.set_default_device('cpu')
         class RayleignTaylor:
             def __init__(self, options: dict = {}):
                 self.rho_up = options.get('rho_up', 3)
