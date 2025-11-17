@@ -2,7 +2,8 @@
 from ..nodetype import CNodeType, PortConf, DataType
 from .utils import get_mesh_class
 
-__all__ = ["CreateMesh", "DLDMicrofluidicChipMesh2d"]
+__all__ = ["CreateMesh", "DLDMicrofluidicChipMesh2d", "DLDMicrofluidicChipMesh3d",
+           "TrussTowerMesh"]
 
 
 class CreateMesh(CNodeType):
@@ -212,3 +213,56 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
 
         return (mesher.mesh, mesher.options.get('thickness'),mesher.radius, mesher.centers, mesher.inlet_boundary, 
                 mesher.outlet_boundary, mesher.wall_boundary)
+
+
+class TrussTowerMesh(CNodeType):
+    r"""Generate a 3D mesh for a truss tower structure.
+
+    Inputs:
+        n_panel (int): Number of vertical panels.
+        Lz (float): Total height in the z-direction.
+        Wx (float): Half-length in the x-direction.
+        Wy (float): Half-length in the y-direction.
+        lc (float): Characteristic length for mesh size control.
+        ne_per_bar (int): Number of elements per bar.
+        face_diag (bool): Whether to include face diagonal bracing.
+        
+    Outputs:
+        mesh (Mesh): The generated 3D truss tower mesh.
+    """
+    TITLE: str = "桁架塔网格"
+    PATH: str = "preprocess.mesher"
+    DESC: str = """该节点生成三维桁架塔结构的网格剖分，沿z轴方向构建长条状桁架，
+                支持面板数量、截面尺寸、单元密度等配置。"""
+                
+    INPUT_SLOTS = [
+        PortConf("n_panel", DataType.INT, 1, desc="沿 z 方向的面板数量（≥1）", title="面板数量", default=19),
+        PortConf("Lz", DataType.FLOAT, 1, desc="桁架塔沿 z 方向的总长度", title="总长度 (z方向)", default=19.0),
+        PortConf("Wx", DataType.FLOAT, 1, desc="截面矩形的 x 方向半宽度", title="截面宽度 (x方向)", default=0.45),
+        PortConf("Wy", DataType.FLOAT, 1, desc="截面矩形的 y 方向半宽度", title="截面高度 (y方向)", default=0.40),
+        PortConf("lc", DataType.FLOAT, 1, desc="用于控制网格尺寸的几何特征长度", title="几何点特征长度", default=0.1),
+        PortConf("ne_per_bar", DataType.INT, 1, desc="每根杆件沿长度方向划分的单元数量（≥1）", title="每根杆件单元数", default=1),
+        PortConf("face_diag", DataType.BOOL, 0, desc="是否在四个侧面加入面内对角线加劲杆件（默认 True）", title="面内对角加劲", default=True)
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, desc="生成桁架塔网格", title="网格")
+    ]
+    
+    @staticmethod
+    def run(**options):
+        from fealpy.csm.mesh.truss_tower import TrussTower
+
+        node, cell = TrussTower.build_truss_3d_zbar(
+            n_panel=options.get("n_panel"),
+            Lz=options.get("Lz"),
+            Wx=options.get("Wx"),
+            Wy=options.get("Wy"),
+            lc=options.get("lc"),
+            ne_per_bar=options.get("ne_per_bar"),
+            face_diag=options.get("face_diag"),
+            save_msh=None
+        )
+        
+        from fealpy.mesh import EdgeMesh
+        mesh = EdgeMesh(node, cell)
+        return mesh

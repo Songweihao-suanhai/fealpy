@@ -1,7 +1,7 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BarMaterial"]
+__all__ = ["BarMaterial", "TrussTowerMaterial"]
 
 
 class BarMaterial(CNodeType):
@@ -38,3 +38,49 @@ class BarMaterial(CNodeType):
     @staticmethod
     def run(property="Steel", bar_E=1500, bar_A=2000):
         return bar_E, bar_A
+    
+    
+class TrussTowerMaterial(CNodeType):
+    r"""Axle Material Definition Node.
+    
+        Inputs:
+            property (string): Material name, e.g., "Steel".
+            type (string): Type of axle material.
+            E (float): Elastic modulus of the axle material.
+            nu (float): Poisson’s ratio of the axle material.
+ 
+        Outputs:
+            E (float): Elastic modulus of the axle material.
+            mu (float): Shear modulus, computed as `E / [2(1 + nu)]`.
+    
+    """
+    TITLE: str = "桁架塔材料属性"
+    PATH: str = "preprocess.material"
+    DESC: str = "定义桁架塔的线弹性材料属性，包括弹性模量、泊松比"
+    INPUT_SLOTS = [
+        PortConf("property", DataType.STRING, 0, desc="材料名称（如钢、铝等）", title="材料材质", default="Steel"),
+        PortConf("type", DataType.STRING, 0, desc="材料类型", title="杆件材料", default="bar"),
+        PortConf("E", DataType.FLOAT, 0, desc="杆件的弹性模量", title="弹性模量", default=2.0e11),
+        PortConf("nu", DataType.FLOAT, 0, desc="杆件的泊松比", title="泊松比", default=0.3)
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("E", DataType.FLOAT, title="弹性模量")
+    ]
+    
+    @staticmethod
+    def run(property, type, E, nu):
+        from fealpy.csm.model.truss.truss_tower_data_3d import TrussTowerData3D
+        from fealpy.csm.material import BarMaterial
+        
+        model = TrussTowerData3D()
+        material = BarMaterial(
+            model=model,
+            name=type,
+            elastic_modulus=E,
+            poisson_ratio=nu
+        )
+        
+        return tuple(
+            getattr(material, name) for name in ["E"]
+        )
