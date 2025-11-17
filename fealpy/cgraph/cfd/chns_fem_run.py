@@ -82,7 +82,8 @@ class CHNSFEMRun(CNodeType):
         PortConf("is_ux_boundary", DataType.FUNCTION, title="速度 x 分量边界"),
         PortConf("is_uy_boundary", DataType.FUNCTION, title="速度 y 分量边界"),
         PortConf("init_interface", DataType.FUNCTION, title="初始界面函数"),
-        PortConf("mesh", DataType.MESH, title="网格")
+        PortConf("mesh", DataType.MESH, title="网格"),
+        PortConf("output_dir", DataType.STRING, title="输出目录")
     ]
     OUTPUT_SLOTS = [
         PortConf("u", DataType.FUNCTION, title="速度场"),
@@ -93,12 +94,16 @@ class CHNSFEMRun(CNodeType):
     ]
     @staticmethod
     def run(dt, nt, rho_up, rho_down, Fr, ns_update, ch_update,phispace, 
-            uspace, pspace, is_ux_boundary, is_uy_boundary, init_interface, mesh):
+            uspace, pspace, is_ux_boundary, is_uy_boundary, init_interface, 
+            mesh, output_dir):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
         import time
+        import os
+        import gzip
+        import json
 
         def set_rho(phi, rho_up, rho_down):
             result = phi.space.function()
@@ -120,10 +125,10 @@ class CHNSFEMRun(CNodeType):
         u2 = uspace.function()
         p1 = pspace.function()
         p2 = pspace.function()
-        mesh.nodedata['phi'] = phi1
-        mesh.nodedata['velocity'] = u1.reshape(2,-1).T  
-        fname = './' + 'test_'+ str(1).zfill(10) + '.vtu'
-        mesh.to_vtk(fname=fname)
+        # mesh.nodedata['phi'] = phi1
+        # mesh.nodedata['velocity'] = u1.reshape(2,-1).T  
+        # fname = './' + 'test_'+ str(1).zfill(10) + '.vtu'
+        # mesh.to_vtk(fname=fname)
 
         is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
         is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
@@ -135,6 +140,14 @@ class CHNSFEMRun(CNodeType):
         left_bd = bm.where(bm.abs(node[:, 0]) < tol)[0]
         right_bd = bm.where(bm.abs(node[:, 0]-1.0) < tol)[0]
 
+        n_files = 10
+        n_makeder = 10
+        file_nt = nt // n_files + 1
+        makeder_nt = file_nt // n_makeder + 1
+        node = mesh.interpolation_points(p=1)
+        cell = mesh.entity('cell')
+        data = []
+        j = 0
 
         for i in range(nt):
             # 设置参数
@@ -199,11 +212,40 @@ class CHNSFEMRun(CNodeType):
             print("界面与右边界交点:", right_point)
 
             
-            mesh.nodedata['phi'] = phi2
-            mesh.nodedata['velocity'] = u2.reshape(2,-1).T  
-            mesh.nodedata['pressure'] = p2 
-            mesh.nodedata['rho'] = rho
-            fname = './' + 'test_'+ str(i+1).zfill(10) + '.vtu'
-            mesh.to_vtk(fname=fname)
+            # mesh.nodedata['phi'] = phi2
+            # mesh.nodedata['velocity'] = u2.reshape(2,-1).T  
+            # mesh.nodedata['pressure'] = p2 
+            # mesh.nodedata['rho'] = rho
+            # fname = './' + 'test_'+ str(i+1).zfill(10) + '.vtu'
+            # mesh.to_vtk(fname=fname)
+
+            if (i+1) % makeder_nt == 0 or i == 0 or (i+1) == nt:
+
+                os.makedirs(output_dir, exist_ok=True)  # 创建目录
+
+                data.append ({
+                "time": round((i+1) * dt, 8),
+                "值":{
+                    "uh" : u2.tolist(),  # ndarray -> list
+                    "uh_x" : u2[..., 0].tolist(),  # ndarray -> list
+                    "uh_y" : u2[..., 1].tolist(),  # ndarray -> list
+                    "ph" : p2.tolist(),  # ndarray -> list
+                    "phi" : phi2.tolist()
+                }, 
+                "几何": {
+                    "cell": cell.tolist(),  # ndarray -> list
+                    "node": node.tolist()   # ndarray -> list
+                }
+                })
+            
+            if len(data) == 10 or i == nt -1:
+                j += 1
+                file_name = f"file_{j:08d}.json.gz"
+                file_path = os.path.join(output_dir, file_name)
+
+                with gzip.open(file_path, "wt", encoding="utf-8") as f:
+                    json.dump(data, f, indent=4, ensure_ascii=False)
+                
+                data.clear()
 
         return u2, u2[:, 0], u2[:, 1], p2, phi2
