@@ -57,12 +57,10 @@ class TrussTower3d(CNodeType):
         
     Outputs:
         GD (INT): Geometric dimension of the model.
-        Av (float): Cross-sectional area of vertical rods (m²).
-        Ao (float): Cross-sectional area of other rods (m²).
-        Iv (float): Area moment of inertia of vertical rods (m⁴).
-        Io (float): Area moment of inertia of other rods (m⁴).
-        I1 (float): Structural inertia in depth direction (m⁴).
-        I2 (float): Structural inertia in width direction (m⁴).
+        dov (float): Outer diameter of vertical rods (m).
+        div (float): Inner diameter of vertical rods (m).
+        doo (float): Outer diameter of other rods (m).
+        dio (float): Inner diameter of other rods (m).
         external_load (Function): Global load vector.
         dirichlet_dof (Function): Dirichlet boundary DOF indices.
     """
