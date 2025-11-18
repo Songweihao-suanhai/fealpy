@@ -183,34 +183,3 @@ class AntennaPostprocess(CNodeType):
         return E
     
 
-class TO_VTK(CNodeType):
-    r"""Convert simulation results to VTK format for visualization.
-
-    Inputs:
-        mesh (mesh): Computational mesh.
-        uh (tensor): Numerical solution vector.
-        filename (str): Output VTK file name.
-    Outputs:
-        None
-    """
-    TITLE: str = "导出VTK文件"
-    PATH: str = "后处理.导出VTK"
-    DESC: str = "将模拟结果导出为VTK格式文件，便于使用可视化工具进行后续分析与展示。"
-    INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("uh", DataType.TENSOR, title="数值解"),
-        PortConf("path", DataType.STRING, title="导出路径")
-    ]
-    OUTPUT_SLOTS = [
-        PortConf("path", DataType.STRING, title="导出路径")
-    ]   
-    @staticmethod
-    def run(mesh, uh, path):
-        import os
-        os.makedirs(path, exist_ok=True)
-        fname = path + f"/test.vtu"
-        mesh.nodedata["uh"] = uh
-        mesh.to_vtk(fname = fname)
-
-        return path
-
