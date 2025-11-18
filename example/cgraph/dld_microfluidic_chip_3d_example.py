@@ -11,8 +11,9 @@ pspacer = cgraph.create("FunctionSpace")
 dld_eq = cgraph.create("StokesEquation")
 solver = cgraph.create("CGSolver")
 postprocess = cgraph.create("VPDecoupling")
+to_vtk = cgraph.create("TO_VTK")
 
-mesher(lc = 0.04)
+mesher(lc = 0.07)
 uspacer(mesh = mesher(), p=2, gd = 3)
 pspacer(mesh = mesher(), p=1)
 pde(thickness = mesher().thickness,
@@ -32,9 +33,12 @@ solver(A = dld_eq().bform,
 postprocess(out = solver().out, 
             uspace = uspacer(),
             mesh = mesher())
+to_vtk(mesh = mesher(),
+        uh = postprocess().uh,
+        path = "/home/libz/dld_3d")
 
 # 最终连接到图输出节点上
-WORLD_GRAPH.output(uh = postprocess().uh)
+WORLD_GRAPH.output(path = to_vtk().path)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
