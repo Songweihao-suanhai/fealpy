@@ -11,6 +11,7 @@ axle_materialer = cgraph.create("AxleMaterial")
 timoaxle_model = cgraph.create("Timoaxle")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
+strain_stress = cgraph.create("TimoAxleStrainStress")
 # report = cgraph.create("SolidReport")
 
 # 连接节点
@@ -66,6 +67,22 @@ solver(A = timoaxle_model().K,
        b = timoaxle_model().F)
 
 postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
+
+strain_stress(
+    beam_para = model().beam_para,
+    axle_para = model().axle_para,
+    R = model().R,
+    beam_E = beam_materialer().E,
+    beam_nu = beam_materialer().nu,
+    axle_E = axle_materialer().E,
+    axle_nu = axle_materialer().nu,
+    mesh=mesher(), 
+    uh = solver().out,
+    y = 0.0,
+    z = 0.0,
+    beam_num = None,
+    axle_num = None
+       )
 # report(
 #     path = r"C:\Users\Administrator\Desktop",
 #     beam_para = model().beam_para,
@@ -75,7 +92,7 @@ postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
 #     mesh=mesher(), 
 #     property="Steel",
 #     beam_E = beam_materialer().E,
-#     beam_mu = beam_materialer().mu,
+#     beam_mu = beam_materialer().mu, 
 #     axle_E = axle_materialer().E,
 #     axle_mu = axle_materialer().mu,
 #     uh = solver().out
