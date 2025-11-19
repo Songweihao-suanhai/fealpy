@@ -50,7 +50,7 @@ class CouetteFlow(CNodeType):
             - Initial phase field initialization
             - Wall velocity and contact angle setup"""
     TITLE: str = "两相Couette流动问题模型"
-    PATH: str = "模型.非稳态两相Couette流动"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点定义了两相Couette流动的物理模型、计算域以及边界与初始条件。
         模型中上下两壁分别以相反方向移动，从而在两相流体间产生剪切流动。
         同时定义了相场厚度、滑移长度、势能系数、壁面速度等无量纲参数，

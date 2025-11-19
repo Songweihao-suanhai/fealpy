@@ -17,7 +17,7 @@ class DamBreakParticleGeneration(CNodeType):
     """
 
     TITLE: str = "溃坝问题粒子生成"
-    PATH: str = "流体.粒子生成"
+    PATH: str = "preprocess.mesher"
     DESC: str = (
         """这个节点用于生成溃坝模拟的初始设置，包括流体粒子和边界粒子的位置。
         流体粒子集中在一个矩形区域（模拟水坝内的水），边界粒子构成一个容器（底部、左侧和右侧的墙壁）。
@@ -71,7 +71,7 @@ class DamBreakParticleIterativeUpdate(CNodeType):
     """
 
     TITLE: str = "溃坝问题粒子迭代更新"
-    PATH: str = "流体.粒子迭代更新"
+    PATH: str = "simulation.discretization"
     DESC: str = """该节点实现了基于光滑粒子流体动力学(SPH)的溃坝问题数值模拟求解器，
     包含完整的SPH算法流程：邻居搜索、密度更新、压力计算、速度更新、位置更新等。"""
     INPUT_SLOTS = [
