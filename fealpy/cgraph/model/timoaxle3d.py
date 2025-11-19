@@ -17,6 +17,7 @@ class Timoaxle3d(CNodeType):
         GD (INT): Geometric dimension of the model.
         beam_para (TENSOR): Beam section parameters, each row represents [Diameter, Length, Count].
         axle_para (TENSOR): Axle section parameters, each row represents [Diameter, Length, Count].
+        R (TENSOR): Transformation matrix between global and local coordinates.
         shear_factors (FLOAT): Shear correction factor. Default 10/9.
         external_load (function): Function that returns the global load vector.
         dirichlet_dof (function): Function that returns Dirichlet boundary condition indices.
@@ -40,6 +41,7 @@ class Timoaxle3d(CNodeType):
         PortConf("GD", DataType.INT, title="几何维数"),
         PortConf("beam_para", DataType.TENSOR, title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, title="轴段参数"),
+        PortConf("R", DataType.TENSOR, title="坐标变换矩阵"),
         PortConf("external_load", DataType.FUNCTION, title="外部载荷"),
         PortConf("dirichlet_dof", DataType.FUNCTION, title="边界自由度索引")
         
@@ -54,5 +56,5 @@ class Timoaxle3d(CNodeType):
         external_load = model.external_load()
         dirichlet_dof = model.dirichlet_dof()
         
-        return (model.GD, model.beam_para, model.axle_para, 
+        return (model.GD, model.beam_para, model.axle_para, model.R,
                 external_load, dirichlet_dof)

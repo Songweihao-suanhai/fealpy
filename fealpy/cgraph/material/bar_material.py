@@ -105,21 +105,21 @@ class TrussTowerMaterial(CNodeType):
 class BarStrainStress(CNodeType):
     r"""compute Strain and Stress for Bar Elements.
     
-        Inputs:
-            dov (float): Outer diameter of vertical rods (m).
-            div (float): Inner diameter of vertical rods (m).
-            doo (float): Outer diameter of other rods (m).
-            dio (float): Inner diameter of other rods (m).
-            E (float): Elastic modulus of the axle material.
-            nu (float): Poisson’s ratio of the axle material.
-            mesh (Mesh): Mesh containing node and cell information.
-            uh (Tensor): Post-processed displacement vector.
-            ele_indices (Tensor): Element indices for stress and strain computation.
+    Inputs:
+        dov (FLOAT): Outer diameter of vertical rods (m).
+        div (FLOAT): Inner diameter of vertical rods (m).
+        doo (FLOAT): Outer diameter of other rods (m).
+        dio (FLOAT): Inner diameter of other rods (m).
+        E (FLOAT): Elastic modulus of the axle material.
+        nu (FLOAT): Poisson’s ratio of the axle material.
+        mesh (MESH): Mesh containing node and cell information.
+        uh (TENSOR): Post-processed displacement vector.
+        ele_indices (TENSOR):  Number of bar elements,If None, uses all cells.
 
         Outputs:
-            strain (Tensor): Strain of the bar elements.
-            stress (Tensor): Stress of the bar elements.
-    
+            strain (TENSOR): Strain of the bar elements.
+            stress (TENSOR): Stress of the bar elements.
+
     """
     TITLE: str = "桁架塔应变-应力计算"
     PATH: str = "preprocess.material"
@@ -136,8 +136,8 @@ class BarStrainStress(CNodeType):
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
         PortConf("uh", DataType.TENSOR, 1, desc="经过后处理的位移向量", title="位移向量"),
-        PortConf("ele_indices", DataType.TENSOR, 0, desc="需要进行应变–应力计算的目标单元编号。若为 None，则对全部单元进行计算。",
-                 title="单元索引", default=None),
+        PortConf("ele_num", DataType.INT, 0, desc="杆件单元个数，若为 None，则对全部单元进行计算。",
+                 title="单元个数", default=None),
     ]
     
     OUTPUT_SLOTS = [
@@ -165,6 +165,6 @@ class BarStrainStress(CNodeType):
         strain, stress = material.compute_strain_and_stress(
                         options.get("mesh"),
                         options.get("uh"),
-                        ele_indices=options.get("ele_indices"))
+                        ele_indices=options.get("ele_num"))
 
         return strain, stress
