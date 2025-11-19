@@ -62,7 +62,7 @@ strain_stress(
     nu = materialer().nu,
     mesh = mesher(),
     uh = postprocess().uh,
-    ele_indices = None
+    ele_num = None
 )
 
 # 最终连接到图输出节点上
