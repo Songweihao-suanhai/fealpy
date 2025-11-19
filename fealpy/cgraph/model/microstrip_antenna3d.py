@@ -6,7 +6,7 @@ __all__ = ["MicrostripAntenna3D"]
 
 class MicrostripAntenna3D(CNodeType):
     TITLE: str = "三维微带贴片天线"
-    PATH: str = "模型.双旋度"
+    PATH: str = "simulation.discretization"
     DESC: str = "三维微带贴片天线节点"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
@@ -28,8 +28,7 @@ class MicrostripAntenna3D(CNodeType):
     ]
     OUTPUT_SLOTS = [
         PortConf("operator", DataType.FUNCTION, title="算子"),
-        PortConf("vector", DataType.FUNCTION, title="向量"),
-        PortConf("uh", DataType.FUNCTION, title="初值")
+        PortConf("vector", DataType.FUNCTION, title="向量")
     ]
 
     @staticmethod
@@ -59,7 +58,7 @@ class MicrostripAntenna3D(CNodeType):
             LinearForm,
             ScalarMassIntegrator,
             CurlCurlIntegrator,
-            ScalarSourceIntegrator
+            ScalarSourceIntegrator,
         )
         MSA = MicrostripAntenna3D
 
@@ -130,15 +129,15 @@ class MicrostripAntenna3D(CNodeType):
         SI = ScalarSourceIntegrator(source, q=p+2)
         lform.add_integrator(SI)
 
+        A = bform.assembly(format='coo')
         F = lform.assembly()
         isDFace = options["pec_face"]
 
-        b, e2d = MSA.edge_basis_integral(space, options["lumped_edge"])
-        dbc = MSA.Operator(bform, dirichlet, isDFace, e2d, b)
-        uh = dbc.init_solution()
-        F = dbc.apply(F, uh, 1.0)
+        dbc = MSA.BCProcess(space)
+        F, isDDof = dbc.apply_vector(F, A, dirichlet, isDFace, 1.0)
+        A = dbc.apply_matrix(A, isDDof, options["lumped_edge"]).tocsr()
 
-        return dbc, F, uh
+        return A, F
 
     @staticmethod
     def interpolate(space, gd, uh, face_index=None):
@@ -161,7 +160,6 @@ class MicrostripAntenna3D(CNodeType):
 
             n = mesh.face_unit_normal()[index1, None, :]
             h2 = gd(bcs, index1)
-            print(n.shape, h2.shape)
             h2 = bm.cross(n, h2)
             F = bm.einsum("cqld, cqd, q, c -> cl", fbasis, h2, ws, fm)
 
@@ -219,6 +217,59 @@ class MicrostripAntenna3D(CNodeType):
         b = bm.einsum("q, eql, e -> el", ws, bphi, em) # (NE, ldof)
         edge2dof = space.dof.edge_to_dof()[edge_index] # (NE, ldof)
         return b, edge2dof
+
+    class BCProcess():
+        def __init__(self, space):
+            self.space = space
+
+        def apply_matrix(self, matrix, isDDof, isLumpedEdge):
+            from fealpy.backend import bm
+            from fealpy.sparse import spdiags, COOTensor, coo_matrix
+            A = matrix
+            kwargs = A.values_context()
+            bdIdx = bm.zeros(A.shape[0], **kwargs)
+            bdIdx = bm.set_at(bdIdx, isDDof.reshape(-1), 1)
+            D1 = spdiags(bdIdx, 0, A.shape[0], A.shape[0], format='coo')
+            A = self._mul(A, isDDof) + D1
+            assert isinstance(A, COOTensor)
+
+            b, edge2dof = MicrostripAntenna3D.edge_basis_integral(self.space, isLumpedEdge)
+
+            flat_b = b.reshape(-1)
+            flat_e2d = edge2dof.reshape(-1)
+            new_row = bm.concat([A.row, bm.full_like(flat_e2d, A.shape[0]), flat_e2d])
+            new_col = bm.concat([A.col, flat_e2d, bm.full_like(flat_e2d, A.shape[0])])
+            new_data = bm.concat([A.values, flat_b, flat_b])
+
+            return coo_matrix((new_data, (new_row, new_col)), shape=[x+1 for x in A.shape])
+
+        def apply_vector(self, vector, matrix, gd, isDFace, integral):
+            from fealpy.backend import bm
+            f, A = vector, matrix
+            uh = bm.zeros(A.shape[1], dtype=f.dtype, device=f.device)
+            uh, isDDof = MicrostripAntenna3D.interpolate(self.space, gd, uh, isDFace)
+            f = f - A.matmul(uh)
+            f = bm.set_at(f, isDDof, uh[isDDof])
+            c = bm.full((1,), integral, dtype=f.dtype, device=f.device)
+
+            return bm.concat([f, c]), isDDof
+
+        def _mul(self, A, isDDof):
+            from fealpy.backend import bm
+            from fealpy.sparse import COOTensor
+
+            if isinstance(A, COOTensor):
+                indices = A.indices
+                remove_flag = bm.logical_or(
+                    isDDof[indices[0, :]], isDDof[indices[1, :]]
+                )
+                retain_flag = bm.logical_not(remove_flag)
+                new_indices = indices[:, retain_flag]
+                new_values = A.values[..., retain_flag]
+                return COOTensor(new_indices, new_values, A.sparse_shape)
+
+            else:
+                raise NotImplementedError
 
     class Operator:
         def __init__(self, form, gd, isDFace, edge2dof, edge_basis_int):
