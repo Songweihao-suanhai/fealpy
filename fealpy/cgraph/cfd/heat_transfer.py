@@ -16,7 +16,7 @@ class HeatTransferParticleGeneration(CNodeType):
     """
 
     TITLE: str = "平板传热问题粒子生成"
-    PATH: str = "流体.粒子生成"
+    PATH: str = "preprocess.mesher"
     DESC: str = (
         """这个节点用于生成平板传热模拟的初始设置，包括流体粒子和边界粒子的位置。
         流体粒子集中在一个矩形区域（模拟平板内的水），边界粒子构成一个容器（底部、左侧和右侧的墙壁）。
@@ -65,7 +65,7 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
     """
 
     TITLE: str = "平板传热场景粒子迭代更新"
-    PATH: str = "流体.粒子迭代更新"
+    PATH: str = "simulation.discretization"
     DESC: str = """该节点实现了基于光滑粒子流体动力学(SPH)的平板传热场景数值模拟求解器，
     """
     INPUT_SLOTS = [
