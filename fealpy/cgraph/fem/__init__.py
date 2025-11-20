@@ -10,3 +10,4 @@ from .truss import *
 from .beam2d_model import *
 from .linear_elasticity_eigen import *
 from .beam3d_model import *
+from .gear_box import *
