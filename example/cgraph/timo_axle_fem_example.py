@@ -37,7 +37,7 @@ spacer(type="lagrange", mesh=mesher(), p=1)
 # spacer(type="lagrange", mesh=mesher(), p=1, gd=6)
 beam_materialer(
     property="Steel", 
-    beam_type="Timoshemko", 
+    beam_type="Timoshenko_beam", 
     beam_para = model().beam_para,
     axle_para = model().axle_para,
     beam_E=2.1e11, beam_nu=0.3)
