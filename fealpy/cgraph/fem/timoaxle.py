@@ -41,7 +41,7 @@ class Timoaxle(CNodeType):
         PortConf("axle_E", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的弹性模量"),
         PortConf("axle_nu", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的泊松比"),
         PortConf("external_load", DataType.FUNCTION, 1, desc="返回全局载荷向量", title="外部载荷"),
-        PortConf("dirichlet_dof", DataType.FUNCTION, 1, desc="返回 Dirichlet 自由度索引", title="边界自由度索引"),
+        PortConf("dirichlet_dof", DataType.FUNCTION, 1, desc="返回 Dirichlet 自由度", title="边界自由度"),
         
         PortConf("cindex", DataType.INT, 0, desc="轮轴模型的单元单元总数", title="单元总数", default=32),
         PortConf("penalty", DataType.FLOAT, 0, desc="乘大数法处理边界", title="系数", default=1e20),

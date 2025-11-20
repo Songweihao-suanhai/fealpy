@@ -20,7 +20,7 @@ class CreateMesh(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "构造网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """从网格点坐标(node)和单元数据(cell)直接生成网格对象。
                 该节点直接引用网格点坐标和单元数据张量，并将其解释为网格。
                 使用例子：通过两个“数据.张量”节点分别创建网格点坐标张量和单元数据张量，连接到该节点的相应输入上，

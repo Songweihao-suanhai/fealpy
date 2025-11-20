@@ -1,7 +1,7 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["Timoaxle3d"]
+__all__ = ["Timoaxle3d", "ChannelBeam3d"]
 
 
 class Timoaxle3d(CNodeType):
@@ -59,3 +59,64 @@ class Timoaxle3d(CNodeType):
 
         return (model.GD, model.beam_para, model.axle_para, coord_transform,
                 external_load, dirichlet_dof)
+        
+
+class ChannelBeam3d(CNodeType):
+    r"""3D Channel Beam Geometry Model.
+    
+    Inputs:
+        mu_y (FLOAT): Ratio of maximum to average shear stress for y-direction shear. Default 2.44.
+        mu_z (FLOAT): Ratio of maximum to average shear stress for z-direction shear. Default 2.38.
+        n_elements (INT): Number of elements along the beam length. Default 10.
+        load_case (INT): Load case number (1 or 2). Default 1.
+
+    Outputs:
+        GD (INT): Geometric dimension of the model.
+        mesh (MESH): 1D mesh along the beam length.
+        mu_y (FLOAT): Ratio of maximum to average shear stress for y-direction shear. Default 2.44.
+        mu_z (FLOAT): Ratio of maximum to average shear stress for z-direction shear. Default 2.38.
+        load_case (INT): Load case number (1 or 2). Default 1.
+        dirichlet_dof (FUNCTION): Function that returns Dirichlet boundary condition indices.
+    """
+    TITLE: str = "槽形梁几何参数模型"
+    PATH: str = "preprocess.modeling"
+    DESC: str = """该节点用于建立三维槽形梁的几何参数模型。通过剪切应力比例因子、单元数量和载荷工况，
+    定义槽形梁有限元分析所需的关键几何特性，为后续有限元分析提供基础几何信息。"""
+            
+    INPUT_SLOTS = [
+        PortConf("mu_y", DataType.FLOAT, 0, desc="y方向剪切应力的最大值与平均值比例因子", 
+                 title="y向剪切因子", default=2.44),
+        PortConf("mu_z", DataType.FLOAT, 0, desc="z方向剪切应力的最大值与平均值比例因子", 
+                 title="z向剪切因子", default=2.38),
+        PortConf("n_elements", DataType.INT, 0, desc="沿梁长度方向的单元数量", 
+                 title="单元数量", default=10),
+        PortConf("load_case", DataType.MENU, 0, desc="载荷工况选择", 
+                 title="载荷工况", default=1, items=[1, 2])
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("mu_y", DataType.FLOAT, title="y向剪切因子"),
+        PortConf("mu_z", DataType.FLOAT, title="z向剪切因子"),
+        PortConf("GD", DataType.INT, title="几何维数"),
+        PortConf("mesh", DataType.MESH, title="梁网格"),
+        PortConf("load_case", DataType.MENU, title="载荷工况"),
+        PortConf("dirichlet_dof", DataType.FUNCTION, title="边界自由度")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.csm.model.beam.channel_beam_data_3d import ChannelBeamData3D
+        
+        mu_y = options.get("mu_y", 2.44)
+        mu_z = options.get("mu_z", 2.38)
+        n_elements = options.get("n_elements", 10)
+        load_case = options.get("load_case", 1)
+        
+        model = ChannelBeamData3D(mu_y=mu_y, mu_z=mu_z)
+        
+        mesh = model.init_mesh(n=n_elements)
+        load_case = load_case
+        dirichlet_dof = model.dirichlet_dof()
+
+        return (mu_y, mu_z, model.GD, 
+                mesh, load_case, dirichlet_dof)
