@@ -77,7 +77,7 @@ class TensorFunctionSpace(CNodeType):
     def run(space_type: str, mesh, p: int, GD: int):
         from ..functionspace import functionspace
         element = (space_type.capitalize(), p)
-        shape = (-1, GD)
+        shape = (GD, -1)
         return functionspace(mesh, element, shape=shape)
 
 
