@@ -14,7 +14,7 @@ generation(
 iterative(maxstep=2000, dx=generation().dx, dy=generation().dy, 
           rhomin=995, dt=0.001, c0=10, gamma=7, alpha=0.01,rho0=1000,
     pp=generation().pp,
-    bpp=generation().bpp,output_dir="/home/output")
+    bpp=generation().bpp,output_dir="/home/edwin/output")
 WORLD_GRAPH.output(velocity=iterative().velocity, pressure=iterative().pressure)
 
 # 最终连接到图输出节点上
