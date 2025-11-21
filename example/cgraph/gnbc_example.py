@@ -8,7 +8,7 @@ phispace = cgraph.create("FunctionSpace")
 pspace = cgraph.create("P0FunctionSpace")
 space = cgraph.create("FunctionSpace")
 uspace = cgraph.create("TensorFunctionSpace")
-solver = cgraph.create("GNBCSolver")
+solver = cgraph.create("GNBCSimulation")
 
 pde(
     eps=1e-10, 
@@ -40,7 +40,7 @@ solver(R = pde().R,
        space = space(),
        uspace = uspace(),
        h = pde().h,
-       output_dir = "/home/output", 
+       output_dir = "/home/edwin/output", 
        q = 5)
 
 WORLD_GRAPH.output(max_u_up=solver().max_u_up, 

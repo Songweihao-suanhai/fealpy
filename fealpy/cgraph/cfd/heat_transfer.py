@@ -90,9 +90,8 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
         from fealpy.mesh.node_mesh import Space
         from fealpy.cfd.simulation.sph.equation_solver import EquationSolver
         from fealpy.cfd.simulation.sph.processing_technology import ProcessingTechnology
-        import json
-        import os
-        import gzip
+        from fealpy.cfd.simulation.utils import VTKWriter
+        from pathlib import Path
         
         solver = EquationSolver()
         tech = ProcessingTechnology(mesh)
@@ -107,8 +106,9 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
         kernel = Kernel(kinfo, dim=2)
         mesh.nodedata["p"] = solver.state_equation("tait_eos", mesh.nodedata, X=5.0)
         mesh.nodedata = tech.boundary_conditions(mesh.nodedata, box_size, dx=dx)
-        data = []
-        j = 0
+        writer = VTKWriter()
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
         for i in range(maxstep):
             print("i:", i)
             
@@ -145,7 +145,6 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
             T += dt * mesh.nodedata["dTdt"]
             mesh.nodedata["T"] = T
             mesh.nodedata["dTdt"] = solver.heat_equation_solve(0, mesh.nodedata, dr, dist, neighbors, self_node, grad_w)
-            
             mesh.nodedata["dmvdt"] = solver.momentum_equation_solve(0,\
                 mesh.nodedata, neighbors, self_node, dr, dist, grad_w_norm, p)
             mesh.nodedata["dmvdt"] = mesh.nodedata["dmvdt"] + g_ext
@@ -154,29 +153,8 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
                 mesh.nodedata, neighbors, self_node, dr, dist, grad_w_norm, pb)
             mesh.nodedata = tech.boundary_conditions(mesh.nodedata, box_size, dx=dx)
         
-            os.makedirs(output_dir, exist_ok=True)
-            if i % 10 == 0:
-                data.append ({
-                    "time": round(i * dt, 8),
-                    "值":{
-                        "velocity" : mesh.nodedata["mv"].tolist(),  # ndarray -> list
-                        "pressure" : mesh.nodedata["p"].tolist(),  # ndarray -> list
-                        "temperature": mesh.nodedata["T"].tolist(),
-                    }, 
-                    "几何": {
-                        "position": mesh.nodedata["position"].tolist(),  # ndarray -> list
-                    }
-                    })
-                
-                if len(data) == 10 :
-                    j += 1
-                    file_name = f"file_{j:08d}.json.gz"
-                    file_path = os.path.join(output_dir, file_name)
-
-                    with gzip.open(file_path, "wt", encoding="utf-8") as f:
-                        json.dump(data, f, indent=4, ensure_ascii=False)
-                    
-                    data.clear()
+            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtk"
+            writer.write_vtk(mesh.nodedata, fname)           
 
         velocity = mesh.nodedata["mv"]
         pressure = mesh.nodedata["p"]

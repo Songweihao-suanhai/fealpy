@@ -1,7 +1,7 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-class GNBCSolver(CNodeType):
+class GNBCSimulation(CNodeType):
     r"""Two-Phase Couette Flow FEM Solver (GNBC Model)
     This node implements a finite element solver for a two-phase Couette flow
     governed by the coupled Cahn–Hilliard and Navier–Stokes equations
@@ -128,9 +128,7 @@ class GNBCSolver(CNodeType):
         from fealpy.solver import spsolve, cg, gmres 
         from fealpy.fem import DirichletBC
         from fealpy.utils import timer
-        import json
-        import os
-        import gzip
+        from pathlib import Path
         from fealpy.cfd.example.GNBC.solver import Solver
         class PDE:
             def __init__(self, R, L_s, epsilon, L_d, lam, V_s, s,
@@ -180,12 +178,14 @@ class GNBCSolver(CNodeType):
         ugdof = uspace.number_of_global_dofs()
         pgdof = pspace.number_of_global_dofs()
         phigdof = phispace.number_of_global_dofs()
-
-        # fname = output + 'test_'+ str(0).zfill(10) + '.vtu'
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        
+        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
         mesh.nodedata['phi'] = phi0
         mesh.nodedata['u'] = u0.reshape(2,-1).T
         mesh.nodedata['mu'] = mu1
-        # mesh.to_vtk(fname=fname)
+        mesh.to_vtk(fname=fname)
 
         CH_BForm = solver.CH_BForm()
         CH_LForm = solver.CH_LForm()
@@ -236,12 +236,12 @@ class GNBCSolver(CNodeType):
             p1[:] = p2[:]
             
             # output = './'
-            # fname = output + 'test_'+ str(i+1).zfill(10) + '.vtu'
+            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtu"
             mesh.nodedata['phi'] = phi2
             mesh.nodedata['u'] = u2.reshape(2,-1).T
             mesh.celldata['p'] = p2
             mesh.nodedata['mu'] = mu2
-            # mesh.to_vtk(fname=fname)
+            mesh.to_vtk(fname=fname)
             timeline.advance()
             time.send(f"第{i+1}次画图用时")
             uuu = u2.reshape(2,-1).T
@@ -249,32 +249,32 @@ class GNBCSolver(CNodeType):
             print("上边界最小值",bm.min(uuu[is_up,0]))
             print("下边界最大值",bm.max(uuu[is_down,0]))
             print("下边界最小值",bm.min(uuu[is_down,0]))
-            os.makedirs(output_dir, exist_ok=True)
-            if i % 10 == 0:
-                data.append ({
-                    "time": round(i * dt, 8),
-                    "值":{
-                        "phi" : mesh.nodedata["phi"].tolist(),  # ndarray -> list
-                        "u" : mesh.nodedata["u"].tolist(),  # ndarray -> list
-                        "p" : mesh.celldata["p"].tolist(),  # ndarray -> list
-                        "mu": mesh.nodedata["mu"].tolist(), # ndarray -> list
-                    }, 
-                     "几何": {
-                    "cell": cell.tolist(),  # ndarray -> list
-                    "node": node.tolist()   # ndarray -> list
-                }
+            # os.makedirs(output_dir, exist_ok=True)
+            # if i % 10 == 0:
+            #     data.append ({
+            #         "time": round(i * dt, 8),
+            #         "值":{
+            #             "phi" : mesh.nodedata["phi"].tolist(),  # ndarray -> list
+            #             "u" : mesh.nodedata["u"].tolist(),  # ndarray -> list
+            #             "p" : mesh.celldata["p"].tolist(),  # ndarray -> list
+            #             "mu": mesh.nodedata["mu"].tolist(), # ndarray -> list
+            #         }, 
+            #          "几何": {
+            #         "cell": cell.tolist(),  # ndarray -> list
+            #         "node": node.tolist()   # ndarray -> list
+            #     }
                     
-                    })
+            #         })
                 
-                if len(data) == 10 :
-                    j += 1
-                    file_name = f"file_{j:08d}.json.gz"
-                    file_path = os.path.join(output_dir, file_name)
+            #     if len(data) == 10 :
+            #         j += 1
+            #         file_name = f"file_{j:08d}.json.gz"
+            #         file_path = os.path.join(output_dir, file_name)
 
-                    with gzip.open(file_path, "wt", encoding="utf-8") as f:
-                        json.dump(data, f, indent=4, ensure_ascii=False)
+            #         with gzip.open(file_path, "wt", encoding="utf-8") as f:
+            #             json.dump(data, f, indent=4, ensure_ascii=False)
                     
-                    data.clear()
+            #         data.clear()
         #next(time)
         max_u_up = bm.max(uuu[is_up,0])
         min_u_up = bm.min(uuu[is_up,0])
