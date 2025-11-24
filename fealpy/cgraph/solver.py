@@ -214,7 +214,10 @@ class MGStokesSolver(CNodeType):
     
     INPUT_SLOTS = [
         PortConf("op", DataType.LINOPS, title="初始系数矩阵"),
-        PortConf("F", DataType.TENSOR, title="右端向量"),
+        PortConf("idx", DataType.TENSOR, title="三棱柱网格节点映射"),
+        PortConf("F1", DataType.TENSOR, title="右端向量"),
+        PortConf("bd_flag", DataType.TENSOR, title="边界条件"),
+        PortConf("ugdof", DataType.INT, title="初始速度自由度"),
         PortConf("Ai", DataType.LINOPS, title="每层的动量方程刚度矩阵"),
         PortConf("Bi", DataType.LINOPS, title="每层的散度矩阵"),
         PortConf("Bti", DataType.LINOPS, title="每层的梯度矩阵"),
@@ -230,14 +233,19 @@ class MGStokesSolver(CNodeType):
         PortConf("options", DataType.MENU, title="多重网格所需若干参数"),
     ]
     OUTPUT_SLOTS = [
-        PortConf("bigu", DataType.TENSOR, title="方程解"),
+        PortConf("uh", DataType.TENSOR, title="速度解"),
+        PortConf("ph", DataType.TENSOR, title="压力解"),
     ]
     
     @staticmethod    
     def run(**kwargs):
+        from ..backend import bm
         from ..solver import MGStokes
         op = kwargs.get('op')
-        F = kwargs.get('F')
+        idx = kwargs.get('idx')
+        F1 = kwargs.get('F1')
+        bd_flag = kwargs.get('bd_flag')
+        ugdof = kwargs.get('ugdof')
         Ai = kwargs.get('Ai')
         Bi = kwargs.get('Bi')
         Bti = kwargs.get('Bti')
@@ -256,5 +264,9 @@ class MGStokesSolver(CNodeType):
                 P_u, R_u, P_p, R_p,
                 Nu, Np, level, 
                 auxMat, options)
-        bigu = Solver.solve(op, F)
-        return bigu
+        x_in = Solver.solve(op, F1[~bd_flag])
+        x = bm.set_at(F1, ~bd_flag, x_in)
+        uh = x[:3*ugdof].reshape(3,-1).T[idx,:]
+        ph = x[3*ugdof:]
+        print(x.max(), x.min())
+        return uh, ph
