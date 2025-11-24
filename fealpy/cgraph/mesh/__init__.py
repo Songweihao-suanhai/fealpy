@@ -15,3 +15,4 @@ from .dipole_mesh import Dipole3d
 from .microstrip_patch_mesh import *
 from .utils import MatMatrixReader
 from .water_purification_reactor_mesh import *
+from .yee_uniform_mesh import *
