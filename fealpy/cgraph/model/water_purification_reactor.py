@@ -6,8 +6,9 @@ __all__ = ["MGTensorWPR"]
 class MGTensorWPR(CNodeType):
     r"""张量网格上通过多重网格方法求解Stokes方程.
     """
-    TITLE: str = "二维水净化反应器网格"
-    PATH: str = "网格.构造"
+    TITLE: str = "三维水净化反应器"
+    PATH: str = "simulation.discretization"
+    DESC: str = "三维水净化反应器节点"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="底面网格"),
         PortConf("imesh", DataType.MESH, 1, title="区间网格"),
