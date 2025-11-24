@@ -31,7 +31,7 @@ class MMGUACNSFEMSolver(CNodeType):
         phi (Function): Phase-field function.
     """
     TITLE: str = "有限元求解 ACNS 方程"
-    PATH: str = "流体.ACNS 方程有限元求解"
+    PATH: str = "simulation.solvers"
     DESC: str = """该节点实现了两相不可压流体的 Allen-Cahn-Navier-Stokes (ACNS) 方程组有限元求解
                 器。ACNS 模型结合了相场法与流体力学方程，用以描述两种不可混溶流体的界面演化与流动耦合过程。
                 通过时间步推进(dt, nt)，程序在每个时间步内依次执行：
@@ -84,6 +84,7 @@ class MMGUACNSFEMSolver(CNodeType):
         PortConf("velocity_dirichlet_bc", DataType.FUNCTION, title="速度边界条件"),
         PortConf("phase_force", DataType.FUNCTION, title="相场源项"),
         PortConf("velocity_force", DataType.FUNCTION, title="速度源项"),
+        PortConf("output_dir", DataType.STRING, title="输出目录")
     ]
     OUTPUT_SLOTS = [
         PortConf("u", DataType.FUNCTION, title="速度场"),
@@ -101,11 +102,15 @@ class MMGUACNSFEMSolver(CNodeType):
             init_phase,init_velocity,init_pressure,
             velocity_dirichlet_bc,
             phase_force,velocity_force,
+            output_dir
             ):
         from fealpy.backend import bm
         from fealpy.solver import spsolve
         from fealpy.functionspace import TensorFunctionSpace
-        import time
+        from pathlib import Path
+        
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
         
         def set_move_mesher(mesh ,domain, phi_n , phispace,
                             mmesher:str = 'GFMMPDE',
@@ -150,11 +155,11 @@ class MMGUACNSFEMSolver(CNodeType):
             mesh_velocity = mspace.function()
             return mm, mesh_velocity, node_n
         
-        def save_vtu(step: int):
+        def save_vtu(step: int ,export_dir):
             mesh.nodedata['interface'] = phi
             mesh.nodedata['velocity'] = u.reshape(mesh.GD,-1).T
             mesh.nodedata['pressure'] = p
-            fname = './' + 'two_phase_flow' + str(step).zfill(10) + '.vtu'
+            fname = export_dir / f"two_phase_flow_{str(step).zfill(10)}.vtu"
             mesh.to_vtk(fname=fname)
                 
         def compute_bubble_centroid():
@@ -207,7 +212,7 @@ class MMGUACNSFEMSolver(CNodeType):
                 node_n = mesh.node.copy()
                 phi_n = phispace.interpolate(lambda p: init_phase(p))
                 phi[:] = phi_n[:]
-                save_vtu(step = 0)
+                save_vtu(step = 0,export_dir=export_dir)
             else:
                 mm.run()
                 
@@ -247,7 +252,7 @@ class MMGUACNSFEMSolver(CNodeType):
             mm.instance.uh = phi
             
             # Save results
-            save_vtu(i+1)
+            save_vtu(i+1,export_dir)
             # Compute and print bubble centroid
             centroid = compute_bubble_centroid()
             print(f"Time step {i+1}, Time {t:.4f}, Bubble Centroid: {centroid}")

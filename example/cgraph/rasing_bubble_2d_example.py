@@ -51,6 +51,8 @@ guns_eq(mesh = mesher(),
         uspace = uspacer(),pspace = pspacer(),phispace = phispacer(),
         q = q)
 
+output_dir = "./"
+
 solver(mesh = mesher(),
        domain = pde().box,
        dt = 0.001 , nt = 5000,
@@ -66,7 +68,8 @@ solver(mesh = mesher(),
        init_pressure = pde().init_pressure,
        velocity_dirichlet_bc = pde().velocity_dirichlet_bc,
        phase_force = pde().phase_force,
-       velocity_force = pde().velocity_force,)
+       velocity_force = pde().velocity_force,
+       output_dir = output_dir)
 
 WORLD_GRAPH.output(u = solver().u ,ux = solver().ux ,uy = solver().uy, 
                    p = solver().p ,phi = solver().phi)
