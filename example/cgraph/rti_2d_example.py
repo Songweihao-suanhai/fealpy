@@ -2,8 +2,8 @@ import json
 import fealpy.cgraph as cgraph
 from fealpy.backend import backend_manager as bm
 
-bm.set_backend('pytorch')
-bm.set_default_device('cpu')
+# bm.set_backend('pytorch')
+# bm.set_default_device('cpu')
 
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
@@ -50,7 +50,7 @@ chfem(
     s = 1.0
 )
 chnsrun(
-    dt = 0.00125*bm.sqrt(bm.array(2)),
+    dt = 0.00175,
     nt = 2000,
     rho_up = pde().rho_up,
     rho_down = pde().rho_down,
@@ -63,7 +63,8 @@ chnsrun(
     mesh = mesher(),
     init_interface = pde().init_interface,
     is_ux_boundary = pde().is_ux_boundary,
-    is_uy_boundary = pde().is_uy_boundary
+    is_uy_boundary = pde().is_uy_boundary,
+    output_dir = "/home/libz/rti_2d"
 )
 
 

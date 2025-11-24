@@ -12,7 +12,7 @@ generation(
 )
 
 iterative(mesh = generation().mesh, maxstep=1000, dx=0.02, kernel="quintic", 
-        dt=0.00045454545454545455,output_dir="/home/output")
+        dt=0.00045454545454545455,output_dir="/home/edwin/output")
 WORLD_GRAPH.output(velocity=iterative().velocity, 
                    pressure=iterative().pressure,
                    temperature=iterative().temperature)

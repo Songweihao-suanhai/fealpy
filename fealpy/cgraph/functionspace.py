@@ -48,8 +48,8 @@ class P0FunctionSpace(CNodeType):
     INPUT_SLOTS = [
         PortConf("type", DataType.MENU, 0, title="空间类型", param="space_type", default="lagrange", items=["lagrange", "bernstein", "first_nedelec"]),
         PortConf("mesh", DataType.MESH, 1, title="网格"),
-        PortConf("ctype", DataType.INT, 1, title="空间连续性类型", default="D", items=["C", "D"])
-    ]#pspace = LagrangeFESpace(mesh, p=0, ctype='D')
+        PortConf("ctype", DataType.MENU, 1, title="空间连续性类型", default="D", items=["C", "D"])
+    ]
     OUTPUT_SLOTS = [
         PortConf("space", DataType.SPACE, title="函数空间")
     ]

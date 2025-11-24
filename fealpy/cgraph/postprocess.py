@@ -1,6 +1,6 @@
 from .nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["VPDecoupling", "UDecoupling"]
+__all__ = ["VPDecoupling", "UDecoupling", "AntennaPostprocess","GearboxPostprocess"]
 
 class VPDecoupling(CNodeType):
     r"""Decouple velocity and pressure components from the combined output vector.
@@ -27,9 +27,6 @@ class VPDecoupling(CNodeType):
     OUTPUT_SLOTS = [
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
-        PortConf("uh_x", DataType.TENSOR, title="速度x分量数值解"),
-        PortConf("uh_y", DataType.TENSOR, title="速度y分量数值解"),
-        PortConf("uh_z", DataType.TENSOR, title="速度z分量数值解")
     ]
 
     @staticmethod
@@ -39,16 +36,8 @@ class VPDecoupling(CNodeType):
         NN = mesh.number_of_nodes()
         uh = out[:ugdof]
         uh = uh.reshape(mesh.GD,-1).T
-        uh = uh[:NN,:]
-        uh_x = uh[..., 0]
-        uh_y = uh[..., 1]
-        if mesh.GD == 3:
-            uh_z = uh[..., 2]
-        else:
-            uh_z = bm.zeros_like(uh_x)
         ph = out[ugdof:]
-
-        return uh, ph, uh_x, uh_y, uh_z
+        return uh, ph
 
 
 class UDecoupling(CNodeType):
@@ -62,7 +51,7 @@ class UDecoupling(CNodeType):
             
     Outputs:
         uh (tensor): Translational displacement field.
-        theta (tensor): Rotational displacement field.
+        theta (tensor): Rotational displacement gfield.
     """
     TITLE: str = "位移后处理"
     PATH: str = "后处理.位移"
@@ -81,8 +70,10 @@ class UDecoupling(CNodeType):
     def run(out, node_ldof, type):
         
         u = out.reshape(-1, node_ldof)
+        
         if type == "Truss":
             uh = u
+            theta = None
         elif type == "Euler_beam":
             uh = u[:, :1]
             theta = u[:, 1:]
@@ -169,15 +160,77 @@ class AntennaPostprocess(CNodeType):
         from fealpy.functionspace import Function
         mesh = space.mesh
         bc = bm.array([[1/3, 1/3, 1/3, 1/3]], dtype=bm.float64)
+        gdof = space.number_of_global_dofs()
 
-        if isinstance(uh, Function):  
+        if isinstance(uh, Function):
             uh_real = uh.copy()
-            uh_real[:] = bm.real(uh[:])
-        else:  
-            uh_real = space.function()      
-            uh_real[:] = bm.real(uh)       
+            uh_real[:] = bm.real(uh[:gdof])
+        else:
+            uh_real = space.function()
+            uh_real[:] = bm.real(uh[:gdof])
 
         val = space.value(uh_real, bc)
         E = val.reshape(mesh.number_of_cells(), -1)
 
         return E
+
+
+class GearboxPostprocess(CNodeType):
+    TITLE: str = "变速箱后处理"
+    PATH: str = "后处理.变速箱"
+    DESC: str = "将模态特征向量映射到网格节点并计算固有频率"
+
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.SPACE, 1, desc="有限元网格", title="网格"),
+        PortConf("vals", DataType.TENSOR, 1, desc="特征值", title="特征值"),
+        PortConf("vecs", DataType.TENSOR, 1, desc="特征向量", title="特征向量"),
+        PortConf("NS", DataType.TENSOR, 1, desc="自由度划分信息", title="自由度划分"),
+        PortConf("G", DataType.TENSOR, 1, desc="耦合矩阵", title="耦合矩阵"),
+        PortConf("output_file", DataType.STRING, 0, desc="输出文件路径", title="输出文件路径", default="/home"),
+    ]
+
+    OUTPUT_SLOTS = [
+        PortConf("freqs", DataType.TENSOR, desc="固有频率 (Hz)", title="固有频率"),
+        PortConf("eigvecs", DataType.TENSOR, desc="映射后的特征向量", title="特征向量"),
+        PortConf("output_file", DataType.STRING, desc="输出文件路径", title="输出文件路径"),
+    ]
+
+    @staticmethod
+    def run(mesh, vals, vecs, NS, G, output_file):
+        from ..backend import backend_manager as bm
+
+        freqs = bm.sqrt(vals) / (2 * bm.pi)
+
+        NN = mesh.number_of_nodes()
+        isFreeNode = mesh.data.get_node_data('isFreeNode')
+        isFreeDof = bm.repeat(isFreeNode, 3)
+        isCSNode = mesh.data.get_node_data('isCSNode')
+        isCSDof = bm.repeat(isCSNode, 3)
+
+        mapped_eigvecs = []
+        start = sum(NS[0:-2])
+        end = start + NS[-2]
+        from pathlib import Path
+        export_dir = Path(output_file).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
+        for i, val in enumerate(vecs):
+            phi = bm.zeros((NN * 3,), dtype=bm.float64)
+
+            idx, = bm.where(isFreeDof)
+            if (end - start) == idx.shape[0]:
+                phi = bm.set_at(phi, idx, val[start:end])
+
+            idx, = bm.where(isCSDof)
+            phi = bm.set_at(phi, idx, G @ val[end:])
+            phi = phi.reshape((NN, 3))
+            mapped_eigvecs.append(phi)
+     
+            mesh.nodedata[f'eigenvalue-{i}-{vals[i]:0.5e}'] = phi
+
+        eigvecs = bm.array(mapped_eigvecs)
+        mesh.to_vtk(fname=fname)
+        output_file = str(fname)
+        print(vals)
+        print(output_file)
+        return freqs, eigvecs, output_file

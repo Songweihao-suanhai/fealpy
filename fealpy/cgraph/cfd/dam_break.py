@@ -17,7 +17,7 @@ class DamBreakParticleGeneration(CNodeType):
     """
 
     TITLE: str = "溃坝问题粒子生成"
-    PATH: str = "流体.粒子生成"
+    PATH: str = "preprocess.mesher"
     DESC: str = (
         """这个节点用于生成溃坝模拟的初始设置，包括流体粒子和边界粒子的位置。
         流体粒子集中在一个矩形区域（模拟水坝内的水），边界粒子构成一个容器（底部、左侧和右侧的墙壁）。
@@ -71,7 +71,7 @@ class DamBreakParticleIterativeUpdate(CNodeType):
     """
 
     TITLE: str = "溃坝问题粒子迭代更新"
-    PATH: str = "流体.粒子迭代更新"
+    PATH: str = "simulation.discretization"
     DESC: str = """该节点实现了基于光滑粒子流体动力学(SPH)的溃坝问题数值模拟求解器，
     包含完整的SPH算法流程：邻居搜索、密度更新、压力计算、速度更新、位置更新等。"""
     INPUT_SLOTS = [
@@ -97,9 +97,7 @@ class DamBreakParticleIterativeUpdate(CNodeType):
     @staticmethod
     def run(maxstep, dx, dy, rhomin, dt, c0, gamma, alpha, rho0, pp, bpp,output_dir):
         from fealpy.cfd.simulation.sph.particle_solver_new import BamBreakSolver,ParticleSystem
-        import json
-        import os
-        import gzip
+        from pathlib import Path
         from fealpy.cfd.simulation.utils import VTKWriter
         writer = VTKWriter()
         
@@ -107,6 +105,9 @@ class DamBreakParticleIterativeUpdate(CNodeType):
         sph_solver = BamBreakSolver(particles)
         data = []
         j = 0
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        
         for i in range(maxstep):
             print(f"Step: {i}")
             # 邻居搜索
@@ -125,39 +126,37 @@ class DamBreakParticleIterativeUpdate(CNodeType):
             if i % 30 == 0 and i != 0:
                 sph_solver.rein_rho(idx)
                 
-            # current_data = {
-            # "time": round(i * dt, 8),
-            # "position": sph_solver.ps.particles["position"].tolist(),  # ndarray -> list
-            # "velocity": sph_solver.ps.particles["velocity"].tolist(),  # ndarray -> list
-            # "pressure": sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
-            # }    
-            
-            # path = "./dambreak/"
-            # zfname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'    
-            # writer.write_vtk(current_data, zfname) 
+            current_data = {
+            "time": round(i * dt, 8),
+            "position": sph_solver.ps.particles["position"].tolist(),  # ndarray -> list
+            "velocity": sph_solver.ps.particles["velocity"].tolist(),  # ndarray -> list
+            "pressure": sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
+            }    
+            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtk"
+            # zfname = output_dir + 'test_'+ str(i+1).zfill(10) + '.vtk'    
+            writer.write_vtk(current_data, fname) 
+            # os.makedirs(output_dir, exist_ok=True)
+            # if i % 10 == 0:
+            #     data.append ({
+            #         "time": round(i * dt, 8),
+            #         "值":{
+            #             "uh" : sph_solver.ps.particles["velocity"].tolist(),  # ndarray -> list
+            #             "ph" : sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
+            #         }, 
+            #         "几何": {
+            #             "position": sph_solver.ps.particles["position"].tolist(),  # ndarray -> list
+            #         }
+            #         })
                 
-            os.makedirs(output_dir, exist_ok=True)
-            if i % 10 == 0:
-                data.append ({
-                    "time": round(i * dt, 8),
-                    "值":{
-                        "uh" : sph_solver.ps.particles["velocity"].tolist(),  # ndarray -> list
-                        "ph" : sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
-                    }, 
-                    "几何": {
-                        "position": sph_solver.ps.particles["position"].tolist(),  # ndarray -> list
-                    }
-                    })
-                
-                if len(data) == 10 :
-                    j += 1
-                    file_name = f"file_{j:08d}.json.gz"
-                    file_path = os.path.join(output_dir, file_name)
+            #     if len(data) == 10 :
+            #         j += 1
+            #         file_name = f"file_{j:08d}.json.gz"
+            #         file_path = os.path.join(output_dir, file_name)
 
-                    with gzip.open(file_path, "wt", encoding="utf-8") as f:
-                        json.dump(data, f, indent=4, ensure_ascii=False)
+            #         with gzip.open(file_path, "wt", encoding="utf-8") as f:
+            #             json.dump(data, f, indent=4, ensure_ascii=False)
                     
-                    data.clear()
+            #         data.clear()
             
             
         velocity = sph_solver.ps.particles["velocity"]
