@@ -29,7 +29,7 @@ class RasingBubble2D(CNodeType):
         area (float): Dimensionless area of the bubble.
     """
     TITLE: str = "二维两相流气泡上升模型"
-    PATH: str = "模型.两相流.气泡上升"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点构建二维两相流气泡上升问题的数学模型, 定义速度的Dirichlet边界条件、初始相场函数、初始速度场、初始压力场、
                 相场函数源项以及速度源项等，用于后续两相流有限元求解。"""
     INPUT_SLOTS = [
