@@ -177,7 +177,7 @@ class AntennaPostprocess(CNodeType):
 
 class GearboxPostprocess(CNodeType):
     TITLE: str = "变速箱后处理"
-    PATH: str = "后处理.变速箱"
+    PATH: str = "postprocess"
     DESC: str = "将模态特征向量映射到网格节点并计算固有频率"
 
     INPUT_SLOTS = [
@@ -231,6 +231,4 @@ class GearboxPostprocess(CNodeType):
         eigvecs = bm.array(mapped_eigvecs)
         mesh.to_vtk(fname=fname)
         output_file = str(fname)
-        print(vals)
-        print(output_file)
         return freqs, eigvecs, output_file

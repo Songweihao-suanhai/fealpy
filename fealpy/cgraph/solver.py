@@ -98,7 +98,7 @@ __all__ = ["ScipyEigenSolver"]
 
 class ScipyEigenSolver(CNodeType):
     TITLE: str = "Scipy特征值求解器"
-    PATH: str = "解法器.特征值"
+    PATH: str = "simulation.solver"
     INPUT_SLOTS = [
         PortConf("S", DataType.TENSOR, title="刚度矩阵 S"),
         PortConf("M", DataType.TENSOR, title="质量矩阵 M"),
@@ -126,7 +126,7 @@ __all__ = ["SLEPcEigenSolver"]
 
 class SLEPcEigenSolver(CNodeType):
     TITLE: str = "SLEPc特征值求解器"
-    PATH: str = "解法器.特征值"
+    PATH: str = "simulation.solver"
     INPUT_SLOTS = [
         PortConf("S", DataType.TENSOR, title="刚度矩阵 S"),
         PortConf("M", DataType.TENSOR, title="质量矩阵 M"),
@@ -210,7 +210,7 @@ class SLEPcEigenSolver(CNodeType):
 
 class MGStokesSolver(CNodeType):
     TITLE: str = "Stokes离散系统的多重网格求解器"
-    PATH: str = "解法器.特征值"
+    PATH: str = "simulation.solver"
     
     INPUT_SLOTS = [
         PortConf("op", DataType.LINOPS, title="初始系数矩阵"),
