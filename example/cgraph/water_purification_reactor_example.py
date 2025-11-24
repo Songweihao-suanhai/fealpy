@@ -7,6 +7,7 @@ mesher = cgraph.create("WaterPurificationReactorMesher")
 imesher = cgraph.create("Int1d")
 wpr = cgraph.create("MGTensorWPR")
 solver = cgraph.create("MGStokesSolver")
+to_vtk = cgraph.create("TO_VTK")
 
 mesher(lc = 0.4)
 imesher(interval=[0, 0.4], nx=8)
@@ -17,7 +18,10 @@ wpr(
 )
 solver(
     op=wpr().op,
-    F=wpr().F,
+    idx=wpr().idx,
+    F1=wpr().F1,
+    bd_flag=wpr().bd_flag,
+    ugdof=wpr().ugdof,
     Ai=wpr().Ai,
     Bi=wpr().Bi,
     Bti=wpr().Bti,
@@ -33,11 +37,12 @@ solver(
     options=wpr().options
 )
 
-g1 = cgraph.Graph()
-g1.output(uh=solver())
-g1.register_error_hook(lambda x: print(x.traceback))
-g1.execute()
-result = g1.get()
-uh = result["uh"]
+to_vtk(mesh = wpr().mesh,
+        uh = (solver().uh, solver().ph),
+        path = "/home/zjx/py")
 
-print(uh)
+WORLD_GRAPH.output(path = to_vtk().path)
+WORLD_GRAPH.error_listeners.append(print)
+WORLD_GRAPH.execute()
+print(WORLD_GRAPH.get())
+
