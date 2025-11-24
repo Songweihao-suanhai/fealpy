@@ -24,6 +24,7 @@ __nodes__ = [
     "postreport",
     "reports",
     "paraviewtools",
+    "cem"
 ]
 
 register_all_nodes()
