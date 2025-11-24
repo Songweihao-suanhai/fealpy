@@ -160,19 +160,20 @@ class AntennaPostprocess(CNodeType):
         from fealpy.functionspace import Function
         mesh = space.mesh
         bc = bm.array([[1/3, 1/3, 1/3, 1/3]], dtype=bm.float64)
+        gdof = space.number_of_global_dofs()
 
-        if isinstance(uh, Function):  
+        if isinstance(uh, Function):
             uh_real = uh.copy()
-            uh_real[:] = bm.real(uh[:])
-        else:  
-            uh_real = space.function()      
-            uh_real[:] = bm.real(uh)       
+            uh_real[:] = bm.real(uh[:gdof])
+        else:
+            uh_real = space.function()
+            uh_real[:] = bm.real(uh[:gdof])
 
         val = space.value(uh_real, bc)
         E = val.reshape(mesh.number_of_cells(), -1)
 
         return E
-    
+
 
 class GearboxPostprocess(CNodeType):
     TITLE: str = "变速箱后处理"

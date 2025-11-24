@@ -11,7 +11,7 @@ class MicrostripAntenna3D(CNodeType):
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
         PortConf("space", DataType.MENU, 0, title="函数空间类型", items=["First Nédélec"]),
-        PortConf("p", DataType.INT, 1, title="Nédélec 阶数", default=1),
+        PortConf("p", DataType.INT, 1, title="空间阶数", default=0),
         PortConf("f", DataType.FLOAT, 1, title="频率(GHz)", default=1.575),
         PortConf("sub_region", DataType.TENSOR, 1, title="基板单元"),
         PortConf("air_region", DataType.TENSOR, 1, title="空气单元"),
@@ -27,6 +27,7 @@ class MicrostripAntenna3D(CNodeType):
         PortConf("pp", DataType.FLOAT, 1, title="PML 多项式次数", default=2.0)
     ]
     OUTPUT_SLOTS = [
+        PortConf("space", DataType.SPACE, title="函数空间"),
         PortConf("operator", DataType.FUNCTION, title="算子"),
         PortConf("vector", DataType.FUNCTION, title="向量")
     ]
@@ -137,7 +138,7 @@ class MicrostripAntenna3D(CNodeType):
         F, isDDof = dbc.apply_vector(F, A, dirichlet, isDFace, 1.0)
         A = dbc.apply_matrix(A, isDDof, options["lumped_edge"]).tocsr()
 
-        return A, F
+        return space, A, F
 
     @staticmethod
     def interpolate(space, gd, uh, face_index=None):
