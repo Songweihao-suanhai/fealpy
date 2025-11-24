@@ -1,87 +1,132 @@
-"""VTU pipeline example without CLI wrapper (reader → styler → screenshot)."""
+"""VTU pipeline example without CLI wrapper (reader → slicer → styler → screenshot)."""
 
 import json
 from pathlib import Path
-import shutil
 
 import fealpy.cgraph as cgraph
-
-
-class _VTUCopyMesh:
-    """Lightweight mesh wrapper that copies an existing VTU file."""
-
-    def __init__(self, source: Path):
-        self.source = Path(source).expanduser().resolve()
-        self.nodedata: dict[str, object] = {}
-
-    def to_vtk(self, fname: str) -> None:
-        target = Path(fname)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(self.source, target)
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
 script_dir = Path(__file__).resolve().parent
+data_dir = script_dir / "data"
+source_vtu = (data_dir / "dld_chip_3d.vtu").resolve()
+if not source_vtu.is_file():
+    raise FileNotFoundError(f"Sample VTU missing: {source_vtu}")
+print(f"Using VTU source: {source_vtu}")
 
-# Prepare source VTU file that TO_VTK will copy from
-source_vtu = Path("C:/Users/thlcz/Downloads/dld_chip_3d.vtu")
-if not source_vtu.exists():
-    raise FileNotFoundError(f"Sample VTU file missing: {source_vtu}")
+export_dir = (script_dir / "output").resolve()
+report_png_path = export_dir / "report" / f"{source_vtu.stem}.png"
 
-export_dir = Path(source_vtu.parent).expanduser().resolve()
-exported_vtu_path = export_dir / "test.vtu"
-report_png_path = export_dir / "report" / f"{exported_vtu_path.stem}.png"
-
-mesh_stub = _VTUCopyMesh(source_vtu)
-
-# Create nodes: TO_VTK -> VTUReader -> VTUStyler -> VTUScreenshot
-exporter = cgraph.create("TO_VTK")
+# Create nodes: VTUReader -> VTUSlicer -> VTUStyler -> VTUScreenshot
 reader = cgraph.create("VTUReader")
+
+# uh 渲染节点
+slicer = cgraph.create("VTUSlicer")
 styler = cgraph.create("VTUStyler")
 screenshot = cgraph.create("VTUScreenshot")
 
-exporter(mesh=mesh_stub, uh=0.0, path=str(export_dir))
-# Reader node loads the VTU dataset produced by TO_VTK
-reader(vtu_path=exporter().path)
+# ph 渲染节点
+slicer_ph = cgraph.create("VTUSlicer")
+styler_ph = cgraph.create("VTUStyler")
+screenshot_ph = cgraph.create("VTUScreenshot")
 
-# Apply styling metadata
-styler(
+# Reader node loads the VTU dataset
+reader(vtu_path=str(source_vtu))
+
+# Compute z-axis midpoint for slicing
+try:
+    from vtkmodules.vtkIOXML import vtkXMLUnstructuredGridReader
+except ModuleNotFoundError as exc:
+    raise ModuleNotFoundError("VTU slicing requires VTK/ParaView modules.") from exc
+
+vtk_reader = vtkXMLUnstructuredGridReader()
+vtk_reader.SetFileName(str(source_vtu))
+vtk_reader.Update()
+vtk_dataset = vtk_reader.GetOutput()
+if vtk_dataset is None:
+    raise RuntimeError("Failed to load VTU dataset for slicing bounds.")
+
+# Apply slicing at z midpoint
+slicer(
     dataset=reader().dataset,
+    enable_slice="是",
+    plane_normal="0,0,1",
+    plane_ratio=50.0,
+)
+
+# ph 切片（参数与uh一致）
+slicer_ph(
+    dataset=reader().dataset,
+    enable_slice="是",
+    plane_normal="0,0,1",
+    plane_ratio=50.0,
+)
+
+# Apply styling metadata to the sliced dataset
+styler(
+    dataset=slicer().sliced_dataset,
     array_name="uh",
     array_location="POINTS",
     representation="Surface",
-    background="#ffffff",
+    background="#1e1e1e",
     transparent="否",
-    show_scalar_bar="否",
+    show_scalar_bar="是",
 )
 
-# Configure screenshot dimensions
+# ph 样式（仅 array_name 改为 ph）
+styler_ph(
+    dataset=slicer_ph().sliced_dataset,
+    array_name="ph",
+    array_location="POINTS",
+    representation="Surface",
+    background="#1e1e1e",
+    transparent="否",
+    show_scalar_bar="是",
+)
+
+
+# 规范图片命名（去掉分量数字0）
+uh_png_name = f"{source_vtu.stem}_uh.png"
+ph_png_name = f"{source_vtu.stem}_ph.png"
+
+
+
+
+# uh 截图（只保留命名规范的调用）
 screenshot(
     styled_dataset=styler().styled_dataset,
     image_width=1920,
     image_height=1080,
-    output_path=exporter().path,
+    output_path=str(export_dir / uh_png_name),
+    camera_rotation=180,
+    camera_axis="0,1,0",
 )
 
-WORLD_GRAPH.output(png_path=screenshot().png_path, vtu_path=exporter().path)
+
+# ph 截图（只保留命名规范的调用）
+screenshot_ph(
+    styled_dataset=styler_ph().styled_dataset,
+    image_width=1920,
+    image_height=1080,
+    output_path=str(export_dir / ph_png_name),
+    camera_rotation=180,
+    camera_axis="0,1,0",
+)
+
+WORLD_GRAPH.output(
+    png_dir=screenshot().png_path,
+    png_dir_ph=screenshot_ph().png_path,
+    vtu_path=str(source_vtu)
+)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 
+
+
 result = WORLD_GRAPH.get()
-if not isinstance(result, dict) or "png_path" not in result or "vtu_path" not in result:
+if not isinstance(result, dict) or "png_dir" not in result:
     raise RuntimeError(f"Graph execution failed: {result}")
 
-png_path = Path(result["png_path"]).expanduser().resolve()
-exported_vtu = Path(result["vtu_path"]).expanduser().resolve()
-
-if not exported_vtu.exists():
-    raise FileNotFoundError(f"VTU export failed: {exported_vtu}")
-
-if not png_path.exists():
-    raise FileNotFoundError(f"PNG export failed: {png_path}")
-
-if png_path != report_png_path.resolve():
-    raise RuntimeError(f"PNG path mismatch: expected {report_png_path}, got {png_path}")
-
-result["png_path"] = str(png_path)
-print(json.dumps(result, ensure_ascii=False, indent=2))
+uh_png_path = str(export_dir / uh_png_name)
+ph_png_path = str(export_dir / ph_png_name)
+print(f"\n已生成图片: {uh_png_path}, {ph_png_path}")

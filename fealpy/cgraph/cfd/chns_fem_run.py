@@ -82,24 +82,26 @@ class CHNSFEMRun(CNodeType):
         PortConf("is_ux_boundary", DataType.FUNCTION, title="速度 x 分量边界"),
         PortConf("is_uy_boundary", DataType.FUNCTION, title="速度 y 分量边界"),
         PortConf("init_interface", DataType.FUNCTION, title="初始界面函数"),
-        PortConf("mesh", DataType.MESH, title="网格")
+        PortConf("mesh", DataType.MESH, title="网格"),
+        PortConf("output_dir", DataType.STRING, title="输出目录")
     ]
     OUTPUT_SLOTS = [
         PortConf("u", DataType.FUNCTION, title="速度场"),
-        PortConf("ux", DataType.FUNCTION, title="速度场 x 分量"),
-        PortConf("uy", DataType.FUNCTION, title="速度场 y 分量"),
         PortConf("p", DataType.FUNCTION, title="压力场"),
         PortConf("phi", DataType.FUNCTION, title="相场函数")
     ]
     @staticmethod
     def run(dt, nt, rho_up, rho_down, Fr, ns_update, ch_update,phispace, 
-            uspace, pspace, is_ux_boundary, is_uy_boundary, init_interface, mesh):
+            uspace, pspace, is_ux_boundary, is_uy_boundary, init_interface, 
+            mesh, output_dir):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
+        from pathlib import Path
         import time
-
+        import os
+        
         def set_rho(phi, rho_up, rho_down):
             result = phi.space.function()
             result[:] = (rho_up - rho_down)/2 * phi[:]
@@ -120,10 +122,14 @@ class CHNSFEMRun(CNodeType):
         u2 = uspace.function()
         p1 = pspace.function()
         p2 = pspace.function()
-        mesh.nodedata['phi'] = phi1
-        mesh.nodedata['velocity'] = u1.reshape(2,-1).T  
-        fname = './' + 'test_'+ str(1).zfill(10) + '.vtu'
-        mesh.to_vtk(fname=fname)
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        mesh.nodedata["uh"] = u2.reshape(mesh.GD,-1).T
+        mesh.nodedata["ph"] = p2
+        mesh.nodedata["phih"] = phi2
+        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
+        mesh.to_vtk(fname=str(fname))
+
 
         is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
         is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
@@ -198,12 +204,10 @@ class CHNSFEMRun(CNodeType):
             right_point = node[index, :]
             print("界面与右边界交点:", right_point)
 
-            
-            mesh.nodedata['phi'] = phi2
-            mesh.nodedata['velocity'] = u2.reshape(2,-1).T  
-            mesh.nodedata['pressure'] = p2 
-            mesh.nodedata['rho'] = rho
-            fname = './' + 'test_'+ str(i+1).zfill(10) + '.vtu'
-            mesh.to_vtk(fname=fname)
+            mesh.nodedata["uh"] = u2
+            mesh.nodedata["ph"] = p2
+            mesh.nodedata["phih"] = phi2
+            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtu"
+            mesh.to_vtk(fname=str(fname))
 
-        return u2, u2[:, 0], u2[:, 1], p2, phi2
+        return u2, p2, phi2
