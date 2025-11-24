@@ -98,7 +98,7 @@ __all__ = ["ScipyEigenSolver"]
 
 class ScipyEigenSolver(CNodeType):
     TITLE: str = "Scipy特征值求解器"
-    PATH: str = "解法器.特征值"
+    PATH: str = "simulation.solver"
     INPUT_SLOTS = [
         PortConf("S", DataType.TENSOR, title="刚度矩阵 S"),
         PortConf("M", DataType.TENSOR, title="质量矩阵 M"),
