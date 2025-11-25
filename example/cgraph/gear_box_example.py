@@ -6,7 +6,7 @@ mesher = cgraph.create("InpMeshReader")
 matrixer = cgraph.create("MatMatrixReader")              
 spacer = cgraph.create("FunctionSpace")        
 eig_eq = cgraph.create("GearBox")
-eigensolver = cgraph.create("SLEPcEigenSolver")
+eigensolver = cgraph.create("ScipyEigenSolver")
 postprocess = cgraph.create("GearboxPostprocess")
 
 mesher(input_inp_file ='/home/hk/下载/box_case3.inp') 

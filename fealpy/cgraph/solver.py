@@ -117,6 +117,7 @@ class ScipyEigenSolver(CNodeType):
         M = kwargs.get('M')
         neigen = kwargs.get('neigen')
         val, vec = eigsh(S, k=neigen, M=M, which=kwargs.get('which', 'SM'), tol=1e-6, maxiter=1000)
+        vec = vec.T
         return val, vec
     
 
