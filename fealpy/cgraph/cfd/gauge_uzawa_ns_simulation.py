@@ -23,7 +23,7 @@ class GaugeUzawaNSSimulation(CNodeType):
         q (int): Quadrature degree used for numerical integration.
     """
     TITLE: str = "Gauge Uzawa Navier-Stokes 方程有限元离散"
-    PATH: str = "流体.有限元算法"
+    PATH: str = "simulation.discretization"
     DESC: str = """
                 使用有限元方法对 Gauge Uzawa 形式的 Navier-Stokes 方程进行离散。
                 本节点实现了速度场与压力场的有限元双线性形式与线性形式组装，适用于不可压缩流体动力学问题。

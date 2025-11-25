@@ -17,7 +17,7 @@ class AllenCahnFEMSimulation(CNodeType):
         q (int): Quadrature degree used for numerical integration.
     """
     TITLE: str = "Allen-Cahn 方程有限元离散"
-    PATH: str = "流体.有限元算法"
+    PATH: str = "simulation.discretization"
     DESC: str = """
                 使用有限元方法对 Allen-Cahn 方程进行离散。
                 本节点实现了相场方程的有限元双线性形式与线性形式组装，适用于相场变量 φ 与化学势 μ 的耦
