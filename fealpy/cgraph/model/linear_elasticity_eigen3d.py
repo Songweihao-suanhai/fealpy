@@ -2,7 +2,7 @@ from ..nodetype import CNodeType, PortConf, DataType
 
 class LinearElasticityEigen3d(CNodeType):
     TITLE: str = "线弹性特征值模型"
-    PATH: str = "模型.线弹性"
+    PATH: str = "preprocess.modeling"
     INPUT_SLOTS = []
     OUTPUT_SLOTS = [
         PortConf("domain", DataType.NONE,title="区域"),

@@ -4,14 +4,14 @@ import fealpy.cgraph as cgraph
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 mesher = cgraph.create("InpMeshReader") 
 matrixer = cgraph.create("MatMatrixReader")              
-spacer = cgraph.create("TensorFunctionSpace")        
+spacer = cgraph.create("FunctionSpace")        
 eig_eq = cgraph.create("GearBox")
-eigensolver = cgraph.create("SLEPcEigenSolver")
+eigensolver = cgraph.create("ScipyEigenSolver")
 postprocess = cgraph.create("GearboxPostprocess")
 
 mesher(input_inp_file ='/home/hk/下载/box_case3.inp') 
 matrixer(input_mat_file ='/home/hk/下载/shaft_case3.mat') 
-spacer(mesh = mesher(), gd = 3)
+spacer(mesh = mesher())
 eig_eq(mesh=mesher(),shaftmatrix = matrixer(), space=spacer(),q = 3)
 
 
@@ -27,6 +27,7 @@ postprocess(
     NS=eig_eq().NS,
     G=eig_eq().G,
     mesh=eig_eq().mesh,
+    output_file="/home/hk/Fealpy"
 )
 
 WORLD_GRAPH.output(freqs=postprocess().freqs, vecs=postprocess().eigvecs)

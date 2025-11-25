@@ -160,23 +160,24 @@ class AntennaPostprocess(CNodeType):
         from fealpy.functionspace import Function
         mesh = space.mesh
         bc = bm.array([[1/3, 1/3, 1/3, 1/3]], dtype=bm.float64)
+        gdof = space.number_of_global_dofs()
 
-        if isinstance(uh, Function):  
+        if isinstance(uh, Function):
             uh_real = uh.copy()
-            uh_real[:] = bm.real(uh[:])
-        else:  
-            uh_real = space.function()      
-            uh_real[:] = bm.real(uh)       
+            uh_real[:] = bm.real(uh[:gdof])
+        else:
+            uh_real = space.function()
+            uh_real[:] = bm.real(uh[:gdof])
 
         val = space.value(uh_real, bc)
         E = val.reshape(mesh.number_of_cells(), -1)
 
         return E
-    
+
 
 class GearboxPostprocess(CNodeType):
     TITLE: str = "变速箱后处理"
-    PATH: str = "后处理.变速箱"
+    PATH: str = "postprocess"
     DESC: str = "将模态特征向量映射到网格节点并计算固有频率"
 
     INPUT_SLOTS = [
@@ -185,15 +186,17 @@ class GearboxPostprocess(CNodeType):
         PortConf("vecs", DataType.TENSOR, 1, desc="特征向量", title="特征向量"),
         PortConf("NS", DataType.TENSOR, 1, desc="自由度划分信息", title="自由度划分"),
         PortConf("G", DataType.TENSOR, 1, desc="耦合矩阵", title="耦合矩阵"),
+        PortConf("output_file", DataType.STRING, 0, desc="输出文件路径", title="输出文件路径", default="/home"),
     ]
 
     OUTPUT_SLOTS = [
         PortConf("freqs", DataType.TENSOR, desc="固有频率 (Hz)", title="固有频率"),
         PortConf("eigvecs", DataType.TENSOR, desc="映射后的特征向量", title="特征向量"),
+        PortConf("output_file", DataType.STRING, desc="输出文件路径", title="输出文件路径"),
     ]
 
     @staticmethod
-    def run(mesh, vals, vecs, NS, G):
+    def run(mesh, vals, vecs, NS, G, output_file):
         from ..backend import backend_manager as bm
 
         freqs = bm.sqrt(vals) / (2 * bm.pi)
@@ -207,7 +210,10 @@ class GearboxPostprocess(CNodeType):
         mapped_eigvecs = []
         start = sum(NS[0:-2])
         end = start + NS[-2]
-
+        from pathlib import Path
+        export_dir = Path(output_file).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
         for i, val in enumerate(vecs):
             phi = bm.zeros((NN * 3,), dtype=bm.float64)
 
@@ -223,4 +229,6 @@ class GearboxPostprocess(CNodeType):
             mesh.nodedata[f'eigenvalue-{i}-{vals[i]:0.5e}'] = phi
 
         eigvecs = bm.array(mapped_eigvecs)
-        return freqs, eigvecs
+        mesh.to_vtk(fname=fname)
+        output_file = str(fname)
+        return freqs, eigvecs, output_file

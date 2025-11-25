@@ -5,11 +5,11 @@ __all__ = ["GearBox"]
 class GearBox(CNodeType):
     
     TITLE: str = "变速箱（矩阵装配）"
-    PATH: str = "有限元.方程离散"
+    PATH: str = "simulation.discreatization"
     INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, "网格"),
-        PortConf("shaftmatrix", DataType.MENU, "轴系矩阵"),
-        PortConf("space", DataType.SPACE, "函数空间"),
+        PortConf("mesh", DataType.MESH, title ="网格"),
+        PortConf("shaftmatrix", DataType.MENU, title= "轴系矩阵"),
+        PortConf("space", DataType.SPACE, title = "函数空间"),
         PortConf("q", DataType.INT, title="积分精度", default=3, min_val=1, max_val=17),
     ]
     OUTPUT_SLOTS = [
@@ -17,7 +17,7 @@ class GearBox(CNodeType):
         PortConf("mass", DataType.TENSOR, title="质量矩阵M"),
         PortConf("NS", DataType.TENSOR, title="自由度划分信息"),
         PortConf("G", DataType.TENSOR, title="耦合矩阵"),
-        PortConf("mesh", DataType.MESH, "网格"),
+        PortConf("mesh", DataType.MESH, title = "网格"),
     ]
 
     
@@ -95,8 +95,6 @@ class GearBox(CNodeType):
 
         node = mesh.entity('node')
         v = node[redges[isRBE2, 0]] - node[redges[isRBE2, 1]]
-
-        print(f"RBE2 matrix: {NS} surface nodes, {NC} reference nodes")
 
         kwargs = {'shape':(3*NS, 6*NC), 'itype': bm.int32, 'dtype': bm.float64}
         ones = bm.ones(NS, dtype=bm.float64)
@@ -197,7 +195,8 @@ class GearBox(CNodeType):
         from ...fem import ScalarMassIntegrator as MassIntegrator
         from ...backend import backend_manager as bm
         from ...material import LinearElasticMaterial
-
+        from ...functionspace import TensorFunctionSpace
+        space = TensorFunctionSpace(space,shape=(-1,3))
         """
         Construct the linear system for the gearbox shell model.
         """
