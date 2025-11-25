@@ -343,7 +343,7 @@ class FlowPastFoil(CNodeType):
     INPUT_SLOTS = [
         PortConf("mu", DataType.FLOAT, 0, title="粘度", default=0.001),
         PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0),
-        PortConf("inflow", DataType.FLOAT, 0, title="入口最大速度", default=1.0),
+        PortConf("inflow", DataType.FLOAT, 0, title="流入速度", default=1.0),
         PortConf("box", DataType.TENSOR, 1, title="求解域"),
     ]
     OUTPUT_SLOTS = [

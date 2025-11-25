@@ -174,7 +174,7 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
     ]
     OUTPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("thickness", DataType.FLOAT, title=""),
+        PortConf("thickness", DataType.FLOAT, title="芯片厚度"),
         PortConf("radius", DataType.FLOAT, title="微柱半径"),
         PortConf("centers", DataType.TENSOR, title="微柱圆心坐标"),
         PortConf("inlet_boundary", DataType.TENSOR, title="入口边界"),
