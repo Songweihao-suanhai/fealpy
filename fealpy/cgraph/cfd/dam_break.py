@@ -98,13 +98,13 @@ class DamBreakParticleIterativeUpdate(CNodeType):
     def run(maxstep, dx, dy, rhomin, dt, c0, gamma, alpha, rho0, pp, bpp,output_dir):
         from fealpy.cfd.simulation.sph.particle_solver_new import BamBreakSolver,ParticleSystem
         from pathlib import Path
-        from fealpy.cfd.simulation.utils import VTKWriter
-        writer = VTKWriter()
+        from fealpy.backend import backend_manager as bm
+        bm.set_backend("pytorch")
+        from fealpy.cfd.simulation.utils_non_pyvista import VTKWriter2
+        writer = VTKWriter2()
         
         particles = ParticleSystem.initialize_particles(pp, bpp, rho0)
         sph_solver = BamBreakSolver(particles)
-        data = []
-        j = 0
         export_dir = Path(output_dir).expanduser().resolve()
         export_dir.mkdir(parents=True, exist_ok=True)
         
@@ -133,32 +133,7 @@ class DamBreakParticleIterativeUpdate(CNodeType):
             "pressure": sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
             }    
             fname = export_dir / f"test_{str(i+1).zfill(10)}.vtk"
-            # zfname = output_dir + 'test_'+ str(i+1).zfill(10) + '.vtk'    
             writer.write_vtk(current_data, fname) 
-            # os.makedirs(output_dir, exist_ok=True)
-            # if i % 10 == 0:
-            #     data.append ({
-            #         "time": round(i * dt, 8),
-            #         "值":{
-            #             "uh" : sph_solver.ps.particles["velocity"].tolist(),  # ndarray -> list
-            #             "ph" : sph_solver.ps.particles["pressure"].tolist(),  # ndarray -> list
-            #         }, 
-            #         "几何": {
-            #             "position": sph_solver.ps.particles["position"].tolist(),  # ndarray -> list
-            #         }
-            #         })
-                
-            #     if len(data) == 10 :
-            #         j += 1
-            #         file_name = f"file_{j:08d}.json.gz"
-            #         file_path = os.path.join(output_dir, file_name)
-
-            #         with gzip.open(file_path, "wt", encoding="utf-8") as f:
-            #             json.dump(data, f, indent=4, ensure_ascii=False)
-                    
-            #         data.clear()
-            
-            
         velocity = sph_solver.ps.particles["velocity"]
         pressure = sph_solver.ps.particles["pressure"]
         return velocity, pressure
