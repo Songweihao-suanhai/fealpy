@@ -25,7 +25,7 @@ class GNBCSimulation(CNodeType):
     and lower walls at the final time step — crucial for quantifying effective slip
     and validating GNBC implementation against analytical or reference solutions.
     """
-    TITLE: str = "两相Couette流动问题模型"
+    TITLE: str = "GNBC边界条件下两相Couette流动问题有限元求解"
     PATH: str = "simulation.discretization"
     DESC: str = """
     基于广义 Navier 边界条件（GNBC）的两相 Couette 流动高精度有限元求解器。\n
@@ -40,7 +40,7 @@ class GNBCSimulation(CNodeType):
     适用于两相不可压流体的层流模拟、界面滑移研究及润湿动力学分析。
 """
     INPUT_SLOTS = [
-        PortConf("param_list", DataType.NONE, title="参数列表"),
+        PortConf("param_list", DataType.LIST, title="参数列表"),
         PortConf("init_phi", DataType.FUNCTION, 1, title="定义初始相场分布"),
         PortConf("is_uy_Dirichlet", DataType.FUNCTION, 1, title="判断是否为速度Dirichlet边界"),
         PortConf("is_up_boundary", DataType.FUNCTION, 1, title="判断是否为上边界"),
