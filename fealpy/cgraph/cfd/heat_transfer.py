@@ -86,11 +86,12 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
     @staticmethod
     def run(mesh, maxstep,kernel, dx, dt,output_dir):
         from fealpy.backend import backend_manager as bm
+        bm.set_backend("pytorch")
         from fealpy.cfd.simulation.sph.sph_base import SPHQueryKernel, Kernel
         from fealpy.mesh.node_mesh import Space
         from fealpy.cfd.simulation.sph.equation_solver import EquationSolver
         from fealpy.cfd.simulation.sph.processing_technology import ProcessingTechnology
-        from fealpy.cfd.simulation.utils import VTKWriter
+        from fealpy.cfd.simulation.utils_non_pyvista import VTKWriter2
         from pathlib import Path
         
         solver = EquationSolver()
@@ -106,7 +107,7 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
         kernel = Kernel(kinfo, dim=2)
         mesh.nodedata["p"] = solver.state_equation("tait_eos", mesh.nodedata, X=5.0)
         mesh.nodedata = tech.boundary_conditions(mesh.nodedata, box_size, dx=dx)
-        writer = VTKWriter()
+        writer = VTKWriter2()
         export_dir = Path(output_dir).expanduser().resolve()
         export_dir.mkdir(parents=True, exist_ok=True)
         for i in range(maxstep):
