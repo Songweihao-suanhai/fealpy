@@ -45,7 +45,7 @@ class CouetteFlow(CNodeType):
         PortConf("theta", DataType.FLOAT, 0, title="接触角", default=77.6)
     ]
     OUTPUT_SLOTS = [
-        PortConf("param_list", DataType.NONE, title="参数列表"),
+        PortConf("param_list", DataType.LIST, title="参数列表"),
         PortConf("init_phi", DataType.FUNCTION, title="定义初始相场分布"),
         PortConf("is_uy_Dirichlet", DataType.FUNCTION, title="判断是否为速度Dirichlet边界"),
         PortConf("is_up_boundary", DataType.FUNCTION, title="判断是否为上边界"),
