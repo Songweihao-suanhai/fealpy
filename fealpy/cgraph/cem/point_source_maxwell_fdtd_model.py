@@ -22,14 +22,15 @@ class PointSourceMaxwellFDTDModel(CNodeType):
         fdtd_model (object): Configured FDTD model instance.
     """
     TITLE: str = "点源Maxwell方程FDTD求解器"
-    PATH: str = "求解器.电磁场"
+    PATH: str = "simulation.solvers"
     DESC: str = """该节点实现点源Maxwell方程的FDTD（时域有限差分）求解，基于物理参数、源配置和物体配置，
                 支持2D和3D计算域，可以设置边界条件和仿真参数，输出电磁场随时间演化的历史数据。"""
     
     INPUT_SLOTS = [
         # 物理参数
-        PortConf("eps", DataType.FLOAT,0, title="相对介电常数"),
-        PortConf("mu", DataType.FLOAT,0, title="相对磁导率"),
+        PortConf("eps", DataType.FLOAT, 1, title="相对介电常数"),
+        PortConf("mu", DataType.FLOAT, 1, title="相对磁导率"),
+        PortConf("domain", DataType.DOMAIN, 1, title="计算域"),
         PortConf("mesh", DataType.MESH, 1, title="Yee网格"),
         
         # 配置参数
@@ -49,6 +50,7 @@ class PointSourceMaxwellFDTDModel(CNodeType):
                 desc="UPML边界层的网格点数"),
         PortConf("pml_m", DataType.FLOAT, 0, title="PML参数m", default=5.0,
                 desc="UPML grading参数"),
+        PortConf("output_dir", DataType.STRING, 0, title="输出目录"),
     ]
     
     OUTPUT_SLOTS = [
@@ -56,12 +58,16 @@ class PointSourceMaxwellFDTDModel(CNodeType):
     ]
 
     @staticmethod
-    def run(eps, mu, mesh, source_config, object_configs, 
-            dt, maxstep, save_every, boundary, pml_width, pml_m):
+    def run(eps, mu, domain, mesh, source_config, object_configs, 
+            dt, maxstep, save_every, boundary, pml_width, pml_m, output_dir):
         from fealpy.cem.point_source_maxwell_fdtd_model import PointSourceMaxwellFDTDModel
         from fealpy.cem.model.point_source_maxwell import PointSourceMaxwell
+        from fealpy.backend import backend_manager as bm
+        from fealpy.mesh import QuadrangleMesh
+        from pathlib import Path
         
-        domain = mesh.mesh.extent
+        domain = domain
+        print("domain:", domain)
         # 创建PDE模型
         pde = PointSourceMaxwell(eps=eps, mu=mu, domain=domain)
         
@@ -109,4 +115,24 @@ class PointSourceMaxwellFDTDModel(CNodeType):
         fdtd_model = PointSourceMaxwellFDTDModel(pde, n, options)
         field_history = fdtd_model.run(nt=maxstep, save_every=save_every)
 
+        H = [field_history[k]['H'] for k in range(len(field_history))]
+        Hx = bm.array([K["x"] for K in H])
+        Hx = Hx[:, :-1, :] + Hx[:, 1:,:]
+        Hx = Hx.reshape(Hx.shape[0],-1,)
+        Hy = bm.array([K["y"] for K in H])
+        Hy = Hy[...,:-1] + Hy[..., 1:]
+        Hy = Hy.reshape(Hy.shape[0],-1,)
+        H = bm.array([Hx, Hy])
+
+        M_mesh = QuadrangleMesh.from_box([0, 5e-6, 0, 5e-6], nx=n, ny=n)
+        E = [field_history[k]['E'] for k in range(len(field_history))]
+        Ez = bm.array([K["z"] for K in E])
+        
+        export_dir = Path(output_dir).expanduser().resolve()
+        export_dir.mkdir(parents=True, exist_ok=True)
+        for i,E in enumerate(Ez):
+            M_mesh.nodedata["E"] = E.reshape(-1,)
+            M_mesh.celldata["H"] = H[:, i, :].T
+            fname = export_dir / f"test_{str(i).zfill(10)}.vtu"
+            M_mesh.to_vtk(fname=str(fname))
         return field_history

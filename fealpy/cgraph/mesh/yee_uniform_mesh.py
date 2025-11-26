@@ -23,11 +23,11 @@ class YeeUniformMesh(CNodeType):
         H_fields (dict): Initial magnetic field components.
     """
     TITLE: str = "Yee网格初始化器"
-    PATH: str = "网格.电磁场"
+    PATH: str = "preprocess.mesher"
     DESC: str = """该节点创建Yee网格并初始化电磁场分量，考虑电场和磁场在Yee网格上的交错分布特性。"""
     
     INPUT_SLOTS = [
-        PortConf("domain", DataType.DOMAIN, 0, title="计算域", default=[0, 1, 0, 1]),
+        PortConf("domain", DataType.DOMAIN, 0, title="计算域"),
         PortConf("n", DataType.INT, 0, title="剖分数", default=50),
     ]
     
