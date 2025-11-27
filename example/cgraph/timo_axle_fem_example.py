@@ -12,7 +12,6 @@ timoaxle_model = cgraph.create("Timoaxle")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
 strain_stress = cgraph.create("TimoAxleStrainStress")
-# report = cgraph.create("SolidReport")
 
 # 连接节点
 node = bm.array([[0.0, 0.0, 0.0], [70.5, 0.0, 0.0], [141.0, 0.0, 0.0], [155.0, 0.0, 0.0],
@@ -83,20 +82,6 @@ strain_stress(
     beam_num = 22,
     axle_num = 10
 )
-# report(
-#     path = r"C:\Users\Administrator\Desktop",
-#     beam_para = model().beam_para,
-#     axle_para = model().axle_para,
-#     section_shapes = "circular",
-#     shear_factors = 10/9,
-#     mesh=mesher(), 
-#     property="Steel",
-#     beam_E = beam_materialer().E,
-#     beam_mu = beam_materialer().mu, 
-#     axle_E = axle_materialer().E,
-#     axle_mu = axle_materialer().mu,
-#     uh = solver().out
-#        )
 
 
 # 最终连接到图输出节点上
