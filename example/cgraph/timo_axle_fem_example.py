@@ -11,8 +11,10 @@ axle_materialer = cgraph.create("AxleMaterial")
 timoaxle_model = cgraph.create("Timoaxle")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
-coord = cgraph.create("Rbeam3d")
-# strain_stress = cgraph.create("TimoAxleStrainStress")
+indices = cgraph.create("BeamAxleIndices")
+coord1 = cgraph.create("Rbeam3d")
+coord2 = cgraph.create("Rbeam3d")
+strain_stress = cgraph.create("TimoAxleStrainStress")
 
 # 连接节点
 spacer(type="lagrange", mesh=mesher(), p=1)
@@ -50,28 +52,38 @@ solver(A = timoaxle_model().K,
 
 postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
 
-# strain_stress(
-#     beam_para = model().beam_para,
-#     axle_para = model().axle_para,
-#     beam_E = beam_materialer().E,
-#     beam_nu = beam_materialer().nu,
-#     axle_E = axle_materialer().E,
-#     axle_nu = axle_materialer().nu,
-#     mesh=mesher(), 
-#     uh = solver().out,
-#     y = 0.0,
-#     z = 0.0,
-#     axial_position = None,
-#     beam_num = 22,
-#     axle_num = 10
-# )
+indices(
+    beam_num = 22,
+    axle_num = 10,
+    total_num = mesher().NC
+)
+
+R1 = coord1(mesh=mesher(), vref=[0, 1, 0], index = indices().beam_indices)
+R2 = coord2(mesh=mesher(), vref=[0, 1, 0], index = indices().axle_indices)
+
+strain_stress(
+    beam_para = model().beam_para,
+    axle_para = model().axle_para,
+    beam_E = beam_materialer().E,
+    beam_nu = beam_materialer().nu,
+    axle_E = axle_materialer().E,
+    axle_nu = axle_materialer().nu,
+    mesh=mesher(), 
+    uh = solver().out,
+    y = 0.0,
+    z = 0.0,
+    axial_position = None,
+    R1 = R1,
+    R2 = R2,
+    beam_indices = indices().beam_indices,
+    axle_indices = indices().axle_indices,
+    total_num = mesher().NC
+)
 
 
 # 最终连接到图输出节点上
 # WORLD_GRAPH.output(material=beam_materialer(), axle_material=axle_materialer())
-WORLD_GRAPH.output(out=solver().out
-                   # strain=strain_stress().strain, stress=strain_stress().stress
-                   )
+WORLD_GRAPH.output(out=solver().out,strain=strain_stress().strain, stress=strain_stress().stress)
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())

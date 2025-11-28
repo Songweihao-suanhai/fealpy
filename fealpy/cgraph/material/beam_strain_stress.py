@@ -1,7 +1,8 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["ChannelStrainStress", 
+__all__ = ["ChannelStrainStress",
+           "BeamAxleIndices",
            "TimoAxleStrainStress"]
 
 class ChannelStrainStress(CNodeType):
@@ -80,6 +81,43 @@ class ChannelStrainStress(CNodeType):
         return strain, stress
 
 
+class BeamAxleIndices(CNodeType):
+    r"""Get Beam and Axle Element Indices.
+    
+        Inputs:
+            beam_num (INT): Number of beam elements.
+            axle_num (INT): Number of axle elements.
+            total_num (INT): Total number of elements in the mesh.
+
+        Outputs:
+            beam_indices (TENSOR): Indices of beam elements.
+            axle_indices (TENSOR): Indices of axle elements.
+    """
+    TITLE: str = "获取列车轮轴梁和轴单元索引"
+    PATH: str = "material.solid"
+    DESC: str = "获取列车轮轴梁和轴单元的索引信息。"
+    INPUT_SLOTS = [
+        PortConf("beam_num", DataType.INT, 0, desc="梁单元个数", title="梁单元数目", default=22),
+        PortConf("axle_num", DataType.INT, 0, desc="弹簧单元个数", title="弹簧单元数目", default=10),
+        PortConf("total_num", DataType.INT, 1, desc="总单元个数", title="总单元数目"),
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("beam_indices", DataType.TENSOR, title="梁单元索引"),
+        PortConf("axle_indices", DataType.TENSOR, title="轴单元索引"),
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        NC = options.get("total_num")
+        beam_num = options.get("beam_num")
+        axle_num = options.get("axle_num")
+        beam_indices = bm.arange(0, beam_num)
+        axle_indices = bm.arange(NC-axle_num, NC)
+        
+        return beam_indices, axle_indices
+
+
 class TimoAxleStrainStress(CNodeType):
     r"""compute Strain and Stress for train-axle model.
     
@@ -110,9 +148,7 @@ class TimoAxleStrainStress(CNodeType):
     """
     TITLE: str = "列车轮轴应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点用于计算列车轮轴系统中梁段（Beam）与轴段（Axle）杆件在受力后的单元应变与应力。
-            节点基于线弹性理论，通过网格、材料参数和位移场，分别对梁段与轴段进行应变–应力评价，
-            适用于轮轴结构后处理、强度校核及安全性分析。"""
+    DESC: str = """该节点计算列车轮轴系统中梁段与轴段杆件在受力后的单元应变与应力,再计算出总应变和应力"""
             
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
@@ -126,8 +162,11 @@ class TimoAxleStrainStress(CNodeType):
         PortConf("y", DataType.FLOAT, 0, desc="截面局部 Y 坐标", title="Y坐标", default=0.0),
         PortConf("z", DataType.FLOAT, 0, desc="截面局部 Z 坐标", title="Z坐标", default=0.0),
         PortConf("axial_position", DataType.INT, 0, desc="轴向评估位置", title="轴向位置", default=None),
-        PortConf("beam_num", DataType.INT, 0, desc="梁单元个数", title="梁单元", default=22),
-        PortConf("axle_num", DataType.INT, 0, desc="弹簧单元个数", title="弹簧单元", default=10),
+        PortConf("R1", DataType.TENSOR, 1, desc="列车轮轴梁单元部分坐标变换矩阵", title="梁单元坐标变换"),
+        PortConf("R2", DataType.TENSOR, 1, desc="列车轮轴轴单元部分坐标变换矩阵", title="轴单元坐标变换"),
+        PortConf("beam_indices", DataType.TENSOR, 1, desc="轮轴梁单元部分索引", title="梁单元索引"),
+        PortConf("axle_indices", DataType.TENSOR, 1, desc="轮轴轴单元部分索引", title="轴单元索引"),
+        PortConf("total_num", DataType.INT, 1, desc="总单元个数", title="总单元数目"),
     ]
     
     OUTPUT_SLOTS = [
@@ -144,53 +183,52 @@ class TimoAxleStrainStress(CNodeType):
         from fealpy.backend import backend_manager as bm
         from fealpy.csm.model.beam.timobeam_axle_data_3d import TimobeamAxleData3D
         from fealpy.csm.material import TimoshenkoBeamMaterial
-        from fealpy.csm.material import BarMaterial
-        
-        mesh = options.get("mesh")
-        NC = mesh.number_of_cells()
-        
-        uh = options.get("uh").reshape(-1, 6)
+        from fealpy.csm.material import AxleMaterial
         
         model = TimobeamAxleData3D(
                 beam_para=options.get("beam_para"),
                 axle_para=options.get("axle_para")
             )
         
+        uh = options.get("uh").reshape(-1, 2*model.GD)
+        
         beam_material = TimoshenkoBeamMaterial(model=model, 
                                         name="Timo_beam",
                                         elastic_modulus=options.get("beam_E"),
                                         poisson_ratio=options.get("beam_nu"))
-
-        beam_num = options.get("beam_num")
-        beam_indices = bm.arange(0, beam_num)
-
-        R = model.coord_transform(index=beam_indices)
+        
+        mesh = options.get("mesh")
+        NC = options.get("total_num")
         
         y = options.get("y")
         z = options.get("z")
+        
         axial_position = options.get("axial_position")
+        R1 = options.get("R1")
+        beam_indices = options.get("beam_indices")
         
         beam_strain, beam_stress = beam_material.compute_strain_and_stress(
                         mesh,
                         uh,
                         cross_section_coords=(y, z),
                         axial_position=axial_position,
-                        coord_transform=R,
+                        coord_transform=R1,
                         ele_indices=beam_indices)
+        
+        axle_indices = options.get("axle_indices")
 
-        axle_num = options.get("axle_num")
-        axle_indices = bm.arange(NC-axle_num, NC)
-
-        axle_material = BarMaterial(
+        axle_material = AxleMaterial(
             model=model,
             name="bar",
             elastic_modulus=options.get("axle_E"),
             poisson_ratio=options.get("axle_nu")
         )
         
+        R2 = options.get("R2")
         axle_strain, axle_stress = axle_material.compute_strain_and_stress(
                         mesh,
                         uh,
+                        coord_transform=R2,
                         ele_indices=axle_indices)
         
         strain = bm.zeros((NC, 3), dtype=bm.float64)

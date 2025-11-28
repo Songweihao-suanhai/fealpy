@@ -54,7 +54,7 @@ class UDecoupling(CNodeType):
         theta (tensor): Rotational displacement gfield.
     """
     TITLE: str = "位移后处理"
-    PATH: str = "后处理.位移"
+    PATH: str = "postprocess"
     DESC: str = "将模型的平动位移和转动位移做后处理"
     INPUT_SLOTS = [
         PortConf("out", DataType.TENSOR, 1, desc="求解器输出的原始位移向量", title="位移向量"),
