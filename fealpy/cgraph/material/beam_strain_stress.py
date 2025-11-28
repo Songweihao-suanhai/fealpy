@@ -1,67 +1,84 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["TimoMaterial", "TimoAxleStrainStress"]
+__all__ = ["ChannelStrainStress", 
+           "TimoAxleStrainStress"]
 
-
-class TimoMaterial(CNodeType):
-    r"""Timoshenko Beam Material Definition Node.
+class ChannelStrainStress(CNodeType):
+    r"""Compute Strain and Stress for Channel Beam.
     
         Inputs:
-            property (STRING): Material type, e.g., "Steel".
-            beam_type (MENU): Beam model type selection.
-            beam_para (TENSOR): Beam section parameters, each row represents [Diameter, Length, Count].
-            axle_para (TENSOR): Axle section parameters, each row represents [Diameter, Length, Count].
+            mu_y (FLOAT): Ratio of maximum to average shear stress for y-direction shear.
+            mu_z (FLOAT): Ratio of maximum to average shear stress for z-direction shear.
             beam_E (FLOAT): Elastic modulus of the beam material.
             beam_nu (FLOAT): Poisson’s ratio of the beam material.
+            mesh (MESH): Mesh containing node and cell information.
+            uh (TENSOR): Post-processed displacement vector.
+            y (FLOAT): Local coordinates in the beam cross-section.
+            z (FLOAT): Local coordinates in the beam cross-section.
 
         Outputs:
-            property (STRING): Material type.
-            beam_type (MENU): Beam model type.
-            E (FLOAT): Elastic modulus of the beam material.
-            mu (FLOAT): Shear modulus, computed as `E / [2(1 + nu)]`.
+            strain (TENSOR): Computed strain at specified locations.
+            stress (TENSOR): Computed stress at specified locations.
     """
-    TITLE: str = "列车轮轴梁材料属性"
+    TITLE: str = "槽形梁应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点用于定义列车轮轴中梁段（Beam）部分的材料属性，
-        并根据输入的梁几何参数和材料参数计算材料的基本力学常数，
-        包括弹性模量、泊松比和剪切模量。节点同时支持铁木辛柯梁模型。"""
-        
+    DESC: str = """该节点用于计算槽形梁在给定载荷和边界条件下的应变和应力。"""
     INPUT_SLOTS = [
-        PortConf("property", DataType.STRING, 0, desc="材料名称（如钢、铝等）", title="材料材质", default="Steel"),
-        PortConf("beam_type", DataType.MENU, 0, desc="轮轴材料类型选择", title="梁材料", default="Timo_beam", 
-                 items=["Euler_beam", "Timo_beam"]),
-        PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
-        PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
-        PortConf("beam_E", DataType.FLOAT, 0, desc="梁的弹性模量", title="梁的弹性模量", default=2.1e11),
-        PortConf("beam_nu", DataType.FLOAT, 0, desc="梁的泊松比", title="梁的泊松比", default=0.3)
+        PortConf("mu_y", DataType.FLOAT, 1, desc="y方向剪切应力的最大值与平均值比例因子", 
+                 title="y向剪切因子"),        
+        PortConf("mu_z", DataType.FLOAT, 1, desc="z方向剪切应力的最大值与平均值比例因子", 
+                 title="z向剪切因子"),
+        PortConf("E", DataType.FLOAT, 1, desc="梁的弹性模量", title="梁的弹性模量"),
+        PortConf("nu", DataType.FLOAT, 1, desc="梁的泊松比", title="梁的泊松比"),
+        PortConf("mesh", DataType.MESH, 1, desc="槽形梁的三维网格", title="网格"),
+        PortConf("uh", DataType.TENSOR, 1, desc="有限元分析得到的位移解向量", title="全局位移"),
+        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换"),
+        PortConf("y", DataType.FLOAT, 0, desc="应变/应力评估的y坐标", title="y坐标", default=0.0),
+        PortConf("z", DataType.FLOAT, 0, desc="应变/应力评估的z坐标", title="z坐标", default=0.0),
     ]
-    
     OUTPUT_SLOTS = [
-        PortConf("E", DataType.FLOAT, title="梁的弹性模量"),
-        PortConf("nu", DataType.FLOAT, title="梁的泊松比"),
-        PortConf("mu", DataType.FLOAT, title="梁的剪切模量")
+        PortConf("strain", DataType.TENSOR, title="应变"),
+        PortConf("stress", DataType.TENSOR, title="应力")
     ]
     
     @staticmethod
-    def run(property="Steel", beam_type="Timoshemko_beam", 
-            beam_para=None, axle_para=None,
-            beam_E=2.1e11, beam_nu=0.3):
-        from fealpy.csm.model.beam.timobeam_axle_data_3d import TimobeamAxleData3D
+    def run(**options):
+        
+        from fealpy.csm.model.beam.channel_beam_data_3d import ChannelBeamData3D
         from fealpy.csm.material import TimoshenkoBeamMaterial
         
-        model = TimobeamAxleData3D(beam_para, axle_para)
+        mu_y = options.get("mu_y")
+        mu_z = options.get("mu_z")
+
+        model = ChannelBeamData3D(mu_y=mu_y, mu_z=mu_z)
         
-        beam_material = TimoshenkoBeamMaterial(model=model, 
-                                        name=beam_type,
-                                        elastic_modulus=beam_E,
-                                        poisson_ratio=beam_nu)
+        E = options.get("E")
+        nu = options.get("nu")
+        material = TimoshenkoBeamMaterial(model=model, 
+                                        name="Timoshenko_beam",
+                                        elastic_modulus=E,
+                                        poisson_ratio=nu)
         
-        return tuple(
-            getattr(beam_material, name)
-            for name in ["E", "nu", "mu"]
+        mesh = options.get("mesh")
+        disp = options.get("uh")
+        uh = disp.reshape(-1, 2*model.GD)
+        
+        y = options.get("y", 0.0)
+        z = options.get("z", 0.0)
+        R = options.get("coord_transform")
+        
+        strain, stress = material.compute_strain_and_stress(
+            mesh=mesh,
+            disp=uh,
+            cross_section_coords=(y, z),
+            axial_position=None,
+            coord_transform=R,
+            ele_indices=None
         )
         
+        return strain, stress
+
 
 class TimoAxleStrainStress(CNodeType):
     r"""compute Strain and Stress for train-axle model.

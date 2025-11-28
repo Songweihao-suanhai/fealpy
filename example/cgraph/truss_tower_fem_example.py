@@ -55,8 +55,7 @@ strain_stress(
     nu = materialer().nu,
     mesh = mesher(),
     uh = solver().out,
-    coord_transform = coord().R,
-    index = None
+    coord_transform = coord().R
 )
 
 # 最终连接到图输出节点上

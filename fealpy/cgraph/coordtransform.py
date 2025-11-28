@@ -80,7 +80,7 @@ class Rbar3d(CNodeType):
         mesh = options.get("mesh")
         vref = options.get("vref")
         index = options.get("index")
-        indices = slice(None)
+        indices = slice(None) 
         coord_transform = CoordTransform(method="bar3d")
         R = coord_transform.coord_transform_bar3d(mesh, vref, indices)
         return R
@@ -121,6 +121,7 @@ class Rbeam3d(CNodeType):
         mesh = options.get("mesh")
         vref = options.get("vref")
         index = options.get("index")
+        indices = slice(index)
         coord_transform = CoordTransform(method="beam3d")
-        R = coord_transform.coord_transform_beam3d(mesh, vref, index)
+        R = coord_transform.coord_transform_beam3d(mesh, vref, indices)
         return R
