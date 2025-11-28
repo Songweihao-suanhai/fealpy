@@ -14,27 +14,22 @@ class Bar25StrainStress(CNodeType):
         mesh (MESH): Mesh containing node and cell information.
         uh (TENSOR): Post-processed displacement vector.
         coord_transform (TENSOR): Coordinate transformation matrix.
-        index (TENSOR): Indices of bar elements to compute. If None, compute for all elements.
 
-        Outputs:
-            strain (TENSOR): Strain of the bar elements.
-            stress (TENSOR): Stress of the bar elements.
+    Outputs:
+        strain (TENSOR): Strain of the bar elements.
+        stress (TENSOR): Stress of the bar elements.
 
     """
     TITLE: str = "25杆应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点基于线弹性理论，对25杆桁架结构的杆件执行应变–应力计算。
-            节点通过单元网格、材料参数以及位移场，计算相应的单元应变及应力，用于结构后处理与安全性分析。
-            并且用户可选择特定单元进行计算，或对所有单元执行统一的应变–应力分析。"""
+    DESC: str = """该节点基于线弹性理论,对25杆桁架结构的杆件执行应变-应力计算。"""
             
     INPUT_SLOTS = [
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
-        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="位移向量"),
-        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换"),
-        PortConf("index", DataType.TENSOR, 1, desc="杆件单元索引，若为 None，则对全部单元进行计算。",
-                 title="单元索引", default=None),
+        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="全局位移"),
+        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换")
     ]
     
     OUTPUT_SLOTS = [
@@ -60,7 +55,7 @@ class Bar25StrainStress(CNodeType):
                         options.get("mesh"),
                         uh,
                         options.get("coord_transform"),
-                        ele_indices=options.get("index"))
+                        ele_indices=None)
 
         return strain, stress
     
@@ -74,27 +69,22 @@ class Bar942StrainStress(CNodeType):
         mesh (MESH): Mesh containing node and cell information.
         uh (TENSOR): Post-processed displacement vector.
         coord_transform (TENSOR): Coordinate transformation matrix.
-        index (TENSOR): Indices of bar elements to compute. If None, compute for all elements.
 
-        Outputs:
-            strain (TENSOR): Strain of the bar elements.
-            stress (TENSOR): Stress of the bar elements.
+    Outputs:
+        strain (TENSOR): Strain of the bar elements.
+        stress (TENSOR): Stress of the bar elements.
 
     """
     TITLE: str = "942杆应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点基于线弹性理论，对942杆桁架结构的杆件执行应变–应力计算。
-            节点通过单元网格、材料参数以及位移场，计算相应的单元应变及应力，用于结构后处理与安全性分析。
-            并且用户可选择特定单元进行计算，或对所有单元执行统一的应变–应力分析。"""
+    DESC: str = """该节点基于线弹性理论，对942杆桁架结构的杆件执行应变–应力计算。"""
             
     INPUT_SLOTS = [
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
-        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="位移向量"),
-        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换"),
-        PortConf("index", DataType.TENSOR, 1, desc="杆件单元索引，若为 None，则对全部单元进行计算。",
-                 title="单元索引", default=None),
+        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="全局位移"),
+        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换")
     ]
     
     OUTPUT_SLOTS = [
@@ -120,7 +110,7 @@ class Bar942StrainStress(CNodeType):
                         options.get("mesh"),
                         uh,
                         options.get("coord_transform"),
-                        ele_indices=options.get("index"))
+                        ele_indices=None)
 
         return strain, stress
 
@@ -134,27 +124,22 @@ class TrussTowerStrainStress(CNodeType):
         mesh (MESH): Mesh containing node and cell information.
         uh (TENSOR): Post-processed displacement vector.
         coord_transform (TENSOR): Coordinate transformation matrix.
-        index (TENSOR): Indices of bar elements to compute. If None, compute for all elements.
 
-        Outputs:
-            strain (TENSOR): Strain of the bar elements.
-            stress (TENSOR): Stress of the bar elements.
+    Outputs:
+        strain (TENSOR): Strain of the bar elements.
+        stress (TENSOR): Stress of the bar elements.
 
     """
     TITLE: str = "桁架塔应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点基于线弹性理论，对桁架塔结构的杆件执行应变–应力计算。
-            节点通过单元网格、材料参数以及位移场，计算相应的单元应变及应力，用于结构后处理与安全性分析。
-            并且用户可选择特定单元进行计算，或对所有单元执行统一的应变–应力分析。"""
+    DESC: str = """该节点基于线弹性理论，对桁架塔结构的杆件执行应变–应力计算。"""
             
     INPUT_SLOTS = [
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
-        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="位移向量"),
-        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换"),
-        PortConf("index", DataType.TENSOR, 1, desc="杆件单元索引，若为 None，则对全部单元进行计算。",
-                 title="单元索引", default=None),
+        PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="全局位移"),
+        PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换")
     ]
     
     OUTPUT_SLOTS = [
@@ -180,6 +165,6 @@ class TrussTowerStrainStress(CNodeType):
                         options.get("mesh"),
                         uh,
                         options.get("coord_transform"),
-                        ele_indices=options.get("index"))
+                        ele_indices=None)
 
         return strain, stress

@@ -17,3 +17,4 @@ from .utils import MatMatrixReader
 from .water_purification_reactor_mesh import *
 from .yee_uniform_mesh import *
 from .bar_mesh import *
+from .beam_mesh import *
