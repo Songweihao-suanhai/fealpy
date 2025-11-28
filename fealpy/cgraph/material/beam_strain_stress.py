@@ -132,10 +132,13 @@ class TimoAxleStrainStress(CNodeType):
             uh (TENSOR): Post-processed displacement vector.
             y (FLOAT): Local coordinates in the beam cross-section.
             z (FLOAT): Local coordinates in the beam cross-section.
-            axial_position (FLOAT)): Evaluation position along the beam axis ∈ [0, L].
+            axial_position (FLOAT): Evaluation position along the beam axis ∈ [0, L].
                 If None, the value is evaluated at the element midpoint L/2
-            beam_num (INT): Number of beam elements. If None, uses all cells.
-            axle_num (INT): Number of axle elements. If None, uses all cells.
+            R1 (TENSOR): Coordinate transformation matrix for beam elements.
+            R2 (TENSOR): Coordinate transformation matrix for axle elements.
+            beam_indices (TENSOR): Indices of beam elements.
+            axle_indices (TENSOR): Indices of axle elements.
+            total_num (INT): Total number of elements in the mesh.
 
         Outputs:
             beam_strain (TENSOR): Strain of the beam elements.
