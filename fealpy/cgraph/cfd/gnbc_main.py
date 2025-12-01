@@ -26,7 +26,7 @@ class GNBCSimulation(CNodeType):
     and validating GNBC implementation against analytical or reference solutions.
     """
     TITLE: str = "GNBC边界条件下两相Couette流动问题有限元求解"
-    PATH: str = "simulation.discretization"
+    PATH: str = "simulation.solvers"
     DESC: str = """
     基于广义 Navier 边界条件（GNBC）的两相 Couette 流动高精度有限元求解器。\n
     该节点实现了 Cahn–Hilliard 相场方程与不可压 Navier–Stokes 方程的完全耦合求解，

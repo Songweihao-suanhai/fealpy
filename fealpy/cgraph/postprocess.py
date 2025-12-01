@@ -16,7 +16,7 @@ class VPDecoupling(CNodeType):
         ph (tensor): Numerical pressure field.
     """
     TITLE: str = "速度-压力解耦"
-    PATH: str = "后处理.解耦"
+    PATH: str = "postprocess"
     DESC: str = """该节点用于将包含速度和压力分量的联合输出向量进行解耦，提取速度场及其各分量与压力场，
                 便于后续的流体力学结果分析与可视化处理。"""
     INPUT_SLOTS = [
@@ -99,7 +99,7 @@ class AntennaPostprocess(CNodeType):
     """
 
     TITLE: str = "天线单元后处理"
-    PATH: str = "后处理.天线单元"
+    PATH: str = "postprocess"
     DESC: str = "将天线的自由度平分到各自单元"
     INPUT_SLOTS = [
         PortConf("uh", DataType.FUNCTION, 1, desc="求解器输出的复数场自由度", title="有限元解"),
