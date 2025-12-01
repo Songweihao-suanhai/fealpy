@@ -15,7 +15,7 @@ def _identity(*args, **kwargs):
 
 class ConstDomain(CNodeType):
     TITLE = "区域"
-    PATH = "数据.常量"
+    PATH = "dataflow.const"
     DESC = "输出一个区域"
     INPUT_SLOTS = [
         PortConf("value", DataType.STRING, 0, title="值", default="[0, 1]")
@@ -34,7 +34,7 @@ class ConstDomain(CNodeType):
 
 class ConstInt(CNodeType):
     TITLE = "整数"
-    PATH = "数据.常量"
+    PATH = "dataflow.const"
     DESC = "输出一个整数"
     INPUT_SLOTS = [
         PortConf("value", DataType.INT, 0, title="值", default=0)
@@ -47,7 +47,7 @@ class ConstInt(CNodeType):
 
 class ConstFloat(CNodeType):
     TITLE = "浮点数"
-    PATH = "数据.常量"
+    PATH = "dataflow.const"
     DESC = "输出一个浮点数"
     INPUT_SLOTS = [
         PortConf("value", DataType.FLOAT, 0, title="值", default=0)
@@ -60,7 +60,7 @@ class ConstFloat(CNodeType):
 
 class ConstTensor(CNodeType):
     TITLE = "张量"
-    PATH = "数据.常量"
+    PATH = "dataflow.const"
     DESC = "输出一个张量"
     INPUT_SLOTS = [
         PortConf("dtype_name", DataType.MENU, 0, title="数据类型", default="float64", items=['float64', 'float32', 'int64', 'int32', 'bool']),

@@ -13,7 +13,7 @@ class InpMeshReader(CNodeType):
         output_mesh (MeshType): The mesh object created.
     """
     TITLE: str = "INP 网格读取"
-    PATH: str = "网格.构造"
+    PATH: str = "utils.mesh"
     INPUT_SLOTS = [
         PortConf("input_inp_file", DataType.STRING, title="文件路径", default="")
     ]

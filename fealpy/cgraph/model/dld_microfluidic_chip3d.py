@@ -20,7 +20,7 @@ class DLDMicrofluidicChip3D(CNodeType):
         is_pressure_boundary (function): Logical function that identifies pressure (outlet) boundaries.
     """
     TITLE: str = "三维 DLD 微流控芯片流体数学模型"
-    PATH: str = "模型.DLD 微流控芯片"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点基于DLD微流控芯片几何参数构建三维流体数学模型, 定义速度与压力的Dirichlet边界条
                 件及其识别函数，用于后续流场有限元或有限体积求解。"""
     INPUT_SLOTS = [

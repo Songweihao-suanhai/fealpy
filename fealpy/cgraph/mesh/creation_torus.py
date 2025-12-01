@@ -23,7 +23,7 @@ class Torus2d(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "圆环面网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """创建三维空间中，圆环面对应的三角形网格或四边形网格。
                 该节点创建圆环面对应的三角形网格或四边形网格，圆环圆心由输入参数（x, y, z）控制，
                 圆环内径与外径分别由输入参数 r、R 确定，通过输入参数（ax, ay, az）设置圆环面的轴向（即面法向），
