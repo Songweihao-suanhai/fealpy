@@ -31,7 +31,7 @@ class BoundaryMeshExtractor(CNodeType):
                 within faces of original mesh.
     """
     TITLE: str = "提取边界网格"
-    PATH: str = "utils.operations"
+    PATH: str = "utils.mesh"
     INPUT_SLOTS = [
         PortConf("input_mesh", DataType.MESH, title="网格")
     ]
