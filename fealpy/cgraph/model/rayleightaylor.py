@@ -34,7 +34,7 @@ class RayleighTaylor(CNodeType):
     """
 
     TITLE: str = "Rayleigh-Taylor Instability(RTI)问题模型"
-    PATH: str = "模型.CHNS 方程"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点定义了 Cahn–Hilliard–Navier–Stokes (CHNS) 方程中 Rayleigh–Taylor 
                 不稳定性问题的物理参数、计算域以及边界与初始条件。通过输入上层与下层流体的密度、雷诺数、
                 弗劳德数、界面厚度参数等物理参数，自动构造计算域及相应的边界条件函数与初始界面函数，便

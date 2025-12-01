@@ -4,7 +4,7 @@ from .nodetype import CNodeType, PortConf, DataType
 class Formula(CNodeType):
     """Formula Evaluation Node."""
     TITLE = "公式"
-    PATH = "数据"
+    PATH = "dataflow"
     DESC = """评估公式的值。
 该节点支持自定义输入变量和求值表达式。
 使用例子：添加输入'a'和'b'，填写代码'a+b'，则该节点执行两个变量相加。
@@ -27,7 +27,7 @@ class Formula(CNodeType):
 class Script(CNodeType):
     """Script Execution Node."""
     TITLE = "脚本"
-    PATH = "数据"
+    PATH = "dataflow"
     DESC = """执行脚本。
 该节点支持自定义输入变量和多行脚本。
 使用例子：添加输入'a'和'b'和任意名称的两个输出，在“输出变量中”指定输出变量为'c, d'，填写代码'c = a + b\nd = a - b'，则该节点将返回两个变量的和与差。

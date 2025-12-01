@@ -6,7 +6,7 @@ __all__ = ["WaterPurificationReactorMesher"]
 
 class WaterPurificationReactorMesher(CNodeType):
     TITLE: str = "二维水净化反应器网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     INPUT_SLOTS = [
         PortConf("block_length", DataType.FLOAT, 1, title="底面长方形长度", default=6.0),
         PortConf("block_width", DataType.FLOAT, 1, title="底面长方形宽度", default=2.0),

@@ -23,7 +23,7 @@ class Sample(CNodeType):
     """
 
     TITLE: str = "矩形区域采样器"
-    PATH: str = "机器学习.采样"
+    PATH: str = "utils.sample"
     DESC: str = "在矩形区域的内部或边界上获取采样点或配置点."
 
     INPUT_SLOTS = [

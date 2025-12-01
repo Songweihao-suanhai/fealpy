@@ -6,7 +6,7 @@ __all__ = ["MicrostripPatchMesher3d"]
 
 class MicrostripPatchMesher3d(CNodeType):
     TITLE: str = "三维微带贴片天线网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     INPUT_SLOTS = [
         PortConf("d", DataType.FLOAT, 1, title="基板厚度(mm)", default=1.524),
         PortConf("w_line", DataType.FLOAT, 1, title="50Ω 线宽(mm)", default=3.2),

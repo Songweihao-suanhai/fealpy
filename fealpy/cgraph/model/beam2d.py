@@ -16,7 +16,7 @@ class Beam2d(CNodeType):
         dirichlet_dof_index: Indices of DOFs with Dirichlet boundary conditions (array or callable).
     """
     TITLE: str = "欧拉梁几何参数模型"
-    PATH: str = "模型.几何参数"
+    PATH: str = "preprocess.modeling"
     DESC: str = "定义欧拉梁的几何结构及边界条件函数"
     INPUT_SLOTS = []
     OUTPUT_SLOTS = [

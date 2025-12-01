@@ -25,7 +25,7 @@ class CircleMesh(CNodeType):
     """
 
     TITLE: str = "二维圆形网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """在二维圆形区域生成非结构的三角形网格。
                 该节点通过接受圆心坐标(X,Y)、半径以及网格尺寸四个参数，生成非结构的三角形网格。
                 使用例子：通过输入四类浮点数:圆心坐标X,Y, 半径radius, 网格尺寸h, 连接到节点上，
@@ -70,7 +70,7 @@ class Ellipse2d(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "椭圆网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """
                 在二维椭圆形区域生成三角形或四边形网格。
 
@@ -118,7 +118,7 @@ class Ellipse2d(CNodeType):
             mesh (MeshType): The mesh object created.
         """
         TITLE: str = "椭球面网格"
-        PATH: str = "网格.构造"
+        PATH: str = "preprocess.mesher"
         DESC: str = """
                     在三维椭球面上生成三角形或四边形网格。
 
@@ -170,7 +170,7 @@ class Ellipse2d(CNodeType):
             mesh (MeshType): The mesh object created.
         """
         TITLE: str = "椭球体网格"
-        PATH: str = "网格.构造"
+        PATH: str = "preprocess.mesher"
         DESC: str = """
                     创建三维空间中，椭球体区域对应的四面体网格。
 
@@ -214,7 +214,7 @@ class SphereSurface(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "球面网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """
                     在单位球面上生成网格生成三角形或四边形网格，加密次数越多，网格越密。
                     
@@ -249,7 +249,7 @@ class Sphere(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "球体网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """
                     生成单位球体的四面体网格，网格尺寸越小，网格越密。
 
@@ -281,7 +281,7 @@ class SphericalShell3d(CNodeType):
         h (float, optional): Mesh size parameter.
     """
     TITLE: str = "带空腔的球体网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """
                 创建三维空间中，内部包含球形空腔的球体区域对应的四面体网格。
                 
