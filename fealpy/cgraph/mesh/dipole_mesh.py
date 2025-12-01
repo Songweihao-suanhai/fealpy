@@ -20,7 +20,7 @@ class Dipole3d(CNodeType):
         dirichletBC (bool): The Dirichlet boundary ID.
     """
     TITLE: str = "偶极子天线网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     INPUT_SLOTS = [
         PortConf("cr", DataType.FLOAT, 0, title="圆柱半径", default= 0.05),
         PortConf("sr0", DataType.FLOAT, 1, title="球形计算域内半径", default=1.9),

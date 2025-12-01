@@ -22,7 +22,7 @@ class IncompressibleNS2d(CNodeType):
         is_pressure_boundary (function): Predicate function for pressure boundary regions.
     """
     TITLE: str = "二维非稳态不可压缩 NS 方程问题模型"
-    PATH: str = "模型.非稳态 NS"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点定义二维非稳态不可压缩Navier-Stokes方程模型,可按示例编号加载典型算例，输出
                 物性参数、解析解、源项及边界条件，用于数值求解验证。"""
     INPUT_SLOTS = [
@@ -79,7 +79,7 @@ class IncompressibleCylinder2d(CNodeType):
         mesh (mesh): Computational mesh.
     """
     TITLE: str = "二维非稳态圆柱绕流问题模型"
-    PATH: str = "模型.非稳态 NS"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点建立二维非稳态不可压缩圆柱绕流数值模型，自动生成带圆柱障碍物的计算网格，定义
                 入口抛物线速度、出口压力及各类边界条件, 为Navier-Stokes方程求解提供完整物理场输入。"""
     INPUT_SLOTS = [
@@ -337,7 +337,7 @@ class IncompressibleCylinder2d(CNodeType):
 
 class FlowPastFoil(CNodeType):
     TITLE: str = "二维翼型绕流问题模型"
-    PATH: str = "模型.非稳态 NS"
+    PATH: str = "preprocess.modeling"
     DESC: str = """该节点建立二维非稳态翼型绕流数值模型,自动生成带NACA001翼型障碍物的计算网格, 定义
                 入口抛物线速度、出口压力及各类边界条件, 为Navier-Stokes方程求解提供完整物理场输入。"""
     INPUT_SLOTS = [

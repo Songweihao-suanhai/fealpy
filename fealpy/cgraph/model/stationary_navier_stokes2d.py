@@ -22,7 +22,7 @@ class StationaryNS2d(CNodeType):
         is_pressure_boundary (function): Predicate function for pressure boundary regions.
     """
     TITLE: str = "二维稳态 NS 方程问题模型"
-    PATH: str = "模型.稳态NS"
+    PATH: str = "preprocess.modeling"
     DESC: str = """这个节点是一个二维稳态不可压 Navier-Stokes 方程问题模型节点，可根据输入的例子编号生成对应的流体问题，
                 包括粘度、密度、求解域、速度与压力的真解、源项以及速度和压力的边界条件与边界判断函数。"""
     INPUT_SLOTS = [

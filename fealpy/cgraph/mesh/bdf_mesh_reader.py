@@ -27,7 +27,7 @@ class BdfMeshReader(CNodeType):
         output_mesh (MeshType): The mesh object created.
     """
     TITLE: str = "BDF 网格读取"
-    PATH: str = "网格.构造"
+    PATH: str = "utils.mesh"
     INPUT_SLOTS = [
         PortConf("input_bdf_file", DataType.STRING, title="文件路径", default="")
     ]

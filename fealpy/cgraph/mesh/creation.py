@@ -69,7 +69,7 @@ class DLDMicrofluidicChipMesh2d(CNodeType):
         wall_boundary (tensor): Wall boundary of the channel.
     """
     TITLE: str = "二维 DLD 微流芯片网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """该节点生成二维DLD微流控芯片的网格剖分, 依据几何与周期参数自动构建微柱
                 阵列及流道边界，为微流控芯片数值模拟提供几何与网格基础。"""
     INPUT_SLOTS = [
@@ -154,7 +154,7 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
         wall_boundary (Tensor): Node or face data defining the channel wall boundaries.
     """
     TITLE: str = "三维 DLD 微流芯片网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """该节点生成三维DLD微流控芯片的网格剖分, 依据几何与周期参数自动构建微柱
                 阵列及流道边界，为微流控芯片数值模拟提供几何与网格基础。"""
     INPUT_SLOTS = [
@@ -217,7 +217,7 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
 
 class NACA4Mesh2d(CNodeType):
     TITLE: str = "NACA 四位数翼型二维网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """该节点生成二维 NACA4 系列翼型的网格剖分, 依据翼型参数自动构建翼型几何形状及
                 流道边界，为翼型流场数值模拟提供几何与网格基础。"""
     INPUT_SLOTS = [

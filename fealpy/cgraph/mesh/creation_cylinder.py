@@ -16,7 +16,7 @@ class Cylinder3d(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "圆柱体网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """创建三维空间中，圆柱体区域对应的四面体网格。
                 该节点创建圆柱体区域对应的四面体网格，底面圆心半径为原点，半径由输入参数（radius）确定，
                 圆柱高度由输入参数（height）设置，使用 gmsh 生成网格，并根据输入的网格尺寸（lc）控制网格密度，

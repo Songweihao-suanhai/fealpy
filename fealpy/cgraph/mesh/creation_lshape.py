@@ -15,7 +15,7 @@ class Lshape2d(CNodeType):
         mesh (MeshType): The mesh object created.
     """
     TITLE: str = "L区域网格"
-    PATH: str = "网格.构造"
+    PATH: str = "preprocess.mesher"
     DESC: str = """创建二维空间中，L 形区域对应的三角形或四边形网格。
                 该节点创建 L 形区域对应的三角形或四边形网格，由输入参数大区域（big_box）和小区域（small_box）确定 L 形区域的范围，
                 即大区域与小区域的差集，并使用输入参数（nx, ny）分别设置在 X 方向与 Y 方向的分段数，
