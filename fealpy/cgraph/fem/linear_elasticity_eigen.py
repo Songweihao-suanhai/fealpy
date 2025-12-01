@@ -4,7 +4,7 @@ __all__ = ["LinearElasticityEigenEquation"]
 
 class LinearElasticityEigenEquation(CNodeType):
     TITLE: str = "线弹性特征值方程（矩阵装配）"
-    PATH: str = "preprocess.modeling"
+    PATH: str = "simulation.discretization"
     INPUT_SLOTS = [
         PortConf("space", DataType.SPACE, "函数空间"),
         PortConf("q", DataType.INT, title="积分精度", default=3, min_val=1, max_val=17),
