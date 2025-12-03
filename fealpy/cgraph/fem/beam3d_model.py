@@ -9,8 +9,9 @@ class ChannelBeam(CNodeType):
     Inputs:
         mu_y (FLOAT): Ratio of maximum to average shear stress for y-direction shear.
         mu_z (FLOAT): Ratio of maximum to average shear stress for z-direction shear.
-        GD (INT): Geometric dimension of the model.
-        space (SPACE): Lagrange function space.
+        space_type (str): Type of function space (e.g., "lagrangespace").
+        GD (int): Geometric dimension of the model.
+        mesh (mesh): A scalar Lagrange function space.
         beam_E (FLOAT): Elastic modulus of the beam material.
         beam_nu (FLOAT): Poisson’s ratio of the beam material.
         beam_density (FLOAT): Density of the beam material.
@@ -33,8 +34,9 @@ class ChannelBeam(CNodeType):
                  title="y向剪切因子"),
         PortConf("mu_z", DataType.FLOAT, 1, desc="z方向剪切应力的最大值与平均值比例因子", 
                  title="z向剪切因子"),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("space", DataType.SPACE, 1, desc="拉格朗日函数空间", title="标量函数空间"),
+        PortConf("mesh", DataType.MESH, 1, desc="槽形梁网格", title="网格"),
         PortConf("beam_E", DataType.FLOAT, 1, desc="梁的弹性模量", title="梁的弹性模量"),
         PortConf("beam_nu", DataType.FLOAT, 1, desc="梁的泊松比", title="梁的泊松比"),
         PortConf("beam_density", DataType.FLOAT, 1, desc="梁的密度", title="梁的密度"),
@@ -54,7 +56,7 @@ class ChannelBeam(CNodeType):
         
         from fealpy.backend import bm
         from fealpy.csm.model.beam.channel_beam_data_3d import ChannelBeamData3D
-        from fealpy.functionspace import TensorFunctionSpace
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
         from fealpy.csm.material import TimoshenkoBeamMaterial
         from fealpy.csm.fem.timoshenko_beam_integrator import TimoshenkoBeamIntegrator
         from fealpy.fem import (
@@ -67,7 +69,8 @@ class ChannelBeam(CNodeType):
         model = ChannelBeamData3D(mu_y=options.get("mu_y"), mu_z=options.get("mu_z"))
         
         GD = options.get("GD")
-        space = options.get("space")
+        mesh = options.get("mesh")
+        space = LagrangeFESpace(mesh, p=1)
         load_case = options.get("load_case")
         g = options.get("gravity")
         dirichlet_dof = options.get("dirichlet_dof")

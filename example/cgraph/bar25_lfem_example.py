@@ -19,8 +19,9 @@ spacer(type="lagrange", mesh=mesher25(), p=1)
 materialer25(property="structural-steel", type="bar", E=1500, nu=0.3)
 
 bar25_model(
+    space_type="lagrangespace",
     GD = model25().GD,
-    space = spacer(),
+    mesh = mesher25(),
     E = materialer25().E,
     nu = materialer25().nu,
     external_load = model25().external_load,

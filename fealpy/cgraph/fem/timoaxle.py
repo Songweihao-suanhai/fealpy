@@ -9,8 +9,9 @@ class Timoaxle(CNodeType):
     Inputs:
         beam_para (TENSOR): Beam section parameters, each row represents [Diameter, Length, Count].
         axle_para (TENSOR): Axle section parameters, each row represents [Diameter, Length, Count].
-        GD (INT): Geometric dimension of the model.
-        space (Space): Scalar function space.
+        space_type (str): Type of function space (e.g., "lagrangespace").
+        GD (int): Geometric dimension of the model.
+        mesh (mesh): A scalar Lagrange function space.
         beam_E (float): Elastic modulus of the beam component.
         beam_nu (float): Poisson's ratio of the beam component.
         axle_E (float): Elastic modulus of the axle (shaft) component.
@@ -34,8 +35,9 @@ class Timoaxle(CNodeType):
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("space", DataType.SPACE, 1, desc="拉格朗日函数空间", title="标量函数空间"),
+        PortConf("mesh", DataType.MESH, 1, desc="列车车轴网格", title="网格"),
         PortConf("beam_E", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的弹性模量"),
         PortConf("beam_nu", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的泊松比"),
         PortConf("axle_E", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的弹性模量"),
@@ -56,7 +58,7 @@ class Timoaxle(CNodeType):
         from fealpy.backend import bm
         from fealpy.sparse import COOTensor
         from fealpy.csm.model.beam.timobeam_axle_data_3d import TimobeamAxleData3D
-        from fealpy.functionspace import TensorFunctionSpace
+        from fealpy.functionspace import LagrangeFESpace,TensorFunctionSpace
         from fealpy.csm.material import BarMaterial
         from fealpy.csm.material import TimoshenkoBeamMaterial
         from fealpy.csm.fem.axle_integrator import AxleIntegrator
@@ -82,7 +84,8 @@ class Timoaxle(CNodeType):
                                 poisson_ratio=axle_nu)
 
         GD = options.get("GD")
-        space = options.get("space")
+        mesh = options.get("mesh")
+        space = LagrangeFESpace(mesh, p=1)
         NC = options.get("NC")
         external_load = options.get("external_load")
         dirichlet_dof = options.get("dirichlet_dof")

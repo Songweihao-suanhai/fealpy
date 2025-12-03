@@ -8,9 +8,9 @@ class Bar25Model(CNodeType):
     Assembles the global stiffness matrix and load vector for a 3D bar finite element model.
 
     Inputs:
-        GD (INT): Geometric dimension of the model.
-        space (Space): A scalar Lagrange function space.
-        mesh (Mesh): The mesh object representing the truss structure.
+        space_type (str): Type of function space (e.g., "lagrangespace").
+        GD (int): Geometric dimension of the model.
+        mesh (mesh): A scalar Lagrange function space.
         E (float): Elastic modulus of the bar material.
         nu (float): Poisson's ratio of the bar material.
         external_load (float): The global load vector applied to the structure.
@@ -26,8 +26,9 @@ class Bar25Model(CNodeType):
     DESC: str = "组装全局刚度矩阵K并应用边界条件, 输出K与F"
 
     INPUT_SLOTS = [
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("space", DataType.SPACE, 1, desc="拉格朗日函数空间", title="标量函数空间"),
+        PortConf("mesh", DataType.MESH, 1, desc="25杆网格", title="网格"),
         PortConf("E", DataType.FLOAT, 1, desc="杆的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆的泊松比", title="泊松比"),
         PortConf("external_load", DataType.FLOAT, 1, desc="集中载荷", title="载荷"),
@@ -43,7 +44,7 @@ class Bar25Model(CNodeType):
     @staticmethod
     def run(**options):
         from fealpy.backend import bm
-        from fealpy.functionspace import TensorFunctionSpace
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
         from fealpy.fem import BilinearForm, DirichletBC
         from fealpy.csm.model.truss.bar_data25_3d import BarData25
         from fealpy.csm.material import BarMaterial
@@ -51,7 +52,8 @@ class Bar25Model(CNodeType):
         
         
         pde = BarData25()
-        space = options.get("space")
+        mesh = options.get("mesh")
+        space = LagrangeFESpace(mesh, p=1)
         GD = options.get("GD")
         tspace = TensorFunctionSpace(space, shape=(-1, GD))
         
@@ -90,9 +92,9 @@ class Bar942Model(CNodeType):
     Assembles the global stiffness matrix and load vector for a 3D bar finite element model.
 
     Inputs:
-        GD (INT): Geometric dimension of the model.
-        space (Space): A scalar Lagrange function space.
-        mesh (Mesh): The mesh object representing the truss structure.
+        space_type (str): Type of function space (e.g., "lagrangespace").
+        GD (int): Geometric dimension of the model.
+        mesh (mesh): A scalar Lagrange function space.
         E (float): Elastic modulus of the bar material.
         nu (float): Poisson's ratio of the bar material.
         external_load (float): The global load vector applied to the structure.
@@ -108,8 +110,9 @@ class Bar942Model(CNodeType):
     DESC: str = "组装全局刚度矩阵K并应用边界条件, 输出K与F"
 
     INPUT_SLOTS = [
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("space", DataType.SPACE, 1, desc="拉格朗日函数空间", title="标量函数空间"),
+        PortConf("mesh", DataType.MESH, 1, desc="942杆网格", title="网格"),
         PortConf("E", DataType.FLOAT, 1, desc="杆的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆的泊松比", title="泊松比"),
         PortConf("external_load", DataType.FLOAT, 1, desc="集中载荷", title="载荷"),
@@ -127,14 +130,15 @@ class Bar942Model(CNodeType):
     def run(**options):
         from fealpy.backend import bm
         from fealpy.sparse import CSRTensor
-        from fealpy.functionspace import TensorFunctionSpace
-        from fealpy.fem import BilinearForm, DirichletBC
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
+        from fealpy.fem import BilinearForm
         from fealpy.csm.model.truss.bar_data942_3d import BarData942
         from fealpy.csm.material import BarMaterial
         from fealpy.csm.fem.bar_integrator import BarIntegrator
        
         pde = BarData942()
-        space = options.get("space")
+        mesh = options.get("mesh")
+        space = LagrangeFESpace(mesh, p=1)
         GD = options.get("GD")
         tspace = TensorFunctionSpace(space, shape=(-1, GD))
         
@@ -182,8 +186,9 @@ class TrussTower(CNodeType):
         div (float): Inner diameter of vertical rods (m).
         doo (float): Outer diameter of other rods (m).
         dio (float): Inner diameter of other rods (m).
-        GD (INT): Geometric dimension of the model.
-        space (Space): Lagrange function space for the truss tower model.
+        space_type (str): Type of function space (e.g., "lagrangespace").
+        GD (int): Geometric dimension of the model.
+        mesh (mesh): A scalar Lagrange function space.
         E (float): Young's modulus of the bar elements (Pa).
         nu (float): Poisson's ratio of the bar elements.
         vertical (INT): Boolean flags indicating vertical columns.
@@ -206,8 +211,9 @@ class TrussTower(CNodeType):
         PortConf("div", DataType.FLOAT, 1,  desc="竖向杆件的内径", title="竖杆内径"),
         PortConf("doo", DataType.FLOAT, 1,  desc="其他杆件的外径", title="其他杆外径"),
         PortConf("dio", DataType.FLOAT, 1,  desc="其他杆件的内径", title="其他杆内径"),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("space", DataType.SPACE, 1, desc="拉格朗日函数空间", title="标量函数空间"),
+        PortConf("mesh", DataType.MESH, 1, desc="桁架塔网格", title="网格"),
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量",  title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比",  title="泊松比"),
         PortConf("load", DataType.TENSOR, 1, desc="全局载荷向量，表示总载荷如何分布到顶部节点", title="外部载荷"),
@@ -228,7 +234,7 @@ class TrussTower(CNodeType):
         from fealpy.csm.model.truss.truss_tower_data_3d import TrussTowerData3D
         from fealpy.csm.material import BarMaterial
         from fealpy.csm.fem.bar_integrator import BarIntegrator
-        from fealpy.functionspace import TensorFunctionSpace
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
         from fealpy.fem import DirichletBC
         
         model = TrussTowerData3D(
@@ -245,7 +251,8 @@ class TrussTower(CNodeType):
             poisson_ratio=options.get("nu")
         )
         GD = options.get("GD")
-        scalar_space = options.get("space")
+        mesh = options.get("mesh")
+        scalar_space = LagrangeFESpace(mesh, p=1)
         space = TensorFunctionSpace(scalar_space, shape=(-1, GD))
         
         gdof  = space.number_of_global_dofs()
