@@ -93,9 +93,9 @@ class BeamAxleIndices(CNodeType):
             beam_indices (TENSOR): Indices of beam elements.
             axle_indices (TENSOR): Indices of axle elements.
     """
-    TITLE: str = "获取列车轮轴梁和轴单元索引"
+    TITLE: str = "获取列车车轴梁和轴单元索引"
     PATH: str = "material.solid"
-    DESC: str = "获取列车轮轴梁和轴单元的索引信息。"
+    DESC: str = "获取列车车轴梁和轴单元的索引信息。"
     INPUT_SLOTS = [
         PortConf("beam_num", DataType.INT, 0, desc="梁单元个数", title="梁单元数目", default=22),
         PortConf("axle_num", DataType.INT, 0, desc="弹簧单元个数", title="弹簧单元数目", default=10),
@@ -149,9 +149,9 @@ class TimoAxleStrainStress(CNodeType):
             stress (TENSOR): Stress of the bar elements.
 
     """
-    TITLE: str = "列车轮轴应变-应力计算"
+    TITLE: str = "列车车轴应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点计算列车轮轴系统中梁段与轴段杆件在受力后的单元应变与应力,再计算出总应变和应力"""
+    DESC: str = """该节点计算列车车轴系统中梁段与轴段杆件在受力后的单元应变与应力,再计算出总应变和应力"""
             
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),

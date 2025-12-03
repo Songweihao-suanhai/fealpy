@@ -135,9 +135,9 @@ class TimoMaterial(CNodeType):
             nu (FLOAT): Poisson's ratio of the beam material.
             mu (FLOAT): Shear modulus, computed as `E / [2(1 + nu)]`.
     """
-    TITLE: str = "列车轮轴梁段部分材料属性"
+    TITLE: str = "列车车轴梁段部分材料属性"
     PATH: str = "material.solid"
-    DESC: str = """该节点用于定义列车轮轴中梁段部分的材料属性。"""
+    DESC: str = """该节点用于定义列车车轴中梁段部分的材料属性。"""
         
     INPUT_SLOTS = [
         PortConf("property", DataType.MENU, 0, desc="材料名称", title="材料材质", default="structural-steel", 

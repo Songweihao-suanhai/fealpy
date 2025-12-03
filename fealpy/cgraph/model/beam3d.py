@@ -76,9 +76,9 @@ class Timoaxle3d(CNodeType):
         external_load (function): Function that returns the global load vector.
         dirichlet_dof (function): Function that returns Dirichlet boundary condition indices.
     """
-    TITLE: str = "列车轮轴几何参数模型"
+    TITLE: str = "列车车轴几何参数模型"
     PATH: str = "preprocess.modeling"
-    DESC: str = """该节点用于建立列车轮轴的三维几何参数模型，通过梁段与轴段的结构参数、截面形状及剪切修正因子，
+    DESC: str = """该节点用于建立列车车轴的三维几何参数模型，通过梁段与轴段的结构参数、截面形状及剪切修正因子，
             定义 Timoshenko 梁模型所需的关键几何特性。"""
             
     INPUT_SLOTS = [

@@ -171,9 +171,9 @@ class AxleMaterial(CNodeType):
             mu (FLOAT): Shear modulus of the axle material.
 
     """
-    TITLE: str = "列车轮轴弹簧部分材料属性"
+    TITLE: str = "列车车轴弹簧部分材料属性"
     PATH: str = "material.solid"
-    DESC: str = """该节点计算列车轮轴系统中弹簧部分的材料属性。"""
+    DESC: str = """该节点计算列车车轴系统中弹簧部分的材料属性。"""
         
     INPUT_SLOTS = [
         PortConf("property", DataType.MENU, 0, desc="材料名称", title="材料材质", default="structural-steel", 
