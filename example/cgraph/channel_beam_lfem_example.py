@@ -24,8 +24,9 @@ materialer(
 ChannelBeam_model(
     mu_y = model().mu_y,
     mu_z = model().mu_z,
+    space_type="lagrangespace",
     GD = model().GD,
-    space = spacer(),
+    mesh = mesher(),
     beam_E = materialer().E,
     beam_nu = materialer().nu,
     beam_density = materialer().rho,
