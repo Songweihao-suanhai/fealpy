@@ -70,16 +70,16 @@ class TimobeamAxleMesh(CNodeType):
         NC (INT): Number of cells in the mesh.
     """
     
-    TITLE: str = "列车轮轴网格生成"
+    TITLE: str = "列车车轴网格生成"
     PATH: str = "preprocess.mesher"
-    DESC: str = """该节点用于生成列车轮轴的一维网格。"""
+    DESC: str = """该节点用于生成列车车轴的一维网格。"""
 
     INPUT_SLOTS = []
 
     OUTPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, desc="列车轮轴网格", title="网格"),
-        PortConf("NN", DataType.INT, desc="列车轮轴的节点数量", title="节点数量"),
-        PortConf("NC", DataType.INT, desc="列车轮轴的单元数量", title="单元数量")
+        PortConf("mesh", DataType.MESH, desc="列车车轴网格", title="网格"),
+        PortConf("NN", DataType.INT, desc="列车车轴的节点数量", title="节点数量"),
+        PortConf("NC", DataType.INT, desc="列车车轴的单元数量", title="单元数量")
     ]
 
     @staticmethod

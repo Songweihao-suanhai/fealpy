@@ -26,9 +26,9 @@ class Timoaxle(CNodeType):
         F (tensor): Global load vector after applying the selected load type and boundary conditions.
     
     """
-    TITLE: str = "列车轮轴有限元模型"
+    TITLE: str = "列车车轴有限元模型"
     PATH: str = "simulation.discretization"
-    DESC: str = """"该节点基于前处理阶段给定的几何参数与材料参数，构建列车轮轴的梁-杆耦合有限元模型。
+    DESC: str = """"该节点基于前处理阶段给定的几何参数与材料参数，构建列车车轴的梁-杆耦合有限元模型。
            将所有单元刚度汇总组装为全局刚度矩阵，并通过罚函数法施加 Dirichlet 边界条件,
            输出包含边界约束后的全局刚度矩阵与全局载荷向量。"""
             
