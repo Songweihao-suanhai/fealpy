@@ -8,11 +8,9 @@ pde = cgraph.create("FlowPastFoil")
 mesher = cgraph.create("NACA4Mesh2d")
 uspacer = cgraph.create("TensorFunctionSpace")
 pspacer = cgraph.create("FunctionSpace")
-dbc_u = cgraph.create("ProjectDBC")
-dbc_p = cgraph.create("ProjectDBC")
 simulation = cgraph.create("IncompressibleNSIPCS")
-timeline = cgraph.create("CFDTimeline")
 IncompressibleNSRun = cgraph.create("IncompressibleNSIPCSRun")
+to_vtk = cgraph.create("TO_VTK")
 
 pde(
     mu = 0.001,
@@ -32,16 +30,6 @@ mesher(
 )
 uspacer(mesh = mesher().mesh, p=2, gd = 2)
 pspacer(mesh = mesher().mesh, p=1)
-dbc_u(
-    space = uspacer(), 
-    dirichlet = pde().velocity_dirichlet, 
-    is_boundary = pde().is_velocity_boundary
-)
-dbc_p(
-    space = pspacer(), 
-    dirichlet = pde().pressure_dirichlet, 
-    is_boundary = pde().is_pressure_boundary
-)
 simulation(
     constitutive = 1,
     mu = pde().mu,
@@ -49,33 +37,31 @@ simulation(
     source = pde().source,
     uspace = uspacer(),
     pspace = pspacer(),
+    velocity_dirichlet = pde().velocity_dirichlet,
+    pressure_dirichlet = pde().pressure_dirichlet,
+    is_velocity_boundary = pde().is_velocity_boundary,
     is_pressure_boundary = pde().is_pressure_boundary,
-    apply_bcu = dbc_u().apply_bc,
-    apply_bcp = dbc_p().apply_bc,
     q = 3
 ) 
-timeline(
-    T0 = 0.0,
-    T1 = 1.0,
-    NT = 10000
-)
 IncompressibleNSRun(
-    T0=timeline().T0,
-    T1=timeline().T1,
-    NL=timeline().NL,
+    dt = 0.01,
+    i = 0,
     uspace = uspacer(), 
     pspace = pspacer(), 
     velocity_0 = pde().velocity_0,
     pressure_0 = pde().pressure_0,
-    is_pressure_boundary = pde().is_pressure_boundary,
+    uh0 = None,
+    ph0 = None,
     predict_velocity = simulation().predict_velocity,
     correct_pressure = simulation().correct_pressure,
     correct_velocity = simulation().correct_velocity,
-    mesh = mesher().mesh,
-    output_dir = "/home/libz/naca"
 )
+to_vtk(mesh = mesher(),
+        uh = (IncompressibleNSRun().uh, IncompressibleNSRun().ph),
+        path = "/home/libz/naca4")
 
-WORLD_GRAPH.output(uh = IncompressibleNSRun().uh)
+
+WORLD_GRAPH.output(path = to_vtk().path)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())

@@ -101,116 +101,66 @@ class StationaryNSRun(CNodeType):
         return uh1, uh_x, uh_y, ph1
     
 class IncompressibleNSIPCSRun(CNodeType):
-    r"""IPCS iterative solver for unsteady incompressible Navier-Stokes equations.
-
+    r"""IPCS solver for unsteady incompressible Navier-Stokes equations.
     Inputs:
-        T0 (float): Initial time.
-        T1 (float): Final time.
-        NL (int): Number of time levels.
-        uspace(space): Velocity function space.
-        pspace(space): Pressure function space.
-        velocity_0 (function): Initial velocity field.
-        pressure_0 (function): Initial pressure field.
-        is_pressure_boundary (function): Predicate function for pressure boundary regions.
-        predict_velocity (function): Function to assemble predicted velocity system.
-        correct_pressure (function): Function to assemble pressure correction system.
-        correct_velocity (function): Function to assemble velocity correction system.
-        mesh(mesh): Computational mesh. 
+        i (int): Current time step index.
+        dt (float): Time step size.
+        u0 (tensor): Previous time step velocity field.
+        p0 (tensor): Previous time step pressure field.
+        predict_velocity (function): Function that assembles the velocity prediction system.
+        correct_pressure (function): Function that assembles the pressure correction system.
+        correct_velocity (function): Function that assembles the velocity correction system.
+        mesh (mesh): Computational mesh.
     Outputs:
-        uh (tensor): Final numerical velocity field.
-        ph (tensor): Final numerical pressure field.
-        uh_x (tensor): x-component of the velocity field.
-        uh_y (tensor): y-component of the velocity field.
+        uh (tensor): Numerical velocity field at the current time step.
+        ph (tensor): Numerical pressure field at the current time step.
     """
-    TITLE: str = "IPCS 求解非稳态 NS 方程"
+    TITLE: str = "IPCS 计算模型"
     PATH: str = "simulation.solvers"
     DESC: str  = """该节点实现非稳态不可压 Navier-Stokes 方程的 IPCS 分步算法求解器，按时间步推进依次完成速度预测、
                 压力修正与速度校正，并输出速度与压力场的时序数值结果。"""
     INPUT_SLOTS = [
-        PortConf("T0", DataType.FLOAT, title="初始时间"),
-        PortConf("T1", DataType.FLOAT, title="结束时间"),
-        PortConf("NL", DataType.INT, title="时间层数"),
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
+        PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
+        PortConf("i", DataType.FLOAT, title="当前时间步"),
         PortConf("velocity_0", DataType.FUNCTION, title="初始速度"),
         PortConf("pressure_0", DataType.FUNCTION, title="初始压力"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
+        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
+        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
+        PortConf("uh0", DataType.TENSOR, title="上一时间步速度"),
+        PortConf("ph0", DataType.TENSOR, title="上一时间步压力"),
         PortConf("predict_velocity", DataType.FUNCTION, title="预测速度方程离散"),
         PortConf("correct_pressure", DataType.FUNCTION, title="压力修正方程离散"),
         PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散"),
-        PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("output_dir", DataType.STRING, title="输出目录")
     ]
     OUTPUT_SLOTS = [
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
     ]
-    def run(T0, T1, NL, uspace, pspace, velocity_0, pressure_0, is_pressure_boundary,
-            predict_velocity, correct_pressure, correct_velocity, mesh, output_dir):
-        from fealpy.backend import backend_manager as bm
-        from fealpy.decorator import cartesian
+    def run(dt, i, velocity_0, pressure_0, uspace, pspace, uh0, ph0, 
+            predict_velocity, correct_pressure, correct_velocity):
         from fealpy.solver import cg
-        from fealpy.cfd.simulation.time import UniformTimeLine
-        from pathlib import Path
+        from fealpy.decorator import cartesian
+
+        if i == 0:
+            u0 = uspace.interpolate(cartesian(lambda p:velocity_0(p, 0)))
+            p0 = pspace.interpolate(cartesian(lambda p:pressure_0(p, 0)))
+        else:
+            u0 = uh0
+            p0 = ph0
+
+        uh1 = u0.space.function()
+        uhs = u0.space.function()
+        ph1 = p0.space.function()
+        pgdof = p0.space.number_of_global_dofs()
         
-        nt = NL - 1
-        timeline = UniformTimeLine(T0, T1, nt)
-        dt = timeline.dt
-        u0 = uspace.interpolate(cartesian(lambda p: velocity_0(p, timeline.T0)))
-        p0 = pspace.interpolate(cartesian(lambda p: pressure_0(p, timeline.T0)))
-        ugdof = uspace.number_of_global_dofs()
-        pgdof = pspace.number_of_global_dofs()
-        NN = mesh.number_of_nodes()
+        t  = dt * (i + 1)
+        A0, b0 = predict_velocity(u0, p0, t = t, dt = dt)
+        uhs[:] = cg(A0, b0)
 
-        export_dir = Path(output_dir).expanduser().resolve()
-        export_dir.mkdir(parents=True, exist_ok=True)
-        mesh.nodedata["uh"] = u0.reshape(mesh.GD,-1).T
-        mesh.nodedata["ph"] = p0
-        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
-        mesh.to_vtk(fname=str(fname))
+        A1, b1 = correct_pressure(uhs, p0, t = t, dt = dt)
+        ph1[:] = cg(A1, b1)[:pgdof]
 
-        for i in range(nt):
-            t  = timeline.current_time()
-            # print(f"time={t}")
-            
-            uh1 = u0.space.function()
-            uhs = u0.space.function()
-            ph1 = p0.space.function()
-             
-            A0, b0 = predict_velocity(u0, p0, t = timeline.next_time(), dt = dt)
-            uhs[:] = cg(A0, b0)
+        A2, b2 = correct_velocity(uhs, p0, ph1, t = t, dt = dt)
+        uh1[:] = cg(A2, b2)
 
-            A1, b1 = correct_pressure(uhs, p0, t = timeline.next_time(), dt = dt)
-            if is_pressure_boundary() == 0:
-                ph1[:] = cg(A1, b1)[:-1]
-            else:
-                ph1[:] = cg(A1, b1)
-
-            A2, b2 = correct_velocity(uhs, p0, ph1, t = timeline.next_time(), dt = dt)
-            uh1[:] = cg(A2, b2)
-
-            u1 = uh1 
-            p1 = ph1
-            
-            u0[:] = u1
-            p0[:] = p1
-
-            uh = u1
-            uh = uh.reshape(mesh.GD,-1).T
-            uh = uh[:NN,:]
-            uh_x = uh[..., 0]
-            uh_y = uh[..., 1]
-            if mesh.GD == 3:
-                uh_z = uh[..., 2]
-            else:
-                uh_z = bm.zeros_like(uh_x)
-            ph = p1
-
-            mesh.nodedata["uh"] = uh
-            mesh.nodedata["ph"] = ph
-            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtu"
-            mesh.to_vtk(fname=str(fname))
-            
-            timeline.advance()
-
-        return uh, ph
+        return uh1, ph1
