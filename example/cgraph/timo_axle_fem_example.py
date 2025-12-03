@@ -35,8 +35,9 @@ axle_materialer(
 timoaxle_model(
     beam_para = model().beam_para,
     axle_para = model().axle_para,
+    space_type="lagrangespace",
     GD = model().GD,
-    space = spacer(),
+    mesh = mesher(),
     beam_E = beam_materialer().E,
     beam_nu = beam_materialer().nu,
     axle_E = axle_materialer().E,

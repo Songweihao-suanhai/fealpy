@@ -2,7 +2,8 @@
 from ..nodetype import CNodeType, PortConf, DataType
 from .utils import get_mesh_class
 
-__all__ = ["CreateMesh", "DLDMicrofluidicChipMesh2d", "DLDMicrofluidicChipMesh3d",
+__all__ = ["CreateMesh", "PolygonMesh2d",
+           "DLDMicrofluidicChipMesh2d", "DLDMicrofluidicChipMesh3d",
            "NACA4Mesh2d"]
 
 
@@ -42,6 +43,37 @@ class CreateMesh(CNodeType):
         kwds = {"node": node, "cell": cell}
         return MeshClass(**kwds)
 
+
+class PolygonMesh2d(CNodeType):
+    r"""Create a polygon mesh object.
+    
+    Inputs:
+        mesh_type (menu): Type of mesh to granerate.
+        vertices(list): The vertices of the polygon.
+        h(float): The height of the polygon.
+
+    Outputs:
+        mesh (PolygonMesh): The polygon mesh object created.
+    """
+    TITLE: str = "多边形网格"
+    PATH: str = "preprocess.mesher"
+    DESC: str = """该节点生成多边形网格, 依据输入的多边形顶点坐标自动构建多边形网格."""
+    
+    INPUT_SLOTS = [
+        PortConf("mesh_type", DataType.MENU, 0, title="网格类型", default="triangle", items=["triangle", "quadrangle"]),
+        PortConf("vertices", DataType.LIST, 1, title="多边形顶点"),
+        PortConf("h", DataType.FLOAT, 1, default=0.02, title="网格尺寸")
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="网格")       
+    ]
+    
+    @staticmethod
+    def run(mesh_type, vertices, h):
+        MeshClass = get_mesh_class(mesh_type)
+        kwds = {"vertices": vertices, "h": h}
+        return  MeshClass.from_polygon_gmsh(**kwds)
+    
 
 class DLDMicrofluidicChipMesh2d(CNodeType):
     r"""Create a mesh in a DLD microfluidic chip-shaped 2D area.
