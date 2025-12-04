@@ -21,6 +21,16 @@ def lagrange_multiplier(pspace, A, b, c=0):
     b  = bm.concatenate([b, b0], axis=0)
     return A, b
 
+def apply_bc(space, dirichlet, is_boundary, t):
+    r"""Dirichlet boundary conditions for unsteady Navier-Stokes equations."""
+    from fealpy.fem import DirichletBC
+    from fealpy.decorator import cartesian
+    BC = DirichletBC(space=space,
+            gd = cartesian(lambda p : dirichlet(p, t)),
+            threshold = is_boundary,
+            method = 'interp')
+    return BC.apply
+
 class IncompressibleNSIPCS(CNodeType):
     r"""Unsteady Incompressible Navier-Stokes solver using the IPCS algorithm.
 
@@ -41,7 +51,7 @@ class IncompressibleNSIPCS(CNodeType):
         correct_pressure (function): Function that assembles the pressure correction system.
         correct_velocity (function): Function that assembles the velocity correction system.
     """
-    TITLE: str = "非稳态 NS 方程 IPCS 算法"
+    TITLE: str = "非稳态 NS 方程 IPCS 离散格式"
     PATH: str = "simulation.discretization"
     DESC: str = """该节点实现了用于求解非稳态不可压缩 Navier–Stokes 方程的 **IPCS（增量压力修正算法）**。
 
@@ -73,9 +83,10 @@ class IncompressibleNSIPCS(CNodeType):
         PortConf("source", DataType.FUNCTION, title="源"),
         PortConf("uspace", DataType.SPACE, title="速度函数空间"),
         PortConf("pspace", DataType.SPACE, title="压力函数空间"),
+        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
+        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
+        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
         PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
-        PortConf("apply_bcu", DataType.FUNCTION, title="速度边界处理函数"),
-        PortConf("apply_bcp", DataType.FUNCTION, title="压力边界处理函数"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度")
     ]
     OUTPUT_SLOTS = [
@@ -84,8 +95,8 @@ class IncompressibleNSIPCS(CNodeType):
         PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散")
     ]
     @staticmethod
-    def run(constitutive, mu, rho, source, uspace, pspace, is_pressure_boundary,
-            apply_bcu, apply_bcp, q):
+    def run(constitutive, mu, rho, source, uspace, pspace, velocity_dirichlet,
+            pressure_dirichlet, is_velocity_boundary, is_pressure_boundary, q):
         from fealpy.backend import backend_manager as bm
         from fealpy.backend import TensorLike
         from fealpy.decorator import barycentric, cartesian
@@ -171,8 +182,8 @@ class IncompressibleNSIPCS(CNodeType):
             predict_velocity_update(u0, p0, t, dt)
             A = Bform.assembly()
             b = Lform.assembly()
-            apply = apply_bcu(t)
-            A, b = apply(A, b)
+            apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
+            A, b = apply_bcu(A, b)
             return A, b 
             
         #压力修正左端项
@@ -219,8 +230,8 @@ class IncompressibleNSIPCS(CNodeType):
             if is_pressure_boundary() == 0:
                 A, b = lagrange_multiplier(pspace, A, b, 0)
             else:
-                apply = apply_bcp(t)
-                A, b = apply(A, b)
+                apply_bcp = apply_bc(pspace, pressure_dirichlet, is_pressure_boundary, t)
+                A, b = apply_bcp(A, b)
             return A, b
             
         #速度修正左端项
@@ -255,8 +266,8 @@ class IncompressibleNSIPCS(CNodeType):
             correct_velocity_update(us, p0, p1, dt)
             A = Bform.assembly()
             b = Lform.assembly()
-            apply = apply_bcu(t)
-            A, b = apply(A, b)
+            apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
+            A, b = apply_bcu(A, b)
             return A, b
             
         return predict_velocity, correct_pressure, correct_velocity
