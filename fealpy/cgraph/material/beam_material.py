@@ -142,7 +142,7 @@ class TimoMaterial(CNodeType):
     INPUT_SLOTS = [
         PortConf("property", DataType.MENU, 0, desc="材料名称", title="材料材质", default="structural-steel", 
                  items=["structural-steel", "aluminum", "concrete", "plastic", "wood", "alloy"]),
-        PortConf("type", DataType.MENU, 0, desc="轮轴材料类型选择", title="梁类型", default="Timoshenko", 
+        PortConf("type", DataType.MENU, 0, desc="车轴材料类型选择", title="梁类型", default="Timoshenko", 
                  items=["Euler-Bernoulli", "Timoshenko"]),
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
