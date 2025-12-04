@@ -4,7 +4,7 @@ from types import ModuleType
 from typing import Any
 from collections.abc import Iterator
 
-from .core import Graph, CNode, NodeGroup
+from .core import Graph, LoopGroup, CNode, NodeGroup
 from .nodetype import CNodeType
 
 __all__ = ["register_all_nodes", "search_all_nodes", "search_node", "load", "dump"]
@@ -143,7 +143,12 @@ def load(data: dict, /, return_graph=True) -> CNode | NodeGroup | Graph:
         elif is_group(cnode_item):
             graph = graph_dict[cnode_item["ref"]]
             assert cnode_list[idx] is None
-            cnode_list[idx] = NodeGroup(graph)
+            group_name = cnode_item["name"]
+
+            if group_name[:4].lower() == "loop":
+                cnode_list[idx] = LoopGroup(graph)
+            else:
+                cnode_list[idx] = NodeGroup(graph)
 
     # STEP 4: Set all inputs and their defaults
     for slot_item in slots_table:

@@ -57,20 +57,19 @@ class NodeGroup(CNode):
 
 class LoopGroup(NodeGroup):
     def __init__(self, graph: Graph):
+        self._initialized = False
         super(NodeGroup, self).__init__(var_in=False, var_out=False)
         self.graph = graph
         self.validate_graph(graph)
         self.register_output("iters")
 
         for name in self.graph._source_slots:
-            if name == "step":
-                continue
             self.register_input(name)
 
         for name in self.graph._drain_slots:
-            if name == "stop":
-                continue
             self.register_output(name)
+
+        self._initialized = True
 
     @staticmethod
     def validate_graph(graph: Graph):
@@ -87,10 +86,12 @@ class LoopGroup(NodeGroup):
     def run(self, **kwargs):
         g = self.graph
         maxit = kwargs.get("maxit", 1)
+        start = kwargs.get("step", 0)
 
-        for i in range(maxit):
+        for i in range(start, start + maxit):
             kwargs["step"] = i
             try:
+                g.context.clear()
                 g.execute(source=kwargs, capture_err=False)
             except Exception as e:
                 raise NodeExecutionError(
