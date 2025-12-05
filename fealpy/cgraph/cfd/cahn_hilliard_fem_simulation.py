@@ -32,8 +32,6 @@ class CahnHilliardFEMSimulation(CNodeType):
                 该节点并调用其输出 update 函数即可实现时间步进求解。
                 """
     INPUT_SLOTS = [
-        PortConf("epsilon", DataType.FLOAT, title="界面厚度参数"),
-        PortConf("Pe", DataType.FLOAT, title="Peclet 数"),
         PortConf("phispace", DataType.SPACE, title="相场函数空间"),
         PortConf("q", DataType.INT, 0, default = 5, min_val=3, title="积分精度"),
         PortConf("s", DataType.FLOAT, 0, title="稳定参数", default=1.0)
@@ -42,17 +40,14 @@ class CahnHilliardFEMSimulation(CNodeType):
         PortConf("update", DataType.FUNCTION, title="更新函数")
     ]
     @staticmethod
-    def run(epsilon, Pe, phispace, q, s):
+    def run(phispace, q, s):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric
         from fealpy.fem import (ScalarMassIntegrator, ScalarConvectionIntegrator,
                                 SourceIntegrator,ScalarDiffusionIntegrator)
         from fealpy.fem import (BilinearForm, LinearForm, BlockForm, LinearBlockForm)
         
-        def update(u_0, u_1, phi_0, phi_1, dt):
-            cm = 1/Pe
-            cf = 1.0
-            ci = epsilon ** 2
+        def update(u_0, u_1, phi_0, phi_1, dt, cm, ci, cf):
             
             A00 = BilinearForm(phispace)
             BM_phi = ScalarMassIntegrator(q=q)

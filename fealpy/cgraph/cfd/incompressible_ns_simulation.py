@@ -51,7 +51,7 @@ class IncompressibleNSIPCS(CNodeType):
         correct_pressure (function): Function that assembles the pressure correction system.
         correct_velocity (function): Function that assembles the velocity correction system.
     """
-    TITLE: str = "非稳态 NS 方程 IPCS 离散格式"
+    TITLE: str = "非稳态 NS 方程 IPCS 算法"
     PATH: str = "simulation.discretization"
     DESC: str = """该节点实现了用于求解非稳态不可压缩 Navier–Stokes 方程的 **IPCS（增量压力修正算法）**。
 
@@ -77,10 +77,11 @@ class IncompressibleNSIPCS(CNodeType):
                 设定物性参数与源项后，依次调用三个输出函数即可完成一个时间步的 IPCS 求解过程。
                 """
     INPUT_SLOTS = [
-        PortConf("constitutive", DataType.MENU, 0, title="本构方程", default=1, items=[i for i in range(1, 2)]),
-        PortConf("mu", DataType.FLOAT, title="粘度系数"),
-        PortConf("rho", DataType.FLOAT, title = "密度"),
-        PortConf("source", DataType.FUNCTION, title="源"),
+        PortConf("time_derivative", DataType.NONE, title="时间项系数"),
+        PortConf("convection", DataType.NONE, title = "对流项系数"),
+        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
+        PortConf("viscosity", DataType.NONE, title="粘性项系数"),
+        PortConf("source", DataType.FUNCTION, title="源项系数"),
         PortConf("uspace", DataType.SPACE, title="速度函数空间"),
         PortConf("pspace", DataType.SPACE, title="压力函数空间"),
         PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
@@ -95,13 +96,13 @@ class IncompressibleNSIPCS(CNodeType):
         PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散")
     ]
     @staticmethod
-    def run(constitutive, mu, rho, source, uspace, pspace, velocity_dirichlet,
+    def run(time_derivative, convection, pressure, viscosity, source, uspace, pspace, velocity_dirichlet,
             pressure_dirichlet, is_velocity_boundary, is_pressure_boundary, q):
         from fealpy.backend import backend_manager as bm
         from fealpy.backend import TensorLike
         from fealpy.decorator import barycentric, cartesian
         from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
-                                ViscousWorkIntegrator, FluidBoundaryFrictionIntegrator, DirichletBC)
+                                FluidBoundaryFrictionIntegrator)
         #预测速度左端项
         predict_Bform = BilinearForm(uspace)
         predict_BM = ScalarMassIntegrator(q=q)  
@@ -111,12 +112,9 @@ class IncompressibleNSIPCS(CNodeType):
             predict_BF = FluidBoundaryFrictionIntegrator(q=q, threshold=is_pressure_boundary)
             predict_Bform.add_integrator(predict_BF)
         
-        if constitutive == 1:
-            predict_BVW = ScalarDiffusionIntegrator(q=q)
-            predict_Bform.add_integrator(predict_BVW)
-        elif constitutive == 2:
-            predict_BVW = ViscousWorkIntegrator(q=q)
-            predict_Bform.add_integrator(predict_BVW)
+        
+        predict_BVW = ScalarDiffusionIntegrator(q=q)
+        predict_Bform.add_integrator(predict_BVW)
 
         #预测速度右端项
         from fealpy.fem import (LinearForm, SourceIntegrator, GradSourceIntegrator, 
@@ -134,13 +132,8 @@ class IncompressibleNSIPCS(CNodeType):
             predict_Lform.add_integrator(predict_LBFS)
 
         #预测速度更新函数
-        def predict_velocity_update(u0, p0, t, dt): 
+        def predict_velocity_update(u0, p0, dt, ctd, cc, pc, cv, cbf): 
             mesh = uspace.mesh
-            ctd = rho 
-            cv = mu
-            cc = rho
-            pc = 1
-            cbf = cartesian(lambda p:source(p, t))
             
             predict_BM.coef = ctd/dt
             predict_BVW.coef = cv
@@ -176,10 +169,10 @@ class IncompressibleNSIPCS(CNodeType):
                 predict_LBFS.source = LBFS_coef
 
         #预测速度方程线性系统组装
-        def predict_velocity(u0:TensorLike, p0:TensorLike, t:float, dt:float): 
+        def predict_velocity(u0, p0, t, dt, ctd, cc, pc, cv, cbf): 
             Bform = predict_Bform
             Lform = predict_Lform
-            predict_velocity_update(u0, p0, t, dt)
+            predict_velocity_update(u0, p0, dt, ctd, cc, pc, cv, cbf)
             A = Bform.assembly()
             b = Lform.assembly()
             apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
@@ -200,9 +193,7 @@ class IncompressibleNSIPCS(CNodeType):
         pressure_Lform.add_integrator(pressure_LGS)
 
         #压力修正更新函数
-        def pressure_update(us, p0, dt):
-            pc = 1
-            ctd = rho
+        def pressure_update(us, p0, dt, ctd, pc):
             
             pressure_BD.coef = pc
 
@@ -221,10 +212,10 @@ class IncompressibleNSIPCS(CNodeType):
             pressure_LGS.source = LGS_coef
 
         #压力修正方程线性系统组装
-        def correct_pressure(us:TensorLike, p0:TensorLike, t, dt:float):
+        def correct_pressure(us, p0, t, dt, ctd, pc):
             Bform = pressure_Bform
             Lform = pressure_Lform
-            pressure_update(us, p0, dt)
+            pressure_update(us, p0, dt, ctd, pc)
             A = Bform.assembly()
             b = Lform.assembly()
             if is_pressure_boundary() == 0:
@@ -245,9 +236,8 @@ class IncompressibleNSIPCS(CNodeType):
         correct_Lform.add_integrator(correct_LS)
 
         #速度修正更新函数
-        def correct_velocity_update(us, p0, p1, dt):
-            ctd = rho 
-            cp = 1
+        def correct_velocity_update(us, p0, p1, dt, ctd):
+
             correct_BM.coef = ctd
             @barycentric
             def BM_coef(bcs, index):
@@ -258,12 +248,11 @@ class IncompressibleNSIPCS(CNodeType):
             correct_LS.source = BM_coef
 
         #速度修正方程线性系统组装
-        def correct_velocity(us:TensorLike, p0:TensorLike, p1:TensorLike, 
-                             t, dt:float, ):
+        def correct_velocity(us, p0, p1, t, dt, ctd):
             """速度校正"""
             Bform = correct_Bform
             Lform = correct_Lform
-            correct_velocity_update(us, p0, p1, dt)
+            correct_velocity_update(us, p0, p1, dt, ctd)
             A = Bform.assembly()
             b = Lform.assembly()
             apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
@@ -297,30 +286,29 @@ class IncompressibleNSBDF2(CNodeType):
                 时间步组装系统方程。
                 """
     INPUT_SLOTS = [
-        PortConf("Re", DataType.FLOAT, title="雷诺数"),
         PortConf("uspace", DataType.SPACE, title="速度函数空间"),
         PortConf("pspace", DataType.SPACE, title="压力函数空间"),
+        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
+        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
+        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
+        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度")
     ]
     OUTPUT_SLOTS = [
-        PortConf("update", DataType.FUNCTION, title="时间步进更新函数")
+        PortConf("update", DataType.FUNCTION, title="BDF2 离散格式")
     ]
 
     @staticmethod
-    def run(Re, uspace, pspace, q):
+    def run(uspace, pspace, velocity_dirichlet, pressure_dirichlet, 
+            is_velocity_boundary, is_pressure_boundary, q):
         from fealpy.fem import (BilinearForm, BlockForm, ScalarMassIntegrator, 
                                 ScalarConvectionIntegrator, ViscousWorkIntegrator,
                                 PressWorkIntegrator, LinearBlockForm, LinearForm, 
                                 SourceIntegrator)
         from fealpy.backend import backend_manager as bm
-        from fealpy.decorator import barycentric
-        def update(u_0, u_1, dt, rho, source):
-            
-            ctd = rho
-            cv = 1/Re
-            cc = rho
-            pc = 1
-            cbf = source
+        from fealpy.decorator import barycentric, cartesian
+
+        def update(u_0, u_1, dt, t, ctd, cc, pc, cv, cbf, apply_bc = True):
             
             ## BilinearForm
             
@@ -335,7 +323,6 @@ class IncompressibleNSBDF2(CNodeType):
             BC.coef = BC_coef
             BD = ViscousWorkIntegrator(q=q)
             BD.coef = 2*cv 
-            
 
             A00.add_integrator(BM)
             A00.add_integrator(BC)
@@ -373,7 +360,17 @@ class IncompressibleNSBDF2(CNodeType):
             L1 = LinearForm(pspace)
             L = LinearBlockForm([L0, L1])
 
+            A = A.assembly()
+            L = L.assembly()
+            if apply_bc is True:
+                gd_v = cartesian(lambda p: velocity_dirichlet(p, t))
+                gd_p = cartesian(lambda p: pressure_dirichlet(p, t))
+                gd = (gd_v, gd_p)
+                is_bd = (is_velocity_boundary, is_pressure_boundary)
+                apply = apply_bc((uspace, pspace), gd, is_bd, t)
+                A, L = apply(A, L)
             return A, L
+        
         return update
 
 

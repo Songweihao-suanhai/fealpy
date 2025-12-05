@@ -31,10 +31,7 @@ mesher(
 uspacer(mesh = mesher().mesh, p=2, gd = 2)
 pspacer(mesh = mesher().mesh, p=1)
 simulation(
-    constitutive = 1,
-    mu = pde().mu,
-    rho = pde().rho,
-    source = pde().source,
+   
     uspace = uspacer(),
     pspace = pspacer(),
     velocity_dirichlet = pde().velocity_dirichlet,
@@ -46,6 +43,11 @@ simulation(
 IncompressibleNSRun(
     dt = 0.01,
     i = 0,
+    time_derivative = pde().rho,
+    convection = pde().rho,
+    pressure = 1.0,
+    viscosity = pde().mu,
+    source = pde().source,
     uspace = uspacer(), 
     pspace = pspacer(), 
     velocity_0 = pde().velocity_0,
@@ -58,8 +60,8 @@ IncompressibleNSRun(
 )
 to_vtk(mesh = mesher(),
         uh = (IncompressibleNSRun().uh, IncompressibleNSRun().ph),
-        path = "/home/libz/naca4")
-
+        path = "/home/libz/naca4",
+        i = None)
 
 WORLD_GRAPH.output(path = to_vtk().path)
 WORLD_GRAPH.error_listeners.append(print)
