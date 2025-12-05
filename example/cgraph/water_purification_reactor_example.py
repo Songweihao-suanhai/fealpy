@@ -19,6 +19,7 @@ wpr(
     thickness=0.4
 )
 solver(
+    mesh=wpr().mesh,
     op=wpr().op,
     idx=wpr().idx,
     F1=wpr().F1,
@@ -39,7 +40,7 @@ solver(
     options=wpr().options
 )
 
-to_vtk(mesh = wpr().mesh,
+to_vtk(mesh = solver().mesh,
         uh = (solver().uh, solver().ph),
         path = "/home/zjx/py")
 
