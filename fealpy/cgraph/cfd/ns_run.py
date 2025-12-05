@@ -122,6 +122,11 @@ class IncompressibleNSIPCSRun(CNodeType):
     INPUT_SLOTS = [
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("i", DataType.FLOAT, title="当前时间步"),
+        PortConf("time_derivative", DataType.FUNCTION, title="时间项系数"),
+        PortConf("convection", DataType.FUNCTION, title="对流项系数"),
+        PortConf("pressure", DataType.FUNCTION, title="压力项系数"),
+        PortConf("viscosity", DataType.FUNCTION, title="粘性项系数"),
+        PortConf("source", DataType.FUNCTION, title="源项"),
         PortConf("velocity_0", DataType.FUNCTION, title="初始速度"),
         PortConf("pressure_0", DataType.FUNCTION, title="初始压力"),
         PortConf("uspace", DataType.SPACE, title="速度函数空间"),
@@ -136,8 +141,9 @@ class IncompressibleNSIPCSRun(CNodeType):
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
     ]
-    def run(dt, i, velocity_0, pressure_0, uspace, pspace, uh0, ph0, 
-            predict_velocity, correct_pressure, correct_velocity):
+    def run(dt, i, time_derivative, convection, pressure, viscosity, source,
+            velocity_0, pressure_0, uspace, pspace, uh0, ph0, predict_velocity, 
+            correct_pressure, correct_velocity):
         from fealpy.solver import cg
         from fealpy.decorator import cartesian
 
@@ -154,13 +160,25 @@ class IncompressibleNSIPCSRun(CNodeType):
         pgdof = p0.space.number_of_global_dofs()
         
         t  = dt * (i + 1)
-        A0, b0 = predict_velocity(u0, p0, t = t, dt = dt)
+        body_force = cartesian(lambda p:source(p, t))
+        A0, b0 = predict_velocity(u0, p0, 
+                                  t = t, 
+                                  dt = dt, 
+                                  ctd = time_derivative, 
+                                  cc = convection, 
+                                  pc = pressure, 
+                                  cv = viscosity, 
+                                  cbf = body_force)
         uhs[:] = cg(A0, b0)
 
-        A1, b1 = correct_pressure(uhs, p0, t = t, dt = dt)
+        A1, b1 = correct_pressure(uhs, p0, 
+                                  t = t, 
+                                  dt = dt, 
+                                  ctd = time_derivative, 
+                                  pc = pressure)
         ph1[:] = cg(A1, b1)[:pgdof]
 
-        A2, b2 = correct_velocity(uhs, p0, ph1, t = t, dt = dt)
+        A2, b2 = correct_velocity(uhs, p0, ph1, t = t, dt = dt, ctd = time_derivative)
         uh1[:] = cg(A2, b2)
 
         return uh1, ph1

@@ -51,18 +51,16 @@ class RayleighTaylor(CNodeType):
         PortConf("eps", DataType.FLOAT, 0, title="残差", default=1e-10)
     ]
     OUTPUT_SLOTS = [
-        PortConf("rho_up", DataType.FLOAT, title="上层流体密度"),
-        PortConf("rho_down", DataType.FLOAT, title="下层流体密度"),
+        PortConf("rho", DataType.FUNCTION, title="密度"),
         PortConf("Re", DataType.FLOAT, title="雷诺数"),
         PortConf("Fr", DataType.FLOAT, title="弗劳德数"),
         PortConf("epsilon", DataType.FLOAT, title="界面厚度参数"),
         PortConf("Pe", DataType.FLOAT, title="Peclet 数"),
         PortConf("domain", DataType.FUNCTION, title="计算域"),
-        PortConf("velocity_boundary", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_boundary", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_u_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_ux_boundary", DataType.FUNCTION, title="速度 x 分量边界"),
-        PortConf("is_uy_boundary", DataType.FUNCTION, title="速度 y 分量边界"),
+        PortConf("body_force", DataType.FUNCTION, title="源项"),
+        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
+        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
+        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
         PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
         PortConf("init_interface", DataType.FUNCTION, title="初始界面函数")
     ]
@@ -70,7 +68,7 @@ class RayleighTaylor(CNodeType):
     @staticmethod
     def run(**options) -> Union[object]:
         from fealpy.backend import backend_manager as bm
-        from fealpy.decorator import cartesian
+        from fealpy.decorator import cartesian, barycentric
         from fealpy.mesh import TriangleMesh
 
         bm.set_backend('pytorch')
@@ -85,6 +83,23 @@ class RayleighTaylor(CNodeType):
                 self.Pe = 1/self.epsilon
                 self.eps = options.get('eps', 1e-10)    
                 self.domain = [0.0, 1.0, 0.0, 4.0]
+
+            def rho(self, phi):
+                result = phi.space.function()
+                result[:] = (self.rho_up - self.rho_down)/2 * phi[:]
+                result[:] += (self.rho_up + self.rho_down)/2 
+                return result
+            
+            def body_force(self, phi):
+                rho = self.rho(phi)
+                @barycentric
+                def body_force(bcs, index):
+                    result = rho(bcs, index)
+                    result = bm.stack((result, result), axis=-1)
+                    result[..., 0] = (1/self.Fr) * result[..., 0] * 0
+                    result[..., 1] = (1/self.Fr) * result[..., 1] * -1
+                    return result
+                return body_force
 
             def init_mesh(self, nx=128, ny=512):
                 '''
@@ -106,7 +121,7 @@ class RayleighTaylor(CNodeType):
                 return val
             
             @cartesian
-            def velocity_boundary(self, p):
+            def velocity_dirichlet(self, p):
                 '''
                 边界速度
                 '''
@@ -114,7 +129,7 @@ class RayleighTaylor(CNodeType):
                 return result
             
             @cartesian
-            def pressure_boundary(self, p):
+            def pressure_dirichlet(self, p):
                 '''
                 边界压力
                 '''
@@ -122,17 +137,15 @@ class RayleighTaylor(CNodeType):
                 return result
 
             @cartesian
-            def is_p_boundary(self, p):
+            def is_pressure_boundary(self, p):
                 result = bm.zeros_like(p[..., 0], dtype=bool)
                 return result
 
             @cartesian
-            def is_u_boundary(self, p):
-                tag_up = bm.abs(p[..., 1] - 4.0) < self.eps
-                tag_down = bm.abs(p[..., 1] - 0.0) < self.eps
-                tag_left = bm.abs(p[..., 0] - 0.0) < self.eps
-                tag_right = bm.abs(p[..., 0] - 1) < self.eps
-                return tag_up | tag_down | tag_left | tag_right 
+            def is_velocity_boundary(self):
+                is_x_boundary = self.is_ux_boundary
+                is_y_boundary = self.is_uy_boundary
+                return (is_x_boundary , is_y_boundary)
             
             @cartesian
             def is_ux_boundary(self, p):
@@ -155,8 +168,8 @@ class RayleighTaylor(CNodeType):
         model = RayleignTaylor(options)
 
 
-        return (model.rho_up, model.rho_down, model.Re, model.Fr,
-                model.epsilon, model.Pe, model.domain,
-                model.velocity_boundary, model.pressure_boundary,
-                model.is_u_boundary, model.is_ux_boundary, model.is_uy_boundary,
-                model.is_pressure_boundary, model.init_interface)
+        return (model.rho, model.Re, model.Fr, model.epsilon, 
+                model.Pe, model.domain,model.body_force,
+                model.velocity_dirichlet, model.pressure_dirichlet,
+                model.is_velocity_boundary, model.is_pressure_boundary, 
+                model.init_interface)

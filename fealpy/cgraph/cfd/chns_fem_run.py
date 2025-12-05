@@ -69,145 +69,106 @@ class CHNSFEMRun(CNodeType):
                 设置好初始界面与网格信息后，即可在多时间步迭代中自动完成流体界面的演化与速度场的时序求解。
                 """
     INPUT_SLOTS = [
-        PortConf("dt", DataType.FLOAT, 0, title="时间步长", default=0.001),
-        PortConf("nt", DataType.INT, 0, title="时间步数", default=2000),
-        PortConf("rho_up", DataType.FLOAT, title="上层流体密度"),
-        PortConf("rho_down", DataType.FLOAT, title="下层流体密度"),
-        PortConf("Fr", DataType.FLOAT, title="弗劳德数"),
-        PortConf("ns_update", DataType.FUNCTION, title="NS 更新函数"),
-        PortConf("ch_update", DataType.FUNCTION, title="CH 更新函数"),
+        PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
+        PortConf("i", DataType.INT, title="当前时间步"),
+        PortConf("mobility", DataType.FLOAT, title="迁移率"),
+        PortConf("interface", DataType.FLOAT, title="界面参数"),
+        PortConf("free_energy", DataType.FLOAT, title="自由能参数"),
+        PortConf("time_derivative", DataType.FUNCTION, title="时间项系数"),
+        PortConf("convection", DataType.FUNCTION, title="对流项系数"),
+        PortConf("pressure", DataType.FUNCTION, title="压力项系数"),
+        PortConf("viscosity", DataType.FUNCTION, title="粘性项系数"),
+        PortConf("source", DataType.FUNCTION, title="源项"),
         PortConf("phispace", DataType.SPACE, title="相场函数空间"),
         PortConf("uspace", DataType.SPACE, title="速度函数空间"),
         PortConf("pspace", DataType.SPACE, title="压力函数空间"),
-        PortConf("is_ux_boundary", DataType.FUNCTION, title="速度 x 分量边界"),
-        PortConf("is_uy_boundary", DataType.FUNCTION, title="速度 y 分量边界"),
         PortConf("init_interface", DataType.FUNCTION, title="初始界面函数"),
-        PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("output_dir", DataType.STRING, title="输出目录")
+        PortConf("ns_update", DataType.FUNCTION, title="NS 更新函数"),
+        PortConf("ch_update", DataType.FUNCTION, title="CH 更新函数"),
+        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界条件"),
+        PortConf("mesh", DataType.MESH, title="网格")
     ]
     OUTPUT_SLOTS = [
-        PortConf("u", DataType.FUNCTION, title="速度场"),
-        PortConf("p", DataType.FUNCTION, title="压力场"),
-        PortConf("phi", DataType.FUNCTION, title="相场函数")
+        PortConf("u", DataType.FUNCTION, title="速度"),
+        PortConf("p", DataType.FUNCTION, title="压力"),
+        PortConf("phi", DataType.FUNCTION, title="相场函数"),
+        PortConf("rho", DataType.FUNCTION, title="密度")
     ]
     @staticmethod
-    def run(dt, nt, rho_up, rho_down, Fr, ns_update, ch_update,phispace, 
-            uspace, pspace, is_ux_boundary, is_uy_boundary, init_interface, 
-            mesh, output_dir):
+    def run(dt, i, mobility, interface, free_energy, time_derivative, convection, 
+            pressure, viscosity, source, phispace, uspace, pspace, init_interface, 
+            ns_update, ch_update, is_velocity_boundary, mesh):
         from fealpy.backend import backend_manager as bm
-        from fealpy.decorator import barycentric
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
-        from pathlib import Path
-        import time
-        import os
-        
-        def set_rho(phi, rho_up, rho_down):
-            result = phi.space.function()
-            result[:] = (rho_up - rho_down)/2 * phi[:]
-            result[:] += (rho_up + rho_down)/2 
-            return result
 
         phigdof = phispace.number_of_global_dofs()
-        phi0 = phispace.interpolate(init_interface)
-        phi1 = phispace.interpolate(init_interface)
-        phi2 = phispace.function()
-        mu1 = phispace.function()
-        mu2 = phispace.function()
-
         ugdof = uspace.number_of_global_dofs()
         pgdof = pspace.number_of_global_dofs()
-        u0 = uspace.function()
-        u1 = uspace.function()
-        u2 = uspace.function()
-        p1 = pspace.function()
-        p2 = pspace.function()
-        export_dir = Path(output_dir).expanduser().resolve()
-        export_dir.mkdir(parents=True, exist_ok=True)
-        mesh.nodedata["uh"] = u2.reshape(mesh.GD,-1).T
-        mesh.nodedata["ph"] = p2
-        mesh.nodedata["phih"] = phi2
-        fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
-        mesh.to_vtk(fname=str(fname))
 
+        if i == 0:
+            phi0 = phispace.interpolate(init_interface)
+            phi1 = phispace.interpolate(init_interface)
+            phi2 = phispace.function()
+            mu1 = phispace.function()
+            mu2 = phispace.function()
 
-        is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
-        is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
-        gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
-        BC = DirichletBC((uspace, pspace), gd=gd, threshold=is_bd, method='interp')
+            u0 = uspace.function()
+            u1 = uspace.function()
+            u2 = uspace.function()
+            p1 = pspace.function()
+            p2 = pspace.function()
+        else:
+            pass
 
         node = mesh.entity_barycenter('node')
         tol = 1e-14
         left_bd = bm.where(bm.abs(node[:, 0]) < tol)[0]
         right_bd = bm.where(bm.abs(node[:, 0]-1.0) < tol)[0]
+        
+        ch_A, ch_b = ch_update(u0, u1, phi0, phi1, dt, 
+                               mobility, interface, free_energy)
+        ch_A = ch_A.assembly()
+        ch_b = ch_b.assembly()
+        ch_x = spsolve(ch_A, ch_b, 'mumps')
 
-
-        for i in range(nt):
-            # 设置参数
-            print("iteration:", i)
+        phi2[:] = ch_x[:phigdof]
+        mu2[:] = ch_x[phigdof:]  
+        
+        # 更新NS方程参数
+        rho = time_derivative(phi1)
+        body_force = source(phi1)
+        ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = rho, cc = rho,
+                               pc = pressure, cv = viscosity, 
+                               cbf = body_force, apply_bc = False)
+        (is_ux_boundary, is_uy_boundary) = is_velocity_boundary()
+        is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
+        is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
+        gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
+        BC = DirichletBC((uspace, pspace), gd=gd, threshold=is_bd, method='interp')
+        ns_A, ns_b = BC.apply(ns_A, ns_b)
+        ns_x = spsolve(ns_A, ns_b, 'mumps')
+        
+        u2[:] = ns_x[:ugdof]
+        p2[:] = ns_x[ugdof:]
             
-            t0 = time.time()
-            
-            ch_A, ch_b = ch_update(u0, u1, phi0, phi1, dt)
-            ch_A = ch_A.assembly()
-            ch_b = ch_b.assembly()
-            t1 = time.time()
-            ch_x = spsolve(ch_A, ch_b, 'mumps')
-            t2 = time.time()
+        u0[:] = u1[:]
+        u1[:] = u2[:]
+        phi0[:] = phi1[:]
+        phi1[:] = phi2[:]
+        mu1[:] = mu2[:]
+        p1[:] = p2[:]
 
-            phi2[:] = ch_x[:phigdof]
-            mu2[:] = ch_x[phigdof:]  
-            
-            # 更新NS方程参数
-            t3 = time.time()
+        phi2_lbdval = phi2[left_bd]
+        mask = bm.abs(phi2_lbdval) < 0.5
+        index = left_bd[mask]
+        left_point = node[index, :]
+        print("界面与左边界交点:", left_point)
 
-            rho = set_rho(phi1, rho_up, rho_down) 
-            @barycentric
-            def body_force(bcs, index):
-                result = rho(bcs, index)
-                result = bm.stack((result, result), axis=-1)
-                result[..., 0] = (1/Fr) * result[..., 0] * 0
-                result[..., 1] = (1/Fr) * result[..., 1] * -1
-                return result
-            
-            ns_A, ns_b = ns_update(u0, u1, dt, rho, body_force)
-            ns_A = ns_A.assembly()
-            ns_b = ns_b.assembly()
-            ns_A,ns_b = BC.apply(ns_A, ns_b)
-            t4 = time.time() 
-            ns_x = spsolve(ns_A, ns_b, 'mumps')
-            t5 = time.time()
+        phi2_rbdval = phi2[right_bd]
+        mask = bm.abs(phi2_rbdval) < 0.5
+        index = right_bd[mask]
+        right_point = node[index, :]
+        print("界面与右边界交点:", right_point)
 
-            print("CH组装时间:", t1-t0)
-            print("求解CH方程时间:", t2-t1)
-            print("NS组装时间:", t4-t3)
-            print("求解NS方程时间:", t5-t4)
-            u2[:] = ns_x[:ugdof]
-            p2[:] = ns_x[ugdof:]
-                
-            u0[:] = u1[:]
-            u1[:] = u2[:]
-            phi0[:] = phi1[:]
-            phi1[:] = phi2[:]
-            mu1[:] = mu2[:]
-            p1[:] = p2[:]
-
-            phi2_lbdval = phi2[left_bd]
-            mask = bm.abs(phi2_lbdval) < 0.5
-            index = left_bd[mask]
-            left_point = node[index, :]
-            print("界面与左边界交点:", left_point)
-
-            phi2_rbdval = phi2[right_bd]
-            mask = bm.abs(phi2_rbdval) < 0.5
-            index = right_bd[mask]
-            right_point = node[index, :]
-            print("界面与右边界交点:", right_point)
-
-            mesh.nodedata["uh"] = u2
-            mesh.nodedata["ph"] = p2
-            mesh.nodedata["phih"] = phi2
-            fname = export_dir / f"test_{str(i+1).zfill(10)}.vtu"
-            mesh.to_vtk(fname=str(fname))
-
-        return u2, p2, phi2
+        return u2, p2, phi2, rho

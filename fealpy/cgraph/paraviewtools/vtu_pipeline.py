@@ -635,6 +635,7 @@ class TO_VTK(CNodeType):
         mesh (mesh): Computational mesh.
         uh (tensor): Numerical solution vector.
         path (string): Output directory to store the VTK file.
+        i (int): Iteration step number (optional).
 
     Outputs:
         path (string): Directory where the VTK file is written.
@@ -647,13 +648,14 @@ class TO_VTK(CNodeType):
         PortConf("mesh", DataType.MESH, title="网格"),
         PortConf("uh", DataType.TENSOR, 2, title="数值解"),
         PortConf("path", DataType.STRING, title="导出路径"),
+        PortConf("i", DataType.INT, 1, title="当前时间步", default=None),
     ]
     OUTPUT_SLOTS = [
         PortConf("path", DataType.STRING, title="导出路径"),
     ]
 
     @staticmethod
-    def run(mesh, uh, path):
+    def run(mesh, uh, path, i):
         try:
             uh_len = len(uh)  # type: ignore[arg-type]
         except Exception:
@@ -664,10 +666,14 @@ class TO_VTK(CNodeType):
         export_dir = Path(path).expanduser().resolve()
         export_dir.mkdir(parents=True, exist_ok=True)
         N = len(uh)
-        for i in range(N):
-            u = uh[i]
-            mesh.nodedata[f"uh{i}"] = u
-        fname = export_dir / "test.vtu"
+        for j in range(N):
+            u = uh[j]
+            mesh.nodedata[f"uh{j}"] = u
+
+        if i is None:
+            i = 0
+
+        fname = export_dir / f"test_{str(i+1).zfill(10)}.vtu"
         mesh.to_vtk(fname=str(fname))
         print(f"[TO_VTK] wrote {fname}")
 
