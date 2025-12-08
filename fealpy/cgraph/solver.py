@@ -208,6 +208,7 @@ class MGStokesSolver(CNodeType):
     PATH: str = "simulation.solvers"
     
     INPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="三棱柱网格"),
         PortConf("op", DataType.LINOPS, title="初始系数矩阵"),
         PortConf("idx", DataType.TENSOR, title="三棱柱网格节点映射"),
         PortConf("F1", DataType.TENSOR, title="右端向量"),
@@ -228,6 +229,7 @@ class MGStokesSolver(CNodeType):
         PortConf("options", DataType.MENU, title="多重网格所需若干参数"),
     ]
     OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="三棱柱网格"),
         PortConf("uh", DataType.TENSOR, title="速度解"),
         PortConf("ph", DataType.TENSOR, title="压力解"),
     ]
@@ -236,6 +238,7 @@ class MGStokesSolver(CNodeType):
     def run(**kwargs):
         from ..backend import bm
         from ..solver import MGStokes
+        mesh = kwargs.get('mesh')
         op = kwargs.get('op')
         idx = kwargs.get('idx')
         F1 = kwargs.get('F1')
@@ -264,4 +267,4 @@ class MGStokesSolver(CNodeType):
         uh = x[:3*ugdof].reshape(3,-1).T[idx,:]
         ph = x[3*ugdof:]
         print(x.max(), x.min())
-        return uh, ph
+        return mesh, uh, ph
