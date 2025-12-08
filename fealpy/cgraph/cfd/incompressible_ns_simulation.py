@@ -77,17 +77,9 @@ class IncompressibleNSIPCS(CNodeType):
                 设定物性参数与源项后，依次调用三个输出函数即可完成一个时间步的 IPCS 求解过程。
                 """
     INPUT_SLOTS = [
-        PortConf("time_derivative", DataType.NONE, title="时间项系数"),
-        PortConf("convection", DataType.NONE, title = "对流项系数"),
-        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
-        PortConf("viscosity", DataType.NONE, title="粘性项系数"),
-        PortConf("source", DataType.FUNCTION, title="源项系数"),
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
-        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
+        PortConf("space", DataType.SPACE, title="函数空间"),
+        PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度")
     ]
     OUTPUT_SLOTS = [
@@ -96,13 +88,17 @@ class IncompressibleNSIPCS(CNodeType):
         PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散")
     ]
     @staticmethod
-    def run(time_derivative, convection, pressure, viscosity, source, uspace, pspace, velocity_dirichlet,
-            pressure_dirichlet, is_velocity_boundary, is_pressure_boundary, q):
+    def run(space, dirichlet_boundary, is_boundary, q):
         from fealpy.backend import backend_manager as bm
         from fealpy.backend import TensorLike
         from fealpy.decorator import barycentric, cartesian
         from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
                                 FluidBoundaryFrictionIntegrator)
+        
+        (uspace, pspace) = space
+        (velocity_dirichlet, pressure_dirichlet) = dirichlet_boundary()
+        (is_velocity_boundary, is_pressure_boundary) = is_boundary()
+        
         #预测速度左端项
         predict_Bform = BilinearForm(uspace)
         predict_BM = ScalarMassIntegrator(q=q)  
@@ -286,12 +282,9 @@ class IncompressibleNSBDF2(CNodeType):
                 时间步组装系统方程。
                 """
     INPUT_SLOTS = [
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
-        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界"),
+        PortConf("space", DataType.SPACE, title="函数空间"),
+        PortConf("dirichlet_bounday", DataType.FUNCTION, title="边界条件"),
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度")
     ]
     OUTPUT_SLOTS = [
