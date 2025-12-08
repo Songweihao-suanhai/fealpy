@@ -353,6 +353,8 @@ class IncompressibleNSPhysics(CNodeType):
     INPUT_SLOTS = [
         PortConf("box", DataType.TENSOR, 1, title="求解域"),
         PortConf("mesh", DataType.MESH, 1, title="网格"),
+        PortConf("mu", DataType.FLOAT, 0, title="动力粘度"),
+        PortConf("rho", DataType.FLOAT, 0, title="密度"),
 
         PortConf("utype", DataType.MENU, 0, title="速度空间类型", default="lagrange", 
                                             items=["lagrange", "bernstein", "first_nedelec"]),
@@ -366,6 +368,8 @@ class IncompressibleNSPhysics(CNodeType):
         PortConf("inflow", DataType.FLOAT, 0, title="流入速度", default=1.0),
     ]
     OUTPUT_SLOTS = [
+        PortConf("mu", DataType.FLOAT, title="动力粘度"),
+        PortConf("rho", DataType.FLOAT, title="密度"),
         PortConf("source", DataType.FUNCTION, title="源"),
         PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
@@ -375,7 +379,7 @@ class IncompressibleNSPhysics(CNodeType):
     ]
 
     @staticmethod
-    def run(box, mesh, utype, u_p, u_gd, ptype, p_p, inflow) -> Union[object]:
+    def run(box, mesh, mu, rho, utype, u_p, u_gd, ptype, p_p, inflow) -> Union[object]:
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian, TensorLike
         from fealpy.functionspace import functionspace
@@ -481,7 +485,7 @@ class IncompressibleNSPhysics(CNodeType):
         u0 = uspace.interpolate(cartesian(lambda p:velocity_0(p, 0)))
         p0 = pspace.interpolate(cartesian(lambda p:pressure_0(p, 0)))
 
-        return (source, dirichlet_boundary, is_boundary, space, u0, p0)
+        return (mu, rho, source, dirichlet_boundary, is_boundary, space, u0, p0)
 
 
 class IncompressibleNSMathematics(CNodeType):
@@ -505,3 +509,4 @@ class IncompressibleNSMathematics(CNodeType):
         pressure = 1.0
         viscosity = mu
         return time_derivative, convection, pressure, viscosity, source
+    

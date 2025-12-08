@@ -5,7 +5,6 @@ import fealpy.cgraph as cgraph
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
 mesher = cgraph.create("NACA4Mesh2d")
-material = cgraph.create("IncompressibleNSMaterial")
 physics = cgraph.create("IncompressibleNSPhysics")
 mathmatics = cgraph.create("IncompressibleNSMathematics")
 simulation = cgraph.create("IncompressibleNSIPCS")
@@ -23,13 +22,11 @@ mesher(
     box = box,
     h = 0.05
 )
-material(
-    mu = 0.001,
-    rho = 1.0
-)
 physics(
     box = box,
     mesh = mesher().mesh,
+    mu = 0.001,
+    rho = 1.0,
     utype = "lagrange",
     u_p = 2,
     u_gd = 2,
@@ -38,8 +35,8 @@ physics(
     inflow = 1.0,
 )
 mathmatics(
-    mu = material().mu,
-    rho = material().rho,
+    mu = physics().mu,
+    rho = physics().rho,
     source = physics().source
 )
 simulation(
