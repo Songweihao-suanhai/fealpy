@@ -24,7 +24,7 @@ def lagrange_multiplier(A, b, c=0, uspace=None, pspace=None):
     b  = bm.concatenate([b, b0], axis=0)
     return A, b
 
-__all__ = ["StationaryNSRun"]
+__all__ = ["StationaryNSRun", "IncompressibleNSIPCSRun"]
 
 class StationaryNSRun(CNodeType):
     r"""Finite element iterative solver for steady incompressible Navier-Stokes equations.
@@ -122,15 +122,11 @@ class IncompressibleNSIPCSRun(CNodeType):
     INPUT_SLOTS = [
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("i", DataType.FLOAT, title="当前时间步"),
-        PortConf("time_derivative", DataType.FUNCTION, title="时间项系数"),
-        PortConf("convection", DataType.FUNCTION, title="对流项系数"),
-        PortConf("pressure", DataType.FUNCTION, title="压力项系数"),
-        PortConf("viscosity", DataType.FUNCTION, title="粘性项系数"),
+        PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
+        PortConf("convection", DataType.FLOAT, title="对流项系数"),
+        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
+        PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
         PortConf("source", DataType.FUNCTION, title="源项"),
-        PortConf("velocity_0", DataType.FUNCTION, title="初始速度"),
-        PortConf("pressure_0", DataType.FUNCTION, title="初始压力"),
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
         PortConf("uh0", DataType.TENSOR, title="上一时间步速度"),
         PortConf("ph0", DataType.TENSOR, title="上一时间步压力"),
         PortConf("predict_velocity", DataType.FUNCTION, title="预测速度方程离散"),
@@ -142,26 +138,18 @@ class IncompressibleNSIPCSRun(CNodeType):
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
     ]
     def run(dt, i, time_derivative, convection, pressure, viscosity, source,
-            velocity_0, pressure_0, uspace, pspace, uh0, ph0, predict_velocity, 
-            correct_pressure, correct_velocity):
+            uh0, ph0, predict_velocity, correct_pressure, correct_velocity):
         from fealpy.solver import cg
         from fealpy.decorator import cartesian
 
-        if i == 0:
-            u0 = uspace.interpolate(cartesian(lambda p:velocity_0(p, 0)))
-            p0 = pspace.interpolate(cartesian(lambda p:pressure_0(p, 0)))
-        else:
-            u0 = uh0
-            p0 = ph0
-
-        uh1 = u0.space.function()
-        uhs = u0.space.function()
-        ph1 = p0.space.function()
-        pgdof = p0.space.number_of_global_dofs()
+        uh1 = uh0.space.function()
+        uhs = uh0.space.function()
+        ph1 = ph0.space.function()
+        pgdof = ph0.space.number_of_global_dofs()
         
         t  = dt * (i + 1)
         body_force = cartesian(lambda p:source(p, t))
-        A0, b0 = predict_velocity(u0, p0, 
+        A0, b0 = predict_velocity(uh0, ph0, 
                                   t = t, 
                                   dt = dt, 
                                   ctd = time_derivative, 
@@ -171,14 +159,15 @@ class IncompressibleNSIPCSRun(CNodeType):
                                   cbf = body_force)
         uhs[:] = cg(A0, b0)
 
-        A1, b1 = correct_pressure(uhs, p0, 
+        A1, b1 = correct_pressure(uhs, ph0, 
                                   t = t, 
                                   dt = dt, 
                                   ctd = time_derivative, 
                                   pc = pressure)
         ph1[:] = cg(A1, b1)[:pgdof]
 
-        A2, b2 = correct_velocity(uhs, p0, ph1, t = t, dt = dt, ctd = time_derivative)
+        A2, b2 = correct_velocity(uhs, ph0, ph1, t = t, dt = dt, ctd = time_derivative)
         uh1[:] = cg(A2, b2)
 
         return uh1, ph1
+

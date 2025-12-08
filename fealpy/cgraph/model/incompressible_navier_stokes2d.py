@@ -1,9 +1,23 @@
-from typing import Union
+from typing import Union, Type
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["IncompressibleNS2d", "IncompressibleCylinder2d"]
+__all__ = ["IncompressibleNS2dbenchmark", "IncompressibleCylinder2d",
+           "IncompressibleNSPhysics", "IncompressibleNSMathematics"]
 
-class IncompressibleNS2d(CNodeType):
+
+SPACE_CLASSES = {
+    "bernstein": ("bernstein_fe_space", "BernsteinFESpace"),
+    "lagrange": ("lagrange_fe_space", "LagrangeFESpace"),
+    "first_nedelec": ("first_nedelec_fe_space", "FirstNedelecFESpace")
+}
+def get_space_class(space_type: str) -> Type:
+    import importlib
+    m = importlib.import_module(
+        f"fealpy.functionspace.{SPACE_CLASSES[space_type][0]}"
+    )
+    return getattr(m, SPACE_CLASSES[space_type][1])
+
+class IncompressibleNS2dbenchmark(CNodeType):
     r"""2D unsteady incompressible Navier-Stokes equations problem model.
 
     Inputs:
@@ -21,10 +35,8 @@ class IncompressibleNS2d(CNodeType):
         is_velocity_boundary (function): Predicate function for velocity boundary regions.
         is_pressure_boundary (function): Predicate function for pressure boundary regions.
     """
-    TITLE: str = "二维非稳态不可压缩 NS 方程问题模型"
+    TITLE: str = "二维不可压缩 NS 方程基准算例"
     PATH: str = "preprocess.modeling"
-    DESC: str = """该节点定义二维非稳态不可压缩Navier-Stokes方程模型,可按示例编号加载典型算例，输出
-                物性参数、解析解、源项及边界条件，用于数值求解验证。"""
     INPUT_SLOTS = [
         PortConf("example", DataType.MENU, 0, title="例子编号", default=1, items=[i for i in range(1, 3)])
     ]
@@ -123,7 +135,7 @@ class IncompressibleCylinder2d(CNodeType):
                 self.radius = options.get('radius', 0.05)
                 self.n_circle = options.get('n_circle', 100)
                 self.h = options.get('h', 0.01)
-                self.center = (self.cx, self.cy)
+                self.center = (cx, cy)
                 self.mesh = self.init_mesh()
 
             def get_dimension(self) -> int: 
@@ -137,13 +149,13 @@ class IncompressibleCylinder2d(CNodeType):
             def init_mesh(self): 
                 import gmsh 
                 from fealpy.mesh import TriangleMesh 
-                box = self.box 
-                center = self.center 
-                radius = self.radius 
-                n_circle = self.n_circle 
-                h = self.h 
-                cx = self.center[0]
-                cy = self.center[1] 
+                box = box 
+                center = center 
+                radius = radius 
+                n_circle = n_circle 
+                h = h 
+                cx = center[0]
+                cy = center[1] 
                 gmsh.initialize() 
                 gmsh.model.add("rectangle_with_polygon_hole") 
                 xmin, xmax, ymin, ymax = box 
@@ -193,7 +205,7 @@ class IncompressibleCylinder2d(CNodeType):
                 for tag in boundary_tags: 
                     node_tags, _ = gmsh.model.mesh.getNodesForPhysicalGroup(1, tag) # 转换为从 0 开始的索引 
                     boundary.append(bm.array(node_tags - 1, dtype=bm.int32)) 
-                self.boundary = boundary 
+                boundary = boundary 
                 gmsh.finalize() 
                 return TriangleMesh(node_coords, tri_nodes)
             
@@ -313,9 +325,9 @@ class IncompressibleCylinder2d(CNodeType):
                 """Check if point where velocity is defined is on boundary."""
                 x = p[...,0]
                 y = p[...,1]
-                cx = self.cx
-                cy = self.cy
-                r = self.radius
+                cx = cx
+                cy = cy
+                r = radius
                 return (bm.sqrt((x-cx)**2 + (y-cy)**2) - r) < self.atol
         
         options = {
@@ -335,133 +347,166 @@ class IncompressibleCylinder2d(CNodeType):
         )
     
 
-class FlowPastFoil(CNodeType):
-    TITLE: str = "二维翼型绕流问题模型"
+class IncompressibleNSPhysics(CNodeType):
+    TITLE: str = "不可压缩 NS 物理模型"
     PATH: str = "preprocess.modeling"
-    DESC: str = """该节点建立二维非稳态翼型绕流数值模型,自动生成带NACA001翼型障碍物的计算网格, 定义
-                入口抛物线速度、出口压力及各类边界条件, 为Navier-Stokes方程求解提供完整物理场输入。"""
     INPUT_SLOTS = [
-        PortConf("mu", DataType.FLOAT, 0, title="粘度", default=0.001),
-        PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0),
-        PortConf("inflow", DataType.FLOAT, 0, title="流入速度", default=1.0),
         PortConf("box", DataType.TENSOR, 1, title="求解域"),
+        PortConf("mesh", DataType.MESH, 1, title="网格"),
+        PortConf("mu", DataType.FLOAT, 0, title="动力粘度"),
+        PortConf("rho", DataType.FLOAT, 0, title="密度"),
+
+        PortConf("utype", DataType.MENU, 0, title="速度空间类型", default="lagrange", 
+                                            items=["lagrange", "bernstein", "first_nedelec"]),
+        PortConf("u_p", DataType.INT, 0, title="速度空间次数", default=2, min_val=1, max_val=10),
+        PortConf("u_gd", DataType.INT, 0, title="速度空间自由度长度", default=2),
+
+        PortConf("ptype", DataType.MENU, 0, title="压力空间类型", default="lagrange", 
+                                            items=["lagrange", "bernstein", "first_nedelec"]), 
+        PortConf("p_p", DataType.INT, 0, title="压力空间次数", default=1, min_val=1, max_val=10),
+
+        PortConf("inflow", DataType.FLOAT, 0, title="流入速度", default=1.0),
     ]
     OUTPUT_SLOTS = [
-        PortConf("mu", DataType.FLOAT, title="粘度"),
-        PortConf("rho", DataType.FLOAT, title = "密度"),
-        PortConf("domain", DataType.LIST, title="求解域"),
+        PortConf("mu", DataType.FLOAT, title="动力粘度"),
+        PortConf("rho", DataType.FLOAT, title="密度"),
         PortConf("source", DataType.FUNCTION, title="源"),
-        PortConf("velocity_0", DataType.FUNCTION, title="初始速度"),
-        PortConf("pressure_0", DataType.FUNCTION, title="初始压力"),
-        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界")
+        PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
+        PortConf("space", DataType.LIST, title="函数空间"),
+        PortConf("u0", DataType.FUNCTION, title="速度初值"),
+        PortConf("p0", DataType.FUNCTION, title="压力初值"),
     ]
 
     @staticmethod
-    def run(mu, rho, inflow, box) -> Union[object]:
+    def run(box, mesh, mu, rho, utype, u_p, u_gd, ptype, p_p, inflow) -> Union[object]:
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian, TensorLike
-        class PDE():
-            def __init__(self, options : dict = None ):
-                self.eps = 1e-10
-                self.options = options
-                self.rho = options.get('rho', 1.0)
-                self.mu = options.get('mu', 0.001)
-                self.box = options.get('box', [-0.5, 2.7, -0.5, 0.5])
-                self.inflow = options.get('inflow', 1.0)
+        from fealpy.functionspace import functionspace
 
-            @cartesian
-            def is_outflow_boundary(self,p):
-                x = p[...,0]
-                y = p[...,1]
-                cond1 = bm.abs(x - self.box[1]) < self.eps
-                cond2 = bm.abs(y-self.box[2])>self.eps
-                cond3 = bm.abs(y-self.box[3])>self.eps
-                return (cond1) & (cond2 & cond3) 
-            
-            @cartesian
-            def is_inflow_boundary(self,p):
-                return bm.abs(p[..., 0]-self.box[0]) < self.eps
-            
-            @cartesian
-            def is_wall_boundary(self,p):
-                return (bm.abs(p[..., 1] -self.box[2]) < self.eps) | \
-                    (bm.abs(p[..., 1] -self.box[3]) < self.eps)
-            
-            @cartesian
-            def is_velocity_boundary(self,p):
-                return ~self.is_outflow_boundary(p)
-                # return None
-            
-            @cartesian
-            def is_pressure_boundary(self,p=None):
-                if p is None:
-                    return 1
-                else:
-                    return self.is_outflow_boundary(p) 
-                    #return bm.zeros_like(p[...,0], dtype=bm.bool)
-                # return 0
+        element_u = (utype.capitalize(), u_p)
+        shape_u = (u_gd, -1)
+        uspace = functionspace(mesh, element_u, shape=shape_u)
 
-            @cartesian
-            def u_inflow_dirichlet(self, p):
-                x = p[...,0]
-                y = p[...,1]
-                value = bm.zeros_like(p)
-                # value[...,0] = 1.5 * 4 * (y-self.box[2])*(self.box[3]-y)/((0.41)**2)
-                value[...,0] = self.inflow
-                # value[...,1] = 0
-                return value
-            
-            @cartesian
-            def pressure_dirichlet(self, p, t):
-                x = p[...,0]
-                y = p[...,1]
-                value = bm.zeros_like(x)
-                return value
+        spaceclass = get_space_class(ptype)
+        pspace = spaceclass(mesh, p=p_p)
 
-            @cartesian
-            def velocity_dirichlet(self, p, t):
-                x = p[...,0]
-                y = p[...,1]
-                index = self.is_inflow_boundary(p)
-                # outlet = self.is_outflow_boundary(p)
-                result = bm.zeros_like(p)
-                result[index] = self.u_inflow_dirichlet(p[index])
-                # result[outlet] = self.u_inflow_dirichlet(p[outlet])
-                return result
-            
-            @cartesian
-            def source(self, p, t):
-                x = p[..., 0]
-                y = p[..., 1]
-                result = bm.zeros(p.shape, dtype=bm.float64)
-                result[..., 0] = 0
-                result[..., 1] = 0
-                return result
-            
-            def velocity_0(self, p ,t):
-                x = p[...,0]
-                y = p[...,1]
-                value = bm.zeros(p.shape)
-                return value
+        eps = 1e-10
 
-            def pressure_0(self, p, t):
-                x = p[..., 0]
-                val = bm.zeros_like(x)
-                return val
-            
-        options ={
-            'rho': rho,
-            'mu': mu,
-            'inflow': inflow,
-            'box': box,
-        }
-        model = PDE(options)
+        @cartesian
+        def is_outflow_boundary(p):
+            x = p[...,0]
+            y = p[...,1]
+            cond1 = bm.abs(x - box[1]) < eps
+            cond2 = bm.abs(y-box[2])>eps
+            cond3 = bm.abs(y-box[3])>eps
+            return (cond1) & (cond2 & cond3) 
+        
+        @cartesian
+        def is_inflow_boundary(p):
+            return bm.abs(p[..., 0]-box[0]) < eps
+        
+        @cartesian
+        def is_wall_boundary(p):
+            return (bm.abs(p[..., 1] -box[2]) < eps) | \
+                (bm.abs(p[..., 1] -box[3]) < eps)
+        
+        @cartesian
+        def is_velocity_boundary(p):
+            return ~is_outflow_boundary(p)
+            # return None
+        
+        @cartesian
+        def is_pressure_boundary(p=None):
+            if p is None:
+                return 1
+            else:
+                return is_outflow_boundary(p) 
+                #return bm.zeros_like(p[...,0], dtype=bm.bool)
+            # return 0
 
-        return (model.mu, model.rho, model.box) + tuple(
-            getattr(model, name)
-            for name in ["source", "velocity_0", "pressure_0", "velocity_dirichlet", "pressure_dirichlet",
-                          "is_velocity_boundary", "is_pressure_boundary"]
-        )
+        @cartesian
+        def u_inflow_dirichlet( p):
+            x = p[...,0]
+            y = p[...,1]
+            value = bm.zeros_like(p)
+            value[...,0] = inflow
+            # value[...,1] = 0
+            return value
+        
+        @cartesian
+        def pressure_dirichlet( p, t):
+            x = p[...,0]
+            y = p[...,1]
+            value = bm.zeros_like(x)
+            return value
+
+        @cartesian
+        def velocity_dirichlet( p, t):
+            x = p[...,0]
+            y = p[...,1]
+            index = is_inflow_boundary(p)
+            result = bm.zeros_like(p)
+            result[index] = u_inflow_dirichlet(p[index])
+            return result
+        
+        @cartesian
+        def source( p, t):
+            x = p[..., 0]
+            y = p[..., 1]
+            result = bm.zeros(p.shape, dtype=bm.float64)
+            result[..., 0] = 0
+            result[..., 1] = 0
+            return result
+        
+        def dirichlet_boundary():
+            u_dirichlet = velocity_dirichlet
+            p_dirichlet = pressure_dirichlet
+            return (u_dirichlet, p_dirichlet)
+        
+        def is_boundary():
+            is_u_boundary = is_velocity_boundary
+            is_p_boundary = is_pressure_boundary
+            return (is_u_boundary, is_p_boundary)
+        
+        def velocity_0(p ,t):
+            x = p[...,0]
+            y = p[...,1]
+            value = bm.zeros(p.shape)
+            return value
+
+        def pressure_0( p, t):
+            x = p[..., 0]
+            val = bm.zeros_like(x)
+            return val
+            
+
+        space = (uspace, pspace)
+        u0 = uspace.interpolate(cartesian(lambda p:velocity_0(p, 0)))
+        p0 = pspace.interpolate(cartesian(lambda p:pressure_0(p, 0)))
+
+        return (mu, rho, source, dirichlet_boundary, is_boundary, space, u0, p0)
+
+
+class IncompressibleNSMathematics(CNodeType):
+    TITLE: str = "不可压缩 NS 数学模型"
+    PATH: str = "preprocess.modeling"
+    INPUT_SLOTS = [
+        PortConf("mu", DataType.FLOAT, 0, title="动力粘度", default=0.001),
+        PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0),
+        PortConf("source", DataType.FUNCTION, 0, title="源项"),
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
+        PortConf("convection", DataType.FLOAT, title="对流项系数"),
+        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
+        PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
+        PortConf("source", DataType.FUNCTION, title="源项"),
+    ]
+    def run(mu, rho, source):
+        time_derivative = rho
+        convection = rho
+        pressure = 1.0
+        viscosity = mu
+        return time_derivative, convection, pressure, viscosity, source
+    
