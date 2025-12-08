@@ -35,7 +35,6 @@ simulation(
     is_down_boundary = pde().is_down_boundary,
     is_wall_boundary = pde().is_wall_boundary,
     u_w = pde().u_w,
-    mesh = mesher(),
     nt = pde().nt,
     phispace = phispace(),
     space = space(),

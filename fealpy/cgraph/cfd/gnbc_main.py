@@ -47,7 +47,6 @@ class GNBCSimulation(CNodeType):
         PortConf("is_down_boundary", DataType.FUNCTION, 1, title="判断是否为下边界"),
         PortConf("is_wall_boundary", DataType.FUNCTION, 1, title="判断是否为壁面边界"),
         PortConf("u_w", DataType.FUNCTION, 1, title="定义壁面速度边界条件"),
-        PortConf("mesh", DataType.MESH, 1, title="网格"),
         PortConf("nt", DataType.INT, title="总迭代步数"),
         PortConf("phispace", DataType.SPACE, 1, title="相场函数空间"),
         PortConf("space", DataType.SPACE, 1, title="函数空间"),
@@ -65,7 +64,7 @@ class GNBCSimulation(CNodeType):
     
     @staticmethod
     def run(param_list, init_phi, is_uy_Dirichlet,is_up_boundary,
-            is_down_boundary,is_wall_boundary,u_w,mesh,nt,
+            is_down_boundary,is_wall_boundary,u_w,nt,
             phispace,space,pspace,uspace,output_dir,q=5) -> Union[object]:
         from fealpy.backend import backend_manager as bm
         from fealpy.old.timeintegratoralg import UniformTimeLine
@@ -99,6 +98,7 @@ class GNBCSimulation(CNodeType):
         dt = timeline.dt
         time = timer()
         next(time)
+        mesh = getattr(space, 'mesh', None)
         solver = Solver(pde, mesh, pspace, phispace, uspace, dt, q)
         
         u0 = uspace.function()
