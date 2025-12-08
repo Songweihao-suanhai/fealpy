@@ -104,17 +104,18 @@ class AntennaPostprocess(CNodeType):
     INPUT_SLOTS = [
         PortConf("uh", DataType.FUNCTION, 1, desc="求解器输出的复数场自由度", title="有限元解"),
         PortConf("mesh", DataType.MESH, 1, title="网格"),
+        PortConf("p", DataType.INT, 1, desc="有限元空间的阶数", title="阶数", default=1)
     ]
     OUTPUT_SLOTS = [
         PortConf("E", DataType.TENSOR, desc="各单元重心处的电场强度（实部）", title="单元电场"),
     ]
 
     @staticmethod
-    def run(uh, mesh):
+    def run(uh, mesh, p):
         from fealpy.backend import backend_manager as bm
         from fealpy.functionspace import Function
         from fealpy.functionspace import FirstNedelecFESpace
-        space = FirstNedelecFESpace(mesh = mesh, p=1)
+        space = FirstNedelecFESpace(mesh = mesh, p=p)
         bc = bm.array([[1/3, 1/3, 1/3, 1/3]], dtype=bm.float64)
         gdof = space.number_of_global_dofs()
 

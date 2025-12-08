@@ -5,6 +5,7 @@ from .linear_elasticity import *
 from .helmholtz import *
 from .stokes import *
 from .dipole_antenna import *
+from .microstrip_antenna import *
 from .timoaxle import *
 from .bar3d_model import *
 from .beam2d_model import *

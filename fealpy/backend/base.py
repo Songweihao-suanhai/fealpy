@@ -133,7 +133,7 @@ FUNCTION_MAPPING = _make_default_mapping(
 
     ### Element-wise Functions ###
     # python array API standard v2023.12
-    'abs', 'acos', 'acosh', 'add', 'asin', 'asinh', 'atan', 'atan2', 'atanh',
+    'abs', 'acos', 'acosh', 'add', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'angle',
     'bitwise_and', 'bitwise_left_shift', 'bitwise_invert', 'bitwise_or',
     'bitwise_right_shift', 'bitwise_xor',
     'ceil', 'clip', 'conj', 'copysign', 'cos', 'cosh',

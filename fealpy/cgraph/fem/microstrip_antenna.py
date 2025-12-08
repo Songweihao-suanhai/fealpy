@@ -1,13 +1,13 @@
 
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["MicrostripAntenna3D"]
+__all__ = ["TimeHarmonicMaxwellWithLumpedPort"]
 
 
-class MicrostripAntenna3D(CNodeType):
-    TITLE: str = "三维微带贴片天线"
+class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
+    TITLE: str = "时谐麦克斯韦方程离散（集总端口）"
     PATH: str = "simulation.discretization"
-    DESC: str = "三维微带贴片天线节点"
+    DESC: str = "支持基板/空气区域、PEC边界、集总端口激励和PML层"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
         PortConf("space", DataType.MENU, 0, title="函数空间类型", items=["First Nédélec"]),
@@ -27,7 +27,6 @@ class MicrostripAntenna3D(CNodeType):
         PortConf("pp", DataType.FLOAT, 1, title="PML 多项式次数", default=2.0)
     ]
     OUTPUT_SLOTS = [
-        PortConf("space", DataType.SPACE, title="函数空间"),
         PortConf("operator", DataType.FUNCTION, title="算子"),
         PortConf("vector", DataType.FUNCTION, title="向量")
     ]
@@ -61,7 +60,7 @@ class MicrostripAntenna3D(CNodeType):
             CurlCurlIntegrator,
             ScalarSourceIntegrator,
         )
-        MSA = MicrostripAntenna3D
+        MSA = TimeHarmonicMaxwellWithLumpedPort
 
         @barycentric
         def diffusion(bcs, index):
@@ -138,7 +137,7 @@ class MicrostripAntenna3D(CNodeType):
         F, isDDof = dbc.apply_vector(F, A, dirichlet, isDFace, 1.0)
         A = dbc.apply_matrix(A, isDDof, options["lumped_edge"]).tocsr()
 
-        return space, A, F
+        return A, F
 
     @staticmethod
     def interpolate(space, gd, uh, face_index=None):
@@ -234,7 +233,7 @@ class MicrostripAntenna3D(CNodeType):
             A = self._mul(A, isDDof) + D1
             assert isinstance(A, COOTensor)
 
-            b, edge2dof = MicrostripAntenna3D.edge_basis_integral(self.space, isLumpedEdge)
+            b, edge2dof = TimeHarmonicMaxwellWithLumpedPort.edge_basis_integral(self.space, isLumpedEdge)
 
             flat_b = b.reshape(-1)
             flat_e2d = edge2dof.reshape(-1)
@@ -248,7 +247,7 @@ class MicrostripAntenna3D(CNodeType):
             from fealpy.backend import bm
             f, A = vector, matrix
             uh = bm.zeros(A.shape[1], dtype=f.dtype, device=f.device)
-            uh, isDDof = MicrostripAntenna3D.interpolate(self.space, gd, uh, isDFace)
+            uh, isDDof = TimeHarmonicMaxwellWithLumpedPort.interpolate(self.space, gd, uh, isDFace)
             f = f - A.matmul(uh)
             f = bm.set_at(f, isDDof, uh[isDDof])
             c = bm.full((1,), integral, dtype=f.dtype, device=f.device)
@@ -284,7 +283,7 @@ class MicrostripAntenna3D(CNodeType):
         def init_solution(self):
             from fealpy.backend import bm
             uh = bm.zeros(self.shape[1]+1, dtype=bm.complex128)
-            _, self.is_dirichlet_dof = MicrostripAntenna3D.interpolate(
+            _, self.is_dirichlet_dof = TimeHarmonicMaxwellWithLumpedPort.interpolate(
                 self.form._spaces[0],
                 self.gd, uh[:-1], self.is_dirichlet_face
             )
