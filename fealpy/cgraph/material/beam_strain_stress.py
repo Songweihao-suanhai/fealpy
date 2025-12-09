@@ -149,8 +149,6 @@ class TimoAxleStrainStress(CNodeType):
     """
     TITLE: str = "列车车轴应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点计算列车车轴系统中梁段与轴段杆件在受力后的单元应变与应力,再计算出总应变和应力"""
-            
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
