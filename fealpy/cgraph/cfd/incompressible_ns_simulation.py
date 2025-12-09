@@ -51,14 +51,14 @@ class IncompressibleNSIPCS(CNodeType):
         correct_pressure (function): Function that assembles the pressure correction system.
         correct_velocity (function): Function that assembles the velocity correction system.
     """
-    TITLE: str = "非稳态 NS 方程 IPCS 算法"
+    TITLE: str = "不可压缩 NS 方程 IPCS 算法"
     PATH: str = "simulation.discretization"
-    DESC: str = """该节点实现了用于求解非稳态不可压缩 Navier–Stokes 方程的 **IPCS（增量压力修正算法）**。
+    DESC: str = """该节点实现了用于求解非稳态不可压缩 Navier–Stokes 方程的 IPCS（增量压力修正算法）。
 
                 算法思想是将速度与压力的耦合系统拆分为三个子问题：
-                1. **速度预测方程**：忽略不可压条件，先预测一个中间速度场；
-                2. **压力修正方程**：利用预测速度修正压力，使流场满足散度为零；
-                3. **速度修正方程**：根据修正后的压力场，更新最终速度。
+                1. 速度预测方程：忽略不可压条件，先预测一个中间速度场；
+                2. 压力修正方程：利用预测速度修正压力，使流场满足散度为零；
+                3. 速度修正方程：根据修正后的压力场，更新最终速度。
 
                 输入参数包括：
                 - constitutive ：控制流体类型（1 表示牛顿流体，2 表示广义黏性流体）；
@@ -90,8 +90,7 @@ class IncompressibleNSIPCS(CNodeType):
     @staticmethod
     def run(space, dirichlet_boundary, is_boundary, q):
         from fealpy.backend import backend_manager as bm
-        from fealpy.backend import TensorLike
-        from fealpy.decorator import barycentric, cartesian
+        from fealpy.decorator import barycentric
         from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
                                 FluidBoundaryFrictionIntegrator)
         
@@ -107,7 +106,6 @@ class IncompressibleNSIPCS(CNodeType):
         if is_pressure_boundary() != 0:
             predict_BF = FluidBoundaryFrictionIntegrator(q=q, threshold=is_pressure_boundary)
             predict_Bform.add_integrator(predict_BF)
-        
         
         predict_BVW = ScalarDiffusionIntegrator(q=q)
         predict_Bform.add_integrator(predict_BVW)
