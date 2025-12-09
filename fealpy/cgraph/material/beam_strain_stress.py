@@ -5,6 +5,7 @@ __all__ = ["ChannelStrainStress",
            "BeamAxleIndices",
            "TimoAxleStrainStress"]
 
+
 class ChannelStrainStress(CNodeType):
     r"""Compute Strain and Stress for Channel Beam.
     
@@ -97,7 +98,7 @@ class BeamAxleIndices(CNodeType):
     INPUT_SLOTS = [
         PortConf("beam_num", DataType.INT, 0, desc="梁单元个数", title="梁单元数目", default=22),
         PortConf("axle_num", DataType.INT, 0, desc="弹簧单元个数", title="弹簧单元数目", default=10),
-        PortConf("total_num", DataType.INT, 1, desc="总单元个数", title="总单元数目"),
+        PortConf("total_num", DataType.INT, 0, desc="总单元个数", title="总单元数目", default=32),
     ]
     OUTPUT_SLOTS = [
         PortConf("beam_indices", DataType.TENSOR, title="梁单元索引"),
@@ -136,7 +137,6 @@ class TimoAxleStrainStress(CNodeType):
             R2 (TENSOR): Coordinate transformation matrix for axle elements.
             beam_indices (TENSOR): Indices of beam elements.
             axle_indices (TENSOR): Indices of axle elements.
-            total_num (INT): Total number of elements in the mesh.
 
         Outputs:
             beam_strain (TENSOR): Strain of the beam elements.
@@ -149,8 +149,6 @@ class TimoAxleStrainStress(CNodeType):
     """
     TITLE: str = "列车车轴应变-应力计算"
     PATH: str = "material.solid"
-    DESC: str = """该节点计算列车车轴系统中梁段与轴段杆件在受力后的单元应变与应力,再计算出总应变和应力"""
-            
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
@@ -166,8 +164,7 @@ class TimoAxleStrainStress(CNodeType):
         PortConf("R1", DataType.TENSOR, 1, desc="列车轮轴梁单元部分坐标变换矩阵", title="梁单元坐标变换"),
         PortConf("R2", DataType.TENSOR, 1, desc="列车轮轴轴单元部分坐标变换矩阵", title="轴单元坐标变换"),
         PortConf("beam_indices", DataType.TENSOR, 1, desc="轮轴梁单元部分索引", title="梁单元索引"),
-        PortConf("axle_indices", DataType.TENSOR, 1, desc="轮轴轴单元部分索引", title="轴单元索引"),
-        PortConf("total_num", DataType.INT, 1, desc="总单元个数", title="总单元数目"),
+        PortConf("axle_indices", DataType.TENSOR, 1, desc="轮轴轴单元部分索引", title="轴单元索引")
     ]
     
     OUTPUT_SLOTS = [
@@ -199,7 +196,7 @@ class TimoAxleStrainStress(CNodeType):
                                         poisson_ratio=options.get("beam_nu"))
         
         mesh = options.get("mesh")
-        NC = options.get("total_num")
+        NC = mesh.number_of_cells()
         
         y = options.get("y")
         z = options.get("z")

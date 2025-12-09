@@ -31,7 +31,7 @@ class Timoaxle(CNodeType):
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
-        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="lagrangespace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
         PortConf("mesh", DataType.MESH, 1, desc="列车车轴网格", title="网格"),
         PortConf("beam_E", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的弹性模量"),
@@ -40,7 +40,7 @@ class Timoaxle(CNodeType):
         PortConf("axle_nu", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的泊松比"),
         PortConf("external_load", DataType.FUNCTION, 1, desc="返回全局载荷向量", title="外部载荷"),
         PortConf("dirichlet_dof", DataType.FUNCTION, 1, desc="返回 Dirichlet 自由度", title="边界自由度"),
-        PortConf("penalty", DataType.FLOAT, 0, desc="乘大数法处理边界", title="系数", default=1e20),
+        PortConf("penalty", DataType.FLOAT, 0, desc="乘大数法处理边界", title="乘大数法系数", default=1e20),
     ]
     OUTPUT_SLOTS = [
         PortConf("K", DataType.LINOPS, desc="含边界条件处理后的刚度矩阵", title="全局刚度矩阵",),

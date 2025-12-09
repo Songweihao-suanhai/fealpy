@@ -22,7 +22,7 @@ class BarStrainStress(CNodeType):
     TITLE: str = "杆单元应变-应力计算"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("bar_type", DataType.MENU, 1, desc="杆件结构类型", title="杆件类型", default="custom",
+        PortConf("bar_type", DataType.MENU, 0, desc="杆件结构类型", title="杆件类型", default="custom",
                  items=["bar25", "bar942", "truss_tower", "custom"]),
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),

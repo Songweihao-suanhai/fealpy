@@ -26,7 +26,7 @@ class BarModel(CNodeType):
     INPUT_SLOTS = [
         PortConf("bar_type", DataType.MENU, 0, desc="杆件结构类型", title="杆件类型", 
                  default="bar25", items=["bar25", "bar942"]),
-        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="lagrangespace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
         PortConf("mesh", DataType.MESH, 1, desc="杆件网格", title="网格"),
         PortConf("E", DataType.FLOAT, 1, desc="杆的弹性模量", title="弹性模量"),
@@ -67,7 +67,7 @@ class BarModel(CNodeType):
         tspace = TensorFunctionSpace(space, shape=(-1, GD))
         
         material = BarMaterial(
-            model=pde,
+            model=None,
             name=options.get("bar_type"),
             elastic_modulus=options.get("E"),
             poisson_ratio=options.get("nu"),
@@ -145,7 +145,7 @@ class TrussTower(CNodeType):
         PortConf("div", DataType.FLOAT, 1,  desc="竖向杆件的内径", title="竖杆内径"),
         PortConf("doo", DataType.FLOAT, 1,  desc="其他杆件的外径", title="其他杆外径"),
         PortConf("dio", DataType.FLOAT, 1,  desc="其他杆件的内径", title="其他杆内径"),
-        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="lagrangespace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
         PortConf("mesh", DataType.MESH, 1, desc="桁架塔网格", title="网格"),
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量",  title="弹性模量"),
