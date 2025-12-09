@@ -127,9 +127,7 @@ class TrussTowerMesh(CNodeType):
         PortConf("face_diag", DataType.BOOL, 0, desc="是否在四个侧面加入面内对角线加劲杆件（默认True）", title="面内对角加劲", default=True)
     ]
     OUTPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, desc="生成桁架塔网格", title="网格"),
-        PortConf("NN", DataType.INT, desc="桁架塔节点数量", title="节点数量"),
-        PortConf("NC", DataType.INT, desc="桁架塔单元总数", title="单元数量")
+        PortConf("mesh", DataType.MESH, desc="生成桁架塔网格", title="网格")
     ]
     
     @staticmethod
