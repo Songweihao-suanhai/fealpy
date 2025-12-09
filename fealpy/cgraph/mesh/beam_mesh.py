@@ -3,6 +3,7 @@ from ..nodetype import CNodeType, PortConf, DataType
 __all__ = ["ChannelBeamMesh", 
            "TimobeamAxleMesh"]
 
+
 class ChannelBeamMesh(CNodeType):
     r"""3D Channel Beam Mesh Generator.
     
@@ -67,9 +68,7 @@ class TimobeamAxleMesh(CNodeType):
     INPUT_SLOTS = []
 
     OUTPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, desc="列车车轴网格", title="网格"),
-        PortConf("NN", DataType.INT, desc="列车车轴的节点数量", title="节点数量"),
-        PortConf("NC", DataType.INT, desc="列车车轴的单元数量", title="单元数量")
+        PortConf("mesh", DataType.MESH, desc="列车车轴网格", title="网格")
     ]
 
     @staticmethod
@@ -95,7 +94,5 @@ class TimobeamAxleMesh(CNodeType):
              [14, 28], [15, 29],[16, 30], [17, 31], [18,32]], dtype=bm.int32)
         
         mesh = EdgeMesh(node, cell)
-        NN = mesh.number_of_nodes()
-        NC = mesh.number_of_cells()
 
-        return mesh, NN, NC
+        return mesh

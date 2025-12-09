@@ -55,7 +55,7 @@ postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
 indices(
     beam_num = 22,
     axle_num = 10,
-    total_num = mesher().NC
+    total_num = 32
 )
 
 R1 = coord1(mesh=mesher(), vref=[0, 1, 0], index = indices().beam_indices)
@@ -76,8 +76,7 @@ strain_stress(
     R1 = R1,
     R2 = R2,
     beam_indices = indices().beam_indices,
-    axle_indices = indices().axle_indices,
-    total_num = mesher().NC
+    axle_indices = indices().axle_indices
 )
 
 

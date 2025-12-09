@@ -31,7 +31,7 @@ class Timoaxle(CNodeType):
     INPUT_SLOTS = [
         PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
         PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
-        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="LagrangeFESpace", items=["lagrangespace"]),
+        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="lagrangespace", items=["lagrangespace"]),
         PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
         PortConf("mesh", DataType.MESH, 1, desc="列车车轴网格", title="网格"),
         PortConf("beam_E", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的弹性模量"),
