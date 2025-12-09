@@ -11,9 +11,9 @@ simulation = cgraph.create("IncompressibleNSIPCS")
 IncompressibleNSRun = cgraph.create("IncompressibleNSIPCSRun")
 to_vtk = cgraph.create("TO_VTK")
 
-box = [-0.5, 2.7, -0.4, 0.4]
+box = "[-0.5, 2.7, -0.4, 0.4]"
 mesher(
-    m = 0.6,
+    m = 0.06,
     p = 0.4,
     t = 0.18,
     c = 1.0,
@@ -23,10 +23,7 @@ mesher(
     h = 0.05
 )
 physics(
-    box = box,
     mesh = mesher().mesh,
-    mu = 0.001,
-    rho = 1.0,
     utype = "lagrange",
     u_p = 2,
     u_gd = 2,
@@ -35,8 +32,7 @@ physics(
     inflow = 1.0,
 )
 mathmatics(
-    mu = physics().mu,
-    rho = physics().rho,
+    mesh = mesher().mesh,
     source = physics().source
 )
 simulation(

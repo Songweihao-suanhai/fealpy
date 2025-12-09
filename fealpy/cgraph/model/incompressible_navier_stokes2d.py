@@ -348,13 +348,10 @@ class IncompressibleCylinder2d(CNodeType):
     
 
 class IncompressibleNSPhysics(CNodeType):
-    TITLE: str = "不可压缩 NS 物理模型"
+    TITLE: str = "不可压缩 NS 物理变量"
     PATH: str = "preprocess.modeling"
     INPUT_SLOTS = [
-        PortConf("box", DataType.TENSOR, 1, title="求解域"),
         PortConf("mesh", DataType.MESH, 1, title="网格"),
-        PortConf("mu", DataType.FLOAT, 0, title="动力粘度"),
-        PortConf("rho", DataType.FLOAT, 0, title="密度"),
 
         PortConf("utype", DataType.MENU, 0, title="速度空间类型", default="lagrange", 
                                             items=["lagrange", "bernstein", "first_nedelec"]),
@@ -368,21 +365,21 @@ class IncompressibleNSPhysics(CNodeType):
         PortConf("inflow", DataType.FLOAT, 0, title="流入速度", default=1.0),
     ]
     OUTPUT_SLOTS = [
-        PortConf("mu", DataType.FLOAT, title="动力粘度"),
-        PortConf("rho", DataType.FLOAT, title="密度"),
         PortConf("source", DataType.FUNCTION, title="源"),
         PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("space", DataType.LIST, title="函数空间"),
-        PortConf("u0", DataType.FUNCTION, title="速度初值"),
-        PortConf("p0", DataType.FUNCTION, title="压力初值"),
+        PortConf("u0", DataType.TENSOR, title="速度初值"),
+        PortConf("p0", DataType.TENSOR, title="压力初值"),
     ]
 
     @staticmethod
-    def run(box, mesh, mu, rho, utype, u_p, u_gd, ptype, p_p, inflow) -> Union[object]:
+    def run(mesh, utype, u_p, u_gd, ptype, p_p, inflow) -> Union[object]:
         from fealpy.backend import backend_manager as bm
-        from fealpy.decorator import cartesian, TensorLike
+        from fealpy.decorator import cartesian
         from fealpy.functionspace import functionspace
+
+        box = mesh.box
 
         element_u = (utype.capitalize(), u_p)
         shape_u = (u_gd, -1)
@@ -480,21 +477,23 @@ class IncompressibleNSPhysics(CNodeType):
             val = bm.zeros_like(x)
             return val
             
-
         space = (uspace, pspace)
         u0 = uspace.interpolate(cartesian(lambda p:velocity_0(p, 0)))
         p0 = pspace.interpolate(cartesian(lambda p:pressure_0(p, 0)))
 
-        return (mu, rho, source, dirichlet_boundary, is_boundary, space, u0, p0)
+        return (source, dirichlet_boundary, is_boundary, space, u0, p0)
 
 
 class IncompressibleNSMathematics(CNodeType):
     TITLE: str = "不可压缩 NS 数学模型"
     PATH: str = "preprocess.modeling"
+    DESC: str = """该节点定义了不可压缩 Navier-Stokes 方程的数学模型参数，包括时间项、对流项、压力项和粘性项的系数，以及源项函数。
+            这些参数将用于后续的数值求解过程中，确保方程的正确表示和求解。
+            
+            """
     INPUT_SLOTS = [
-        PortConf("mu", DataType.FLOAT, 0, title="动力粘度", default=0.001),
-        PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0),
-        PortConf("source", DataType.FUNCTION, 0, title="源项"),
+        PortConf("mesh", DataType.MESH, 1, title="网格"),
+        PortConf("source", DataType.FUNCTION, 1, title="源项"),
     ]
     OUTPUT_SLOTS = [
         PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
@@ -503,7 +502,9 @@ class IncompressibleNSMathematics(CNodeType):
         PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
         PortConf("source", DataType.FUNCTION, title="源项"),
     ]
-    def run(mu, rho, source):
+    def run(mesh, source):
+        mu = mesh.nodedata['mu']
+        rho = mesh.nodedata['rho']
         time_derivative = rho
         convection = rho
         pressure = 1.0
