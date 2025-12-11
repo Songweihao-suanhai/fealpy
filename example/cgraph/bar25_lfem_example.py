@@ -12,6 +12,7 @@ solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
 coord = cgraph.create("Rbar3d")
 strain_stress = cgraph.create("BarStrainStress")
+to_vtk = cgraph.create("TO_VTK")
 
 model25(bar_type="bar25")
 mesher25()
@@ -45,11 +46,15 @@ strain_stress(
     coord_transform = coord().R
 )
 
+to_vtk(mesh = mesher25(),
+        uh = (postprocess().uh, strain_stress().stress),
+        path = "C:/Users/Administrator/Desktop/truss/")
+
 # 最终连接到图输出节点上
-WORLD_GRAPH.output(model=model25(), mesh1=mesher25())
-WORLD_GRAPH.output(uh=postprocess().uh, 
-                   strain=strain_stress().strain, stress=strain_stress().stress
-                   )
+WORLD_GRAPH.output(model=model25(), mesh1=mesher25(), path=to_vtk().path)
+# WORLD_GRAPH.output(uh=postprocess().uh, 
+#                    strain=strain_stress().strain, stress=strain_stress().stress
+#                    )
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
