@@ -109,15 +109,11 @@ class CHNSFEMRun(CNodeType):
         if i == 0:
             phi0 = phispace.interpolate(init_interface)
             phi1 = phispace.interpolate(init_interface)
-            phi2 = phispace.function()
             mu1 = phispace.function()
-            mu2 = phispace.function()
 
             u0 = uspace.function()
             u1 = uspace.function()
-            u2 = uspace.function()
             p1 = pspace.function()
-            p2 = pspace.function()
         else:
             pass
 
@@ -132,8 +128,8 @@ class CHNSFEMRun(CNodeType):
         ch_b = ch_b.assembly()
         ch_x = spsolve(ch_A, ch_b, 'mumps')
 
-        phi2[:] = ch_x[:phigdof]
-        mu2[:] = ch_x[phigdof:]  
+        phi2 = ch_x[:phigdof]
+        mu2 = ch_x[phigdof:]  
         
         # 更新NS方程参数
         rho = time_derivative(phi1)
@@ -149,26 +145,24 @@ class CHNSFEMRun(CNodeType):
         ns_A, ns_b = BC.apply(ns_A, ns_b)
         ns_x = spsolve(ns_A, ns_b, 'mumps')
         
-        u2[:] = ns_x[:ugdof]
-        p2[:] = ns_x[ugdof:]
-            
         u0[:] = u1[:]
-        u1[:] = u2[:]
+        u1[:] = ns_x[:ugdof]
+        p1[:] = ns_x[ugdof:]
+            
         phi0[:] = phi1[:]
         phi1[:] = phi2[:]
         mu1[:] = mu2[:]
-        p1[:] = p2[:]
 
-        phi2_lbdval = phi2[left_bd]
-        mask = bm.abs(phi2_lbdval) < 0.5
-        index = left_bd[mask]
-        left_point = node[index, :]
-        print("界面与左边界交点:", left_point)
+        # phi2_lbdval = phi2[left_bd]
+        # mask = bm.abs(phi2_lbdval) < 0.5
+        # index = left_bd[mask]
+        # left_point = node[index, :]
+        # print("界面与左边界交点:", left_point)
 
-        phi2_rbdval = phi2[right_bd]
-        mask = bm.abs(phi2_rbdval) < 0.5
-        index = right_bd[mask]
-        right_point = node[index, :]
-        print("界面与右边界交点:", right_point)
+        # phi2_rbdval = phi2[right_bd]
+        # mask = bm.abs(phi2_rbdval) < 0.5
+        # index = right_bd[mask]
+        # right_point = node[index, :]
+        # print("界面与右边界交点:", right_point)
 
-        return u2, p2, phi2, rho
+        return u1, p1, phi2, rho

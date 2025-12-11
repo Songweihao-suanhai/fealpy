@@ -29,16 +29,21 @@ physics(
     u_gd = 2,
     ptype = "lagrange",
     p_p = 1,
-    inflow = 1.0,
 )
 mathmatics(
     mesh = mesher().mesh,
-    source = physics().source
+    u = physics().u,
+    p = physics().p,
+    velocity_boundary = "[1.0, 0.0]",
+    pressure_boundary = 0.0,
+    velocity_0 = 0.0,
+    pressure_0 = 0.0,
 )
 simulation(
-    space = physics().space,
-    dirichlet_boundary = physics().dirichlet_boundary,
-    is_boundary = physics().is_boundary,
+    u = physics().u,
+    p = physics().p,
+    dirichlet_boundary = mathmatics().dirichlet_boundary,
+    is_boundary = mathmatics().is_boundary,
     q = 3
 ) 
 IncompressibleNSRun(
@@ -49,8 +54,8 @@ IncompressibleNSRun(
     pressure = mathmatics().pressure,
     viscosity = mathmatics().viscosity,
     source = mathmatics().source,
-    uh0 = physics().u0,
-    ph0 = physics().p0,
+    uh0 = mathmatics().u0,
+    ph0 = mathmatics().p0,
     predict_velocity = simulation().predict_velocity,
     correct_pressure = simulation().correct_pressure,
     correct_velocity = simulation().correct_velocity,

@@ -77,7 +77,8 @@ class IncompressibleNSIPCS(CNodeType):
                 设定物性参数与源项后，依次调用三个输出函数即可完成一个时间步的 IPCS 求解过程。
                 """
     INPUT_SLOTS = [
-        PortConf("space", DataType.SPACE, title="函数空间"),
+        PortConf("u", DataType.TENSOR, 1, title="速度"),
+        PortConf("p", DataType.TENSOR, 1, title="压力"),
         PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度")
@@ -88,13 +89,14 @@ class IncompressibleNSIPCS(CNodeType):
         PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散")
     ]
     @staticmethod
-    def run(space, dirichlet_boundary, is_boundary, q):
+    def run(u, p, dirichlet_boundary, is_boundary, q):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric
         from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
                                 FluidBoundaryFrictionIntegrator)
         
-        (uspace, pspace) = space
+        uspace = u.space
+        pspace = p.space
         (velocity_dirichlet, pressure_dirichlet) = dirichlet_boundary()
         (is_velocity_boundary, is_pressure_boundary) = is_boundary()
         
@@ -290,14 +292,16 @@ class IncompressibleNSBDF2(CNodeType):
     ]
 
     @staticmethod
-    def run(uspace, pspace, velocity_dirichlet, pressure_dirichlet, 
-            is_velocity_boundary, is_pressure_boundary, q):
+    def run(space, dirichlet_boundary, is_boundary, q):
         from fealpy.fem import (BilinearForm, BlockForm, ScalarMassIntegrator, 
                                 ScalarConvectionIntegrator, ViscousWorkIntegrator,
                                 PressWorkIntegrator, LinearBlockForm, LinearForm, 
                                 SourceIntegrator)
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric, cartesian
+        (uspace, pspace) = space
+        (velocity_dirichlet, pressure_dirichlet) = dirichlet_boundary()
+        (is_velocity_boundary, is_pressure_boundary) = is_boundary()
 
         def update(u_0, u_1, dt, t, ctd, cc, pc, cv, cbf, apply_bc = True):
             
