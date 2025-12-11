@@ -4,7 +4,7 @@ from .utils import get_mesh_class
 
 __all__ = ["CreateMesh", "PolygonMesh2d",
            "DLDMicrofluidicChipMesh2d", "DLDMicrofluidicChipMesh3d",
-           "NACA4Mesh2d"]
+           "NACA4Mesh2d", "RTIMesher2d"]
 
 
 class CreateMesh(CNodeType):
@@ -378,6 +378,32 @@ class FlowPastCylinder2d(CNodeType):
         mesh = TriangleMesh(node_coords, tri_nodes)
         mesh.box = box
         mesh.center = center
+        return mesh
+
+
+class RTIMesher2d(CNodeType):
+    TITLE: str = "二维 RTI 问题几何建模与网格生成"
+    PATH: str = "examples.CFD"
+    INPUT_SLOTS= [
+        PortConf("material", DataType.LIST, title="物理属性"),
+        PortConf("box", DataType.TEXT, 0, default=(0.0, 1.0, 0.0, 4.0), title="求解域"),
+        PortConf("nx", DataType.INT, 0, default=64, title="x方向单元数"),
+        PortConf("ny", DataType.INT, 0, default=256, title="y方向单元数"),
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="网格")
+    ]
+    @staticmethod
+    def run(material, box, nx, ny):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.mesh import TriangleMesh
+        mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
+        mesh.box = box
+        mesh.rho = material[0]
+        mesh.Re = material[1]
+        mesh.Fr = material[2]
+        mesh.epsilon = material[3]
+        mesh.Pe = material[4]
         return mesh
 
 

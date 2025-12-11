@@ -79,14 +79,14 @@ class CHNSFEMRun(CNodeType):
         PortConf("pressure", DataType.FUNCTION, title="压力项系数"),
         PortConf("viscosity", DataType.FUNCTION, title="粘性项系数"),
         PortConf("source", DataType.FUNCTION, title="源项"),
-        PortConf("phispace", DataType.SPACE, title="相场函数空间"),
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
-        PortConf("init_interface", DataType.FUNCTION, title="初始界面函数"),
+        PortConf("phi0", DataType.TENSOR, title="上上时间步相场"),
+        PortConf("phi1", DataType.TENSOR, title="上一时间步相场"),
+        PortConf("u0", DataType.TENSOR, title="上上时间步速度"),
+        PortConf("u1", DataType.TENSOR, title="上一时间步速度"),
+        PortConf("p0", DataType.TENSOR, title="上一时间步压力"),
         PortConf("ns_update", DataType.FUNCTION, title="NS 更新函数"),
         PortConf("ch_update", DataType.FUNCTION, title="CH 更新函数"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("mesh", DataType.MESH, title="网格")
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
     ]
     OUTPUT_SLOTS = [
         PortConf("u", DataType.FUNCTION, title="速度"),
@@ -96,31 +96,29 @@ class CHNSFEMRun(CNodeType):
     ]
     @staticmethod
     def run(dt, i, mobility, interface, free_energy, time_derivative, convection, 
-            pressure, viscosity, source, phispace, uspace, pspace, init_interface, 
-            ns_update, ch_update, is_velocity_boundary, mesh):
+            pressure, viscosity, source, phi0, phi1, u0, u1, p0,
+            ns_update, ch_update, is_boundary):
         from fealpy.backend import backend_manager as bm
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
 
+        bm.set_backend('pytorch')
+        bm.set_default_device('cpu')
+
+        phispace = phi0.space
+        uspace = u0.space
+        pspace = p0.space
+        p1 = p0
         phigdof = phispace.number_of_global_dofs()
         ugdof = uspace.number_of_global_dofs()
         pgdof = pspace.number_of_global_dofs()
+        mu1 = phispace.function()
+        t = (i + 1) * dt
 
-        if i == 0:
-            phi0 = phispace.interpolate(init_interface)
-            phi1 = phispace.interpolate(init_interface)
-            mu1 = phispace.function()
-
-            u0 = uspace.function()
-            u1 = uspace.function()
-            p1 = pspace.function()
-        else:
-            pass
-
-        node = mesh.entity_barycenter('node')
-        tol = 1e-14
-        left_bd = bm.where(bm.abs(node[:, 0]) < tol)[0]
-        right_bd = bm.where(bm.abs(node[:, 0]-1.0) < tol)[0]
+        # node = mesh.entity_barycenter('node')
+        # tol = 1e-14
+        # left_bd = bm.where(bm.abs(node[:, 0]) < tol)[0]
+        # right_bd = bm.where(bm.abs(node[:, 0]-1.0) < tol)[0]
         
         ch_A, ch_b = ch_update(u0, u1, phi0, phi1, dt, 
                                mobility, interface, free_energy)
@@ -133,11 +131,13 @@ class CHNSFEMRun(CNodeType):
         
         # 更新NS方程参数
         rho = time_derivative(phi1)
+        ctd = time_derivative(phi1)
+        cc = convection(phi1)
         body_force = source(phi1)
-        ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = rho, cc = rho,
+        ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = ctd, cc = cc,
                                pc = pressure, cv = viscosity, 
                                cbf = body_force, apply_bc = False)
-        (is_ux_boundary, is_uy_boundary) = is_velocity_boundary()
+        (is_ux_boundary, is_uy_boundary) = is_boundary
         is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
         is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
         gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))

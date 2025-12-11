@@ -7,77 +7,75 @@ from fealpy.backend import backend_manager as bm
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-pde = cgraph.create("RayleighTaylor")
-eq = cgraph.create("CHNSEquation")
-mesher = cgraph.create("Box2d")
-phispacer = cgraph.create("FunctionSpace")
-uspacer = cgraph.create("TensorFunctionSpace")
-pspacer = cgraph.create("FunctionSpace")
+material = cgraph.create("RTIMaterial")
+mesher = cgraph.create("RTIMesher2d")
+physics = cgraph.create("CHNSPhysics")
+mathmatics = cgraph.create("RTIMathmatics")
 bdf2 = cgraph.create("IncompressibleNSBDF2")
 chfem = cgraph.create("CahnHilliardFEMSimulation")
 chnsrun = cgraph.create("CHNSFEMRun")
 to_vtk = cgraph.create("TO_VTK")
 
-eq(
-    rho = pde().rho,
-    Re = pde().Re,
-    Fr = pde().Fr,
-    epsilon = pde().epsilon,
-    Pe = pde().Pe,
-    body_force = pde().body_force
+box = [0, 1.0, 0.0, 4.0]
+material(
+    rho_up = 3.0,
+    rho_down = 1.0,
+    Re = 3000.0,
+    Fr = 1.0,
+    epsilon = 0.01
 )
 mesher(
-    mesh_type="triangle",
-    domain=pde().domain,
-    nx=64,
-    ny=256
+    material = material().material,
+    box = box,
+    nx = 64,
+    ny = 256
 )
-phispacer(
-    mesh=mesher().mesh,
-    p = 2
+physics(
+    mesh = mesher().mesh,
+    phitype = "lagrange",
+    phi_p = 1,
+    utype = "lagrange",
+    u_p = 2,
+    u_gd = 2,
+    ptype = "lagrange",
+    p_p = 1
 )
-uspacer(
-    mesh=mesher().mesh,
-    p = 2,
-    gd = 2
-)
-pspacer(
-    mesh=mesher().mesh,
-    p = 1
+mathmatics(
+    phi = physics().phi,
+    u = physics().u,
+    p = physics().p
 )
 bdf2(
-    uspace = uspacer(), 
-    pspace = pspacer(),
-    velocity_dirichlet = pde().velocity_dirichlet,
-    pressure_dirichlet = pde().pressure_dirichlet,
-    is_velocity_boundary = pde().is_velocity_boundary,
-    is_pressure_boundary = pde().is_pressure_boundary,
+    u = physics().u,
+    p = physics().p,
+    dirichlet_boundary = None,
+    is_boundary = mathmatics().is_boundary,
     q = 3
 )
 chfem(
-    phispace = phispacer(),
+    phi = physics().phi,
     q = 5,
     s = 1.0
 )
 chnsrun(
     dt = 0.00175,
     i = 0,
-    mobility = eq().mobility,
-    interface = eq().interface,
-    free_energy = eq().free_energy,
-    time_derivative = eq().time_derivative,
-    convection = eq().convection,
-    pressure = eq().pressure,
-    viscosity = eq().viscosity,
-    source = eq().source,
+    mobility = mathmatics().mobility,
+    interface = mathmatics().interface,
+    free_energy = mathmatics().free_energy,
+    time_derivative = mathmatics().time_derivative,
+    convection = mathmatics().convection,
+    pressure = mathmatics().pressure,
+    viscosity = mathmatics().viscosity,
+    source = mathmatics().source,
+    phi0 = mathmatics().phi0,
+    phi1 = mathmatics().phi1,
+    u0 = mathmatics().u0,
+    u1 = mathmatics().u1,
+    p0 = mathmatics().p0,
     ns_update = bdf2().update,
     ch_update = chfem().update,
-    phispace = phispacer(),
-    uspace = uspacer(),
-    pspace = pspacer(),
-    mesh = mesher(),
-    init_interface = pde().init_interface,
-    is_velocity_boundary = pde().is_velocity_boundary
+    is_boundary = mathmatics().is_boundary
 )
 to_vtk(mesh = mesher(),
         uh = (chnsrun().u, chnsrun().p, chnsrun().phi, chnsrun().rho),
@@ -86,6 +84,7 @@ to_vtk(mesh = mesher(),
 
 
 WORLD_GRAPH.output(path = to_vtk().path)
+# WORLD_GRAPH.output(mesh = mesher().mesh)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
