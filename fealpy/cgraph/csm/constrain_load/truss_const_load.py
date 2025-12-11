@@ -1,7 +1,6 @@
-from ..nodetype import CNodeType, PortConf, DataType
+from ...nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BarData", 
-           "TrussTower3d"]
+__all__ = ["BarData", "TrussTower3d"]
 
 
 class BarData(CNodeType):
