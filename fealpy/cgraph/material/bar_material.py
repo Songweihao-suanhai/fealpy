@@ -1,4 +1,3 @@
-from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
 __all__ = ["BarMaterial", 
@@ -6,28 +5,43 @@ __all__ = ["BarMaterial",
 
  
 class BarMaterial(CNodeType):
-    r"""A CGraph node for defining the material properties of a 3D truss/bar.
-
+    r"""Material property definition for truss/bar structures.
+    
+    Supports two input modes:
+    1. Predefined case (bar25/bar942/truss_tower): Uses standard material parameters
+    2. Custom: Choose material type (property) or input custom E, nu
+    
     Inputs:
-        property(MENU): Material name, e.g."structural-steel".
-        bar_type(STRING): Type of bar material.
-        E(FLOAT): Elastic modulus of the bar material.
-        nu(FLOAT): Poisson's ratio of the bar material.
+        bar_type (MENU): Bar structure type.
+        property (MENU): Material type (for custom bar_type).
+        E (float): Elastic modulus [Pa] (for custom property).
+        nu (float): Poisson's ratio (for custom property).
 
     Outputs:
-        E (float): The elastic modulus of the bar material.
-        nu(FLOAT): Poisson's ratio of the bar material.
-
+        E (float): Elastic modulus [Pa].
+        nu (float): Poisson's ratio.
     """
-    TITLE: str = "杆单元材料属性"
+    TITLE: str = "杆材料属性"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("property", DataType.MENU, 0, desc="材料名称", title="材料材质", default="structural-steel", 
-                 items=["structural-steel", "aluminum", "concrete", "plastic", "wood", "alloy"]),
-        PortConf("bar_type", DataType.MENU, 0, desc="杆件结构类型", title="杆件类型", default="custom",
+        PortConf("bar_type", DataType.MENU, 0, 
+                 desc="杆件结构类型", 
+                 title="结构类型", 
+                 default="custom",
                  items=["bar25", "bar942", "truss_tower", "custom"]),
-        PortConf("E", DataType.FLOAT, 0, desc="杆的弹性模量", title="弹性模量", default=2.0e11),
-        PortConf("nu", DataType.FLOAT, 0, desc="杆的泊松比", title="泊松比", default=0.3)
+        PortConf("property", DataType.MENU, 0, 
+                 desc="材料材质类型 (仅custom结构类型有效)", 
+                 title="材料材质", 
+                 default="custom-input", 
+                 items=["structural-steel", "aluminum", "concrete", "titanium", "brass", "custom-input"]),
+        PortConf("E", DataType.FLOAT, 0, 
+                 desc="弹性模量 [Pa] (仅custom材质有效)", 
+                 title="弹性模量", 
+                 default=2.0e11),
+        PortConf("nu", DataType.FLOAT, 0, 
+                 desc="泊松比 (仅custom材质有效)", 
+                 title="泊松比", 
+                 default=0.3)
     ]
     
     OUTPUT_SLOTS = [
@@ -38,21 +52,48 @@ class BarMaterial(CNodeType):
     @staticmethod
     def run(**options):
         bar_type = options.get("bar_type")
+        property_type = options.get("property")
         E = options.get("E")
         nu = options.get("nu")
         
-        # 定义各类型的预设材料参数
-        presets = {
-            "bar25": {"E": 1500, "nu": 0.3},
-            "bar942": {"E": 2.1e5, "nu": 0.3},
-            "truss_tower": {"E": 2.0e11, "nu": 0.3},
-            "custom": {"E": E, "nu": nu}  # custom使用用户输入
+        # 第一层：案例预设参数
+        case_presets = {
+            "bar25": {"E": 1500, "nu": 0.3},           
+            "bar942": {"E": 2.1e5, "nu": 0.3},         
+            "truss_tower": {"E": 2.0e11, "nu": 0.3}    
         }
-
-        preset = presets.get(bar_type, {})
-        E = preset.get("E", E)
-        nu = preset.get("nu", nu)
+        
+        if bar_type in case_presets:
+            material = case_presets[bar_type]
+            return (material["E"], material["nu"])
+        
+        # 第二层：材质数据库（用于custom结构类型）
+        material_database = {
+            # 金属材料
+            "structural-steel": {"E": 2.0e11, "nu": 0.3},
+            "stainless-steel": {"E": 1.93e11, "nu": 0.31},
+            "aluminum": {"E": 7.0e10, "nu": 0.33},
+            "aluminum-alloy": {"E": 7.2e10, "nu": 0.33},
+            "titanium": {"E": 1.1e11, "nu": 0.34},
+            "titanium-alloy": {"E": 1.14e11, "nu": 0.34},
+            "brass": {"E": 1.0e11, "nu": 0.34},
+            "copper": {"E": 1.2e11, "nu": 0.34},
+            
+            # 非金属材料
+            "concrete": {"E": 3.0e10, "nu": 0.2},
+            "wood": {"E": 1.0e10, "nu": 0.35},
+            
+            # 复合材料
+            "carbon-fiber": {"E": 1.5e11, "nu": 0.3},
+            "fiberglass": {"E": 3.5e10, "nu": 0.25}
+        }
+        
+        # 如果选择了预定义材质
+        if property_type in material_database:
+            material = material_database[property_type]
+            return (material["E"], material["nu"])
         return E, nu
+
 
 class AxleMaterial(CNodeType):
     r"""Axle Material Definition Node.

@@ -7,7 +7,6 @@ class BarStrainStress(CNodeType):
     r"""compute Strain and Stress for Bar Elements.
     
     Inputs:
-        bar_type(MENU): Type of bar structure.
         E (FLOAT): Elastic modulus of the axle material.
         nu (FLOAT): Poisson’s ratio of the axle material.
         mesh (MESH): Mesh containing node and cell information.
@@ -22,8 +21,6 @@ class BarStrainStress(CNodeType):
     TITLE: str = "杆单元应变-应力计算"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("bar_type", DataType.MENU, 0, desc="杆件结构类型", title="杆件类型", default="custom",
-                 items=["bar25", "bar942", "truss_tower", "custom"]),
         PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
         PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
@@ -42,7 +39,7 @@ class BarStrainStress(CNodeType):
         
         material = BarMaterial(
             model=None,
-            name=options.get("bar_type"),
+            name="bar",
             elastic_modulus=options.get("E"),
             poisson_ratio=options.get("nu")
         )

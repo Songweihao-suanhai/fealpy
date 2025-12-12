@@ -17,11 +17,11 @@ class Bar25Geometry(CNodeType):
         cell (tensor): Cell connectivity array (25 x 2).
     """
     TITLE: str = "25杆桁架几何"
-    PATH: str = "examples.csm"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = []
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array (10x3)", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array (10x3)", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array (25x2)", title="单元")
     ]
 
@@ -84,7 +84,7 @@ class Bar942Geometry(CNodeType):
         cell (tensor): Cell connectivity array.
     """
     TITLE: str = "942杆桁架几何"
-    PATH: str = "examples.csm"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("d1", DataType.FLOAT, 0, desc="Half-width of first layer (square top)", title="第一层半宽", default=2135.0),
         PortConf("d2", DataType.FLOAT, 0, desc="Width of second layer (octagonal section)", title="第二层宽度", default=5335.0),
@@ -99,7 +99,7 @@ class Bar942Geometry(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array", title="单元")
     ]
 
@@ -144,7 +144,7 @@ class TrussTowerGeometry(CNodeType):
         cell (tensor): Cell connectivity array.
     """
     TITLE: str = "桁架塔几何"
-    PATH: str = "examples.csm"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("n_panel", DataType.INT, 0, desc="Number of panels along z-direction (≥1)", title="面板数量", default=19),
         PortConf("Lz", DataType.FLOAT, 0, desc="Total height of truss tower in z-direction", title="总高度", default=19.0),
@@ -156,7 +156,7 @@ class TrussTowerGeometry(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array", title="单元")
     ]
 
