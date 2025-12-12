@@ -24,7 +24,8 @@ __nodes__ = [
     "reports",
     "paraviewtools",
     "cem",
-    "coordtransform"
+    "coordtransform",
+    "csm"
 ]
 
 register_all_nodes()
