@@ -21,7 +21,7 @@ class Bar25Geometry(CNodeType):
     INPUT_SLOTS = []
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array (10x3)", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array (10x3)", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array (25x2)", title="单元")
     ]
 
@@ -99,7 +99,7 @@ class Bar942Geometry(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array", title="单元")
     ]
 
@@ -156,7 +156,7 @@ class TrussTowerGeometry(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点"),
+        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点坐标"),
         PortConf("cell", DataType.TENSOR, desc="Cell connectivity array", title="单元")
     ]
 

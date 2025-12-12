@@ -3,18 +3,20 @@ from fealpy.backend import backend_manager as bm
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-model942 = cgraph.create("BarData")
-mesher942 = cgraph.create("Bar942Mesh")
+geometry = cgraph.create("Bar942Geometry")
+mesher = cgraph.create("CreateMesh")
+section = cgraph.create("PredefinedSection")
+load = cgraph.create("Bar942Load")
+const = cgraph.create("Bar942Boundary")
 spacer = cgraph.create("FunctionSpace")
-materialer942 = cgraph.create("BarMaterial")
-bar942_model = cgraph.create("BarModel")
-solver = cgraph.create("DirectSolver")
-postprocess = cgraph.create("UDecoupling")
-coord = cgraph.create("Rbar3d")
-strain_stress = cgraph.create("BarStrainStress")
+materialer = cgraph.create("BarMaterial")
+# bar942_model = cgraph.create("BarModel")
+# solver = cgraph.create("DirectSolver")
+# postprocess = cgraph.create("UDecoupling")
+# coord = cgraph.create("Rbar3d")
+# strain_stress = cgraph.create("BarStrainStress")
 
-model942(bar_type="bar942")
-mesher942(d1 = 2135,
+geometry(d1 = 2135,
         d2 = 5335,
         d3 = 7470,
         d4 = 9605,
@@ -25,42 +27,46 @@ mesher942(d1 = 2135,
         l2 = None,
         l1 = None
         )
-spacer(type="lagrange", mesh=mesher942(), p=1)
-materialer942(property="structural-steel", bar_type="bar942", E=2.1e5, nu=0.3)
+mesher(node=geometry().node, cell=geometry().cell)
+section(section_source="bar942")
+load(mesh=mesher())
+const(mesh=mesher())
+spacer(type="lagrange", mesh=mesher(), p=1)
+materialer(bar_type="bar942")
+# bar942_model(
+#     bar_type="bar942",
+#     space_type="lagrangespace",
+#     GD = model942().GD,
+#     mesh = mesher942(),
+#     E = materialer942().E,
+#     nu = materialer942().nu,
+#     external_load = model942().external_load,
+#     dirichlet_dof = model942().dirichlet_dof,
+#     dirichlet_bc = model942().dirichlet_bc,
+#     penalty = 1e12
+# )
 
-bar942_model(
-    bar_type="bar942",
-    space_type="lagrangespace",
-    GD = model942().GD,
-    mesh = mesher942(),
-    E = materialer942().E,
-    nu = materialer942().nu,
-    external_load = model942().external_load,
-    dirichlet_dof = model942().dirichlet_dof,
-    dirichlet_bc = model942().dirichlet_bc,
-    penalty = 1e12
-)
+# solver(A = bar942_model().K,
+#        b = bar942_model().F)
 
-solver(A = bar942_model().K,
-       b = bar942_model().F)
+# postprocess(out = solver().out, node_ldof=3, type="Truss")
+# coord(mesh=mesher942(), index=None)
 
-postprocess(out = solver().out, node_ldof=3, type="Truss")
-coord(mesh=mesher942(), index=None)
-
-strain_stress(
-    bar_type="bar942",
-    E = materialer942().E,
-    nu = materialer942().nu,
-    mesh = mesher942(),
-    uh = solver().out,
-    coord_transform = coord().R
-)
+# strain_stress(
+#     bar_type="bar942",
+#     E = materialer942().E,
+#     nu = materialer942().nu,
+#     mesh = mesher942(),
+#     uh = solver().out,
+#     coord_transform = coord().R
+# )
 
 # 最终连接到图输出节点上
-WORLD_GRAPH.output(model=model942(),mesh=mesher942())
-WORLD_GRAPH.output(uh=postprocess().uh, 
-                   strain=strain_stress().strain, stress=strain_stress().stress
-                   )
+WORLD_GRAPH.output(mesh=mesher(), A=section(), 
+                   E=materialer().E, nu=materialer().nu)
+# WORLD_GRAPH.output(uh=postprocess().uh, 
+#                    strain=strain_stress().strain, stress=strain_stress().stress
+#                    )
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())

@@ -1,112 +1,296 @@
 from ...nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BarData", "TrussTower3d"]
+__all__ = ["Bar25Load",  "Bar25Boundary",
+           "Bar942Load", "Bar942Boundary", 
+           "TrussTowerLoad", "TrussTowerBoundary"]
 
 
-class BarData(CNodeType):
-    r"""Bar truss structure model (25-bar or 942-bar).
+class Bar25Load(CNodeType):
+    r"""25-bar truss standard load configuration.
 
-    This node generates the node coordinates and cell connectivity for 
-    classic bar space truss structures.
+    Applies concentrated force [0, 900, 0] at each top node (z = 5080).
+    This is the standard loading for the 25-bar truss benchmark problem.
     
     Inputs:
-        bar_type(MENU): Type of bar structure to generate.
-
-    Outputs:
-        GD (int): Geometric dimension of the model (3D).
-        external_load (tensor): Global load vector applied at top nodes.
-        dirichlet_dof (tensor): Boolean array indicating Dirichlet boundary DOFs.
-        dirichlet_bc (tensor): Prescribed displacement values for all DOFs.
+        mesh (mesh): Mesh object (needed for global vector size).
         
+    Outputs:
+        external_load (tensor): Global load vector [N].
     """
-    TITLE: str = "杆件桁架模型"
-    PATH: str = "preprocess.modeling"
+    TITLE: str = "25杆载荷"
+    PATH: str = "examples.csm.load"
     INPUT_SLOTS = [
-        PortConf("bar_type", DataType.MENU, 0, desc="桁架结构类型", title="结构类型", 
-                 default="bar25", items=["bar25", "bar942"])
+        PortConf("mesh", DataType.MESH, 1, 
+                 desc="网格对象 (用于确定全局向量大小)", 
+                 title="网格")
     ]
+    
     OUTPUT_SLOTS = [
-        PortConf("GD", DataType.INT, desc="模型的几何维数", title="几何维数"),
-        PortConf("external_load", DataType.TENSOR, desc="施加在顶部节点的全局载荷向量", title="外部载荷"),
-        PortConf("dirichlet_dof", DataType.TENSOR, desc="Dirichlet边界条件的自由度索引", title="边界自由度"),
-        PortConf("dirichlet_bc", DataType.TENSOR, desc="边界节点的位移约束值", title="边界位移的值")
+        PortConf("external_load", DataType.TENSOR, 
+                 desc="全局载荷向量 (展平为一维)", 
+                 title="外部载荷")
     ]
 
     @staticmethod
     def run(**options):
-        bar_type = options.get("bar_type")
-        if bar_type == "bar25":
-            from fealpy.csm.model.truss.bar_data25_3d import BarData25
-            model = BarData25()
-        elif bar_type == "bar942":
-            from fealpy.csm.model.truss.bar_data942_3d import BarData942
-            model = BarData942()
-        else:
-            raise ValueError(f"Unsupported bar_type: {bar_type}")
+        from fealpy.backend import backend_manager as bm
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        GD = 3
         
-        external_load = model.load()
-        dirichlet_dof = model.is_dirichlet_boundary()
-        dirichlet_bc = model.dirichlet_bc()
+        F = bm.zeros((NN, GD), dtype=bm.float64)
+        
+        # Apply [0, 900, 0] at top nodes (z == 5080)
+        F[node[..., 2] == 5080] = bm.array([0, 900, 0])
 
-        return (model.GD, external_load,
-                dirichlet_dof, dirichlet_bc)
+        external_load = F.reshape(-1)  # Convert to 1D array
+        return external_load
 
-class TrussTower3d(CNodeType):
-    r"""3D Truss Tower Model.
+class Bar25Boundary(CNodeType):
+    r"""25-bar truss standard boundary conditions.
+
+    Applies fixed support at the bottom four nodes, constraining all translational 
+    displacements (X, Y, Z directions).
     
-     Inputs:
-        dov (float): Outer diameter of vertical rods (m).
-        div (float): Inner diameter of vertical rods (m).
-        doo (float): Outer diameter of other rods (m).
-        dio (float): Inner diameter of other rods (m).
-        load (float): Total vertical load applied at top nodes (N).
+    The bottom nodes are identified by their minimum z-coordinate value.
+    
+    Inputs:
+        mesh (mesh): Mesh object containing node coordinates.
         
     Outputs:
-        GD (INT): Geometric dimension of the model.
-        dov (float): Outer diameter of vertical rods (m).
-        div (float): Inner diameter of vertical rods (m).
-        doo (float): Outer diameter of other rods (m).
-        dio (float): Inner diameter of other rods (m).
-        external_load (tensor): Global load vector.
-        dirichlet_dof (tensor): Dirichlet boundary DOF indices.
-        dirichlet_bc (tensor): Prescribed displacement values for boundary DOFs.
+        is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
     """
-    TITLE: str = "桁架塔模型"
-    PATH: str = "preprocess.modeling"
+    TITLE: str = "25杆边界"
+    PATH: str = "examples.csm.boundary"
     INPUT_SLOTS = [
-        PortConf("dov", DataType.FLOAT, 0,  desc="竖向杆件的外径", title="竖杆外径", default=0.015),
-        PortConf("div", DataType.FLOAT, 0,  desc="竖向杆件的内径", title="竖杆内径", default=0.010),
-        PortConf("doo", DataType.FLOAT, 0,  desc="其他杆件的外径", title="其他杆外径", default=0.010),
-        PortConf("dio", DataType.FLOAT, 0,  desc="其他杆件的内径", title="其他杆内径", default=0.007),
-        PortConf("load", DataType.FLOAT, 0,  desc="施加在塔顶节点的总竖向载荷", title="总载荷", default=84820.0)
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含节点坐标的网格对象", 
+                 title="网格")
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("GD", DataType.INT,  desc="模型的几何维数", title="几何维数"),
-        PortConf("dov", DataType.FLOAT, desc="竖向杆件的外径", title="竖杆外径"),
-        PortConf("div", DataType.FLOAT, desc="竖向杆件的内径", title="竖杆内径"),
-        PortConf("doo", DataType.FLOAT, desc="其他杆件的外径", title="其他杆外径"),
-        PortConf("dio", DataType.FLOAT, desc="其他杆件的内径", title="其他杆内径"),
-        PortConf("external_load", DataType.TENSOR, desc="全局载荷向量，表示总载荷如何分布到顶部节点", title="外部载荷"),
-        PortConf("dirichlet_dof", DataType.TENSOR, desc="Dirichlet边界条件的自由度索引", title="边界自由度"),
-         PortConf("dirichlet_bc", DataType.TENSOR, desc="边界位移约束值", title="边界位移值")
+        PortConf("is_bd_dof", DataType.TENSOR, 
+                 desc="边界自由度的布尔标识数组", 
+                 title="边界自由度")
     ]
 
     @staticmethod
     def run(**options):
-        from fealpy.csm.model.truss.truss_tower_data_3d import TrussTowerData3D
+        from fealpy.backend import backend_manager as bm
         
-        model = TrussTowerData3D(
-            dov=options.get("dov"),
-            div=options.get("div"),
-            doo=options.get("doo"),
-            dio=options.get("dio")
-        )
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        GD = 3
         
-        load = options.get("load")
-        external_load = model.external_load(load_total=load)
-        dirichlet_dof = model.is_dirichlet_boundary()
-        dirichlet_bc = model.dirichlet_bc()
+        is_bd_dof = bm.zeros(NN * GD, dtype=bm.bool)
+        
+        # 找到底部四个节点（z坐标最小的节点）
+        z_min = bm.min(node[:, 2])
+        bottom_nodes = bm.where(node[:, 2] == z_min)[0]
+        
+        # 固定这些节点的所有自由度 (X, Y, Z)
+        for node_idx in bottom_nodes:
+            is_bd_dof[node_idx * GD: (node_idx + 1) * GD] = True
+        
+        return is_bd_dof
+    
+class Bar942Load(CNodeType):
+    r"""942-bar truss standard load configuration.
 
-        return (model.GD, model.dov, model.div, model.doo, model.dio, 
-           external_load, dirichlet_dof, dirichlet_bc)
+    Applies concentrated forces at nodes 0 and 1:
+    - Node 0: [0, 400, -100]
+    - Node 1: [0, 400, -100]
+    
+    This is the standard loading for the 942-bar truss benchmark problem.
+    
+    Inputs:
+        mesh (mesh): Mesh object containing node coordinates.
+        
+    Outputs:
+        external_load (tensor): Global load vector [N] (flattened).
+    """
+    TITLE: str = "942杆载荷"
+    PATH: str = "examples.csm.load"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含节点坐标的网格对象", 
+                 title="网格")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("external_load", DataType.TENSOR, 
+                 desc="全局载荷向量 (展平为一维)", 
+                 title="外部载荷")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        GD = 3
+        
+        F = bm.zeros((NN, GD), dtype=bm.float64)
+        
+        # 在节点 0 和 1 施加载荷
+        F[0] = bm.array([0, 400, -100])
+        F[1] = bm.array([0, 400, -100])
+        
+        external_load = F.reshape(-1)  # Convert to 1D array
+        return external_load
+    
+class Bar942Boundary(CNodeType):
+    r"""942-bar truss standard boundary conditions.
+
+    Applies fixed support at nodes 232-243 (0-indexed: 231-242), constraining 
+    all degrees of freedom to zero.
+    
+    Note:
+        Node indices in the description (232-243) are 1-indexed,
+        but in code we use 0-indexed (231-242).
+    
+    Inputs:
+        mesh (mesh): Mesh object containing node coordinates.
+        
+    Outputs:
+        is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
+    """
+    TITLE: str = "942杆边界"
+    PATH: str = "examples.csm.boundary"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含节点坐标的网格对象", 
+                 title="网格")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("is_bd_dof", DataType.TENSOR, 
+                 desc="边界自由度的布尔标识数组", 
+                 title="边界自由度")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        GD = 3
+        
+        is_bd_dof = bm.zeros(NN * GD, dtype=bm.bool)
+        
+        # 约束节点232-243的所有自由度
+        for i in range(12):
+                node_idx = i + 232  # 对应节点233-244
+                is_bd_dof[node_idx * GD : (node_idx + 1) * GD] = True
+
+        return is_bd_dof
+
+
+class TrussTowerLoad(CNodeType):
+    r"""Truss tower top load applicator.
+
+    Applies total vertical load uniformly distributed at the top nodes (z > 18.999).
+    Each top node receives an equal fraction of the total load in the negative z-direction.
+    
+    Inputs:
+        mesh (mesh): Mesh object containing node coordinates.
+        load_total (float): Total vertical load applied at tower top [N].
+        
+    Outputs:
+        external_load (tensor): Global load vector [N] (flattened).
+    """
+    TITLE: str = "桁架塔载荷"
+    PATH: str = "examples.csm.load"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含节点坐标的网格对象", 
+                 title="网格"),
+        PortConf("load_total", DataType.FLOAT, 0, 
+                 desc="施加在塔顶的总竖向载荷 [N]", 
+                 title="总载荷", 
+                 default=84820.0)
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("external_load", DataType.TENSOR, 
+                 desc="全局载荷向量 (展平为一维)", 
+                 title="外部载荷")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        dofs_per_node = 3
+        load_total = options.get("load_total")
+        
+        # 直接创建一维载荷向量 (NN*3,)
+        F = bm.zeros((NN * dofs_per_node,), dtype=bm.float64)
+        
+        # 找到顶部节点 (z > 18.999)
+        top_nodes = bm.where(node[:, 2] > 18.999)[0]
+        
+        # 将总载荷均匀分配到每个顶部节点
+        load_per_node = load_total / len(top_nodes)
+        for i in top_nodes:
+            F[3*i + 2] = -load_per_node  # Z方向向下（负载荷）
+        
+        return F
+    
+    
+class TrussTowerBoundary(CNodeType):
+    r"""Truss tower standard boundary conditions.
+
+    Applies fixed support at all bottom nodes (z ≈ 0), constraining all 
+    translational displacements.
+    
+    Bottom nodes are identified by having z-coordinate less than 0.001.
+    
+    Inputs:
+        mesh (mesh): Mesh object containing node coordinates.
+        
+    Outputs:
+        is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
+    """
+    TITLE: str = "桁架塔边界"
+    PATH: str = "examples.csm.boundary"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含节点坐标的网格对象", 
+                 title="网格")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("is_bd_dof", DataType.TENSOR, 
+                 desc="边界自由度的布尔标识数组", 
+                 title="边界自由度")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        
+        mesh = options.get("mesh")
+        node = mesh.entity('node')
+        NN = node.shape[0]
+        dofs_per_node = 3
+        
+        is_bd_dof = bm.zeros(NN * dofs_per_node, dtype=bm.bool)
+        
+        # 找到底部所有节点 (z ≈ 0)
+        bottom_nodes = bm.where(node[:, 2] < 1e-6)[0]
+        
+        # 固定这些节点的所有自由度
+        for node_idx in bottom_nodes:
+            is_bd_dof[node_idx * dofs_per_node: (node_idx + 1) * dofs_per_node] = True
+
+        return is_bd_dof

@@ -1,8 +1,180 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BarModel", "TrussTower"]
+__all__ = ["BarStiffnessAssembly",
+           "BarGeometricStiffnessAssembly",]
 
 
+class BarStiffnessAssembly(CNodeType):
+    r"""Bar stiffness matrix assembly.
+
+    Assembles the global stiffness matrix for bar/truss structures using the bar integrator.
+    Supports both uniform and non-uniform cross-sectional areas.
+
+    The assembly process:
+    1. Creates tensor function space from mesh
+    2. Uses BarIntegrator to compute element stiffness matrices
+    3. Assembles global stiffness matrix using BilinearForm
+
+    Inputs:
+        mesh (mesh): Mesh object containing bar elements.
+        GD (int): Geometric dimension.
+        E (float): Elastic modulus [Pa].
+    
+    The assembly process:
+    1. Creates tensor function space from mesh
+    2. Uses BarIntegrator to compute element stiffness matrices
+    3. Assembles global stiffness matrix using BilinearForm
+    
+    Inputs:
+        mesh (mesh): Mesh object containing bar elements.
+        GD (int): Geometric dimension.
+        E (float): Elastic modulus [Pa].
+        area (float or tensor): Cross-sectional area [m²] (scalar for uniform, array for non-uniform).
+        
+    Outputs:
+        K (linops): Global stiffness matrix (sparse CSR format).
+        gdof (int): Number of global degrees of freedom.
+    """
+    TITLE: str = "杆刚度矩阵组装"
+    PATH: str = "simulation.assembly"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含杆单元的网格对象", 
+                 title="网格"),
+        PortConf("GD", DataType.INT, 0, 
+                 desc="几何维数", 
+                 title="几何维数", default=3),
+        PortConf("E", DataType.FLOAT, 1, 
+                 desc="弹性模量", 
+                 title="弹性模量"),
+        PortConf("area", DataType.FLOAT, 1, 
+                 desc="横截面积", 
+                 title="横截面面积")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("K", DataType.LINOPS, 
+                 desc="全局刚度矩阵 (稀疏CSR格式)", 
+                 title="刚度矩阵"),
+        PortConf("gdof", DataType.INT, 
+                 desc="全局自由度数", 
+                 title="全局自由度数")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
+        from fealpy.fem import BilinearForm
+        from fealpy.csm.fem.bar_integrator import BarIntegrator
+        
+        # 简单的 PDE 模型类（只存储 GD 和 A）
+        class SimpleBarModel:
+            def __init__(self, GD, A):
+                self.GD = GD
+                self.A = A
+        
+        # 简单的材料类（只存储 E）
+        class SimpleMaterial:
+            def __init__(self, E):
+                self.E = E
+        
+        # 获取输入
+        mesh = options.get("mesh")
+        GD = options.get("GD")
+        E = options.get("E")
+        area = options.get("area")
+        
+        # 创建模型和材料对象
+        model = SimpleBarModel(GD=GD, A=area)
+        material = SimpleMaterial(E=E)
+        
+        # 创建函数空间
+        space = LagrangeFESpace(mesh, p=1)
+        tspace = TensorFunctionSpace(space, shape=(-1, GD))
+        
+        # 组装刚度矩阵
+        bform = BilinearForm(tspace)
+        integrator = BarIntegrator(space=tspace, model=model, material=material)
+        bform.add_integrator(integrator)
+        K = bform.assembly()
+        
+        # 获取全局自由度数
+        gdof = tspace.number_of_global_dofs()
+        
+        return K, gdof
+
+
+class BarGeometricStiffnessAssembly(CNodeType):
+    r"""Bar geometric stiffness matrix assembly (for buckling analysis).
+
+    Assembles the geometric stiffness matrix for bar/truss structures.
+    Used in buckling eigenvalue analysis: (K + λ*Kg)*u = 0
+    
+    Inputs:
+        mesh (mesh): Mesh object containing bar elements.
+        GD (int): Geometric dimension (2D or 3D).
+        area (float or tensor): Cross-sectional area [m²].
+        stress (tensor): Element stress values [Pa] (shape: NC).
+        
+    Outputs:
+        Kg (linops): Geometric stiffness matrix (sparse CSR format).
+    """
+    TITLE: str = "杆几何刚度矩阵"
+    PATH: str = "simulation.assembly"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.TENSOR, 1, 
+                 desc="包含杆单元的网格对象", 
+                 title="网格"),
+        PortConf("GD", DataType.INT, 0, 
+                 desc="几何维数", 
+                 title="几何维数", default=3),
+        PortConf("area", DataType.FLOAT, 1, 
+                 desc="横截面积", 
+                 title="横截面面积"),
+        PortConf("stress", DataType.TENSOR, 1, 
+                 desc="单元应力值", 
+                 title="应力")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("Kg", DataType.LINOPS, 
+                 desc="几何刚度矩阵", 
+                 title="几何刚度矩阵")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
+        from fealpy.fem import BilinearForm
+        from fealpy.csm.fem.bar_integrator import BarIntegrator
+        
+        class SimpleBarModel:
+            def __init__(self, GD, A):
+                self.GD = GD
+                self.A = A
+        
+        mesh = options.get("mesh")
+        GD = options.get("GD")
+        area = options.get("area")
+        stress = options.get("stress")
+        
+        model = SimpleBarModel(GD=GD, A=area)
+        
+        space = LagrangeFESpace(mesh, p=1)
+        tspace = TensorFunctionSpace(space, shape=(-1, GD))
+        
+        # 使用 geometric 方法组装几何刚度矩阵
+        bform = BilinearForm(tspace)
+        integrator = BarIntegrator(space=tspace, model=model, material=None)
+        integrator.assembly.set('geometric')
+        bform.add_integrator(integrator)
+        Kg = bform.assembly(space=tspace, sigma=stress)
+        
+        return Kg
+    
+    
 class BarModel(CNodeType):
     r"""Assembles the global stiffness matrix and load vector for a 3D bar finite element model.
 
