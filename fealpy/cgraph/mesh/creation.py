@@ -386,7 +386,7 @@ class RTIMesher2d(CNodeType):
     PATH: str = "examples.CFD"
     INPUT_SLOTS= [
         PortConf("material", DataType.LIST, title="物理属性"),
-        PortConf("box", DataType.TEXT, 0, default=(0.0, 1.0, 0.0, 4.0), title="求解域"),
+        PortConf("box", DataType.TEXT, 0, title="求解域"),
         PortConf("nx", DataType.INT, 0, default=64, title="x方向单元数"),
         PortConf("ny", DataType.INT, 0, default=256, title="y方向单元数"),
     ]
@@ -397,6 +397,8 @@ class RTIMesher2d(CNodeType):
     def run(material, box, nx, ny):
         from fealpy.backend import backend_manager as bm
         from fealpy.mesh import TriangleMesh
+        import math
+        box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
         mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
         mesh.box = box
         mesh.rho = material[0]

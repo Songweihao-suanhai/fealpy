@@ -16,7 +16,7 @@ chfem = cgraph.create("CahnHilliardFEMSimulation")
 chnsrun = cgraph.create("CHNSFEMRun")
 to_vtk = cgraph.create("TO_VTK")
 
-box = [0, 1.0, 0.0, 4.0]
+box = "[0, 1.0, 0.0, 4.0]"
 material(
     rho_up = 3.0,
     rho_down = 1.0,
