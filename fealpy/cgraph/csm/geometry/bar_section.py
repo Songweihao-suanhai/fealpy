@@ -25,7 +25,7 @@ class UniformSection(CNodeType):
         area (tensor): Cross-sectional area array [m²].
     """
     TITLE: str = "常见截面属性"
-    PATH: str = "preprocess.section"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("shape_type", DataType.MENU, 0, 
                  desc="截面的几何形状", 
@@ -95,7 +95,7 @@ class PredefinedSection(CNodeType):
         area (float): Cross-sectional area array.
     """
     TITLE: str = "预定义截面属性"
-    PATH: str = "examples.csm.section"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("section_source", DataType.MENU, 0, 
                  desc="预定义截面数据的来源", 
@@ -149,7 +149,7 @@ class TrussTowerSection(CNodeType):
         is_vertical (tensor): Boolean array indicating vertical bars.
     """
     TITLE: str = "桁架塔截面属性"
-    PATH: str = "examples.csm.section"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
                  desc="桁架塔网格", title="网格"),

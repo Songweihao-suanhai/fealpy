@@ -18,7 +18,7 @@ class Bar25Load(CNodeType):
         external_load (tensor): Global load vector [N].
     """
     TITLE: str = "25杆载荷"
-    PATH: str = "examples.csm.load"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, 
                  desc="网格对象 (用于确定全局向量大小)", 
@@ -62,7 +62,7 @@ class Bar25Boundary(CNodeType):
         is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
     """
     TITLE: str = "25杆边界"
-    PATH: str = "examples.csm.boundary"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
                  desc="包含节点坐标的网格对象", 
