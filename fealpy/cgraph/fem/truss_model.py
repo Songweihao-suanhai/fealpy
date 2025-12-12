@@ -1,29 +1,12 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
 __all__ = ["BarStiffnessAssembly",
-           "BarGeometricStiffnessAssembly",]
-
+           "BarGeometricStiffnessAssembly",
+           "DirichletBCApply",
+           "PenaltyMethodBC"]
 
 class BarStiffnessAssembly(CNodeType):
     r"""Bar stiffness matrix assembly.
-
-    Assembles the global stiffness matrix for bar/truss structures using the bar integrator.
-    Supports both uniform and non-uniform cross-sectional areas.
-
-    The assembly process:
-    1. Creates tensor function space from mesh
-    2. Uses BarIntegrator to compute element stiffness matrices
-    3. Assembles global stiffness matrix using BilinearForm
-
-    Inputs:
-        mesh (mesh): Mesh object containing bar elements.
-        GD (int): Geometric dimension.
-        E (float): Elastic modulus [Pa].
-    
-    The assembly process:
-    1. Creates tensor function space from mesh
-    2. Uses BarIntegrator to compute element stiffness matrices
-    3. Assembles global stiffness matrix using BilinearForm
     
     Inputs:
         mesh (mesh): Mesh object containing bar elements.
@@ -55,10 +38,7 @@ class BarStiffnessAssembly(CNodeType):
     OUTPUT_SLOTS = [
         PortConf("K", DataType.LINOPS, 
                  desc="全局刚度矩阵 (稀疏CSR格式)", 
-                 title="刚度矩阵"),
-        PortConf("gdof", DataType.INT, 
-                 desc="全局自由度数", 
-                 title="全局自由度数")
+                 title="刚度矩阵")
     ]
 
     @staticmethod
@@ -98,11 +78,7 @@ class BarStiffnessAssembly(CNodeType):
         integrator = BarIntegrator(space=tspace, model=model, material=material)
         bform.add_integrator(integrator)
         K = bform.assembly()
-        
-        # 获取全局自由度数
-        gdof = tspace.number_of_global_dofs()
-        
-        return K, gdof
+        return K
 
 
 class BarGeometricStiffnessAssembly(CNodeType):
@@ -174,6 +150,161 @@ class BarGeometricStiffnessAssembly(CNodeType):
         
         return Kg
     
+    
+class DirichletBCApply(CNodeType):
+    r"""Apply Dirichlet boundary conditions using DirichletBC method.
+
+    Inputs:
+        K (linops): Global stiffness matrix (sparse CSR format).
+        F (tensor): Global load vector.
+        space (tensorspace): Tensor function space.
+        dirichlet_dof (tensor): Boolean array indicating Dirichlet boundary DOFs.
+        dirichlet_value (tensor): Prescribed displacement values at boundary DOFs.
+        
+    Outputs:
+        K_bc (linops): Modified stiffness matrix with boundary conditions applied.
+        F_bc (tensor): Modified load vector with boundary conditions applied.
+    """
+    TITLE: str = "迪利克雷边界条件"
+    PATH: str = "simulation.boundary"
+    INPUT_SLOTS = [
+        PortConf("K", DataType.LINOPS, 1, 
+                 desc="全局刚度矩阵 (稀疏CSR格式)", 
+                 title="刚度矩阵"),
+        PortConf("F", DataType.TENSOR, 1, 
+                 desc="全局载荷向量", 
+                 title="载荷向量"),
+        PortConf("GD", DataType.INT, 0, 
+                 desc="几何维数", 
+                 title="几何维数", default=3),
+        PortConf("mesh", DataType.MESH, 1, 
+                 desc="网格对象", 
+                 title="网格"),
+        PortConf("dirichlet_dof", DataType.TENSOR, 1, 
+                 desc="Dirichlet边界自由度的布尔掩码", 
+                 title="边界自由度"),
+        PortConf("gd_value", DataType.TENSOR, 1, 
+                 desc="边界位移约束值", 
+                 title="边界位移值")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("K_bc", DataType.LINOPS, 
+                 desc="应用边界条件后的刚度矩阵", 
+                 title="修正刚度矩阵"),
+        PortConf("F_bc", DataType.TENSOR, 
+                 desc="应用边界条件后的载荷向量", 
+                 title="修正载荷向量")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
+        from fealpy.fem import DirichletBC
+        
+        K = options.get("K")
+        F = options.get("F")
+        
+        GD = options.get("GD")
+        mesh = options.get("mesh")
+        dirichlet_dof = options.get("dirichlet_dof")
+        gd_value = options.get("gd_value")
+
+        F = F.flatten()
+        space = LagrangeFESpace(mesh, p=1)
+        tspace = TensorFunctionSpace(space, shape=(-1, GD))
+        
+        gdof = tspace.number_of_global_dofs()
+        threshold = bm.zeros(gdof, dtype=bm.bool)
+        threshold[dirichlet_dof] = True
+        bc = DirichletBC(space=tspace, gd=gd_value, threshold=threshold)
+        
+        K_bc, F_bc = bc.apply(K, F)
+        
+        return K_bc, F_bc
+
+
+class PenaltyMethodBC(CNodeType):
+    r"""Apply Dirichlet boundary conditions using Penalty Method.
+
+    Inputs:
+        K (linops): Global stiffness matrix (sparse CSR format).
+        F (tensor): Global load vector.
+        dirichlet_dof (tensor): Boolean array indicating Dirichlet boundary DOFs.
+        penalty (float): Penalty factor (default: 1e12).
+        
+    Outputs:
+        K_bc (linops): Modified stiffness matrix with boundary conditions applied.
+        F_bc (tensor): Modified load vector with boundary conditions applied.
+    """
+    TITLE: str = "乘大数法边界条件"
+    PATH: str = "simulation.boundary"
+    INPUT_SLOTS = [
+        PortConf("K", DataType.LINOPS, 1, 
+                 desc="全局刚度矩阵 (稀疏CSR格式)", 
+                 title="刚度矩阵"),
+        PortConf("F", DataType.TENSOR, 1, 
+                 desc="全局载荷向量", 
+                 title="载荷向量"),
+        PortConf("dirichlet_dof", DataType.TENSOR, 1, 
+                 desc="Dirichlet边界自由度的布尔掩码", 
+                 title="边界自由度"),
+        PortConf("penalty", DataType.FLOAT, 0, 
+                 desc="惩罚系数 (建议值: 1e12)", 
+                 title="惩罚系数", 
+                 default=1e12)
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("K_bc", DataType.LINOPS, 
+                 desc="应用边界条件后的刚度矩阵", 
+                 title="修正刚度矩阵"),
+        PortConf("F_bc", DataType.TENSOR, 
+                 desc="应用边界条件后的载荷向量", 
+                 title="修正载荷向量")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.sparse import CSRTensor
+        
+        # 获取输入
+        K = options.get("K")
+        F = options.get("F")
+        dirichlet_dof = options.get("dirichlet_dof")
+        penalty = options.get("penalty", 1e12)
+        
+        # 确保 F 是一维向量
+        F = F.flatten()
+        
+        # 找到固定自由度的索引
+        fixed_dofs = bm.where(dirichlet_dof)[0]
+        
+        # 修改载荷向量
+        F[fixed_dofs] *= penalty
+        
+        # 转换为稠密矩阵进行修改
+        K_dense = K.toarray()
+        
+        # 修改刚度矩阵对角线元素
+        for dof in fixed_dofs:
+            K_dense[dof, dof] *= penalty
+        
+        # 转换回 CSR 稀疏格式
+        rows, cols = bm.nonzero(K_dense)
+        values = K_dense[rows, cols]
+        
+        # 构建 crow (行偏移) 数组
+        crow = bm.zeros(K_dense.shape[0] + 1, dtype=bm.int64)
+        for i in range(len(rows)):
+            crow[rows[i] + 1] += 1
+        crow = bm.cumsum(crow)
+        
+        K_bc = CSRTensor(crow, cols, values, spshape=K_dense.shape)
+        
+        return K_bc, F
     
 class BarModel(CNodeType):
     r"""Assembles the global stiffness matrix and load vector for a 3D bar finite element model.

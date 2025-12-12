@@ -71,8 +71,11 @@ class Bar25Boundary(CNodeType):
     
     OUTPUT_SLOTS = [
         PortConf("is_bd_dof", DataType.TENSOR, 
-                 desc="边界自由度的布尔标识数组", 
-                 title="边界自由度")
+                desc="边界自由度的布尔标识数组", 
+                title="边界自由度"),
+        PortConf("gd_value", DataType.TENSOR, 
+                desc="边界位移约束值 (与边界自由度对应)", 
+                title="边界位移值")
     ]
 
     @staticmethod
@@ -93,9 +96,10 @@ class Bar25Boundary(CNodeType):
         # 固定这些节点的所有自由度 (X, Y, Z)
         for node_idx in bottom_nodes:
             is_bd_dof[node_idx * GD: (node_idx + 1) * GD] = True
-        
-        return is_bd_dof
-    
+            
+        gd_value = bm.zeros(NN * GD, dtype=bm.float64)
+        return is_bd_dof, gd_value
+
 class Bar942Load(CNodeType):
     r"""942-bar truss standard load configuration.
 
@@ -112,17 +116,17 @@ class Bar942Load(CNodeType):
         external_load (tensor): Global load vector [N] (flattened).
     """
     TITLE: str = "942杆载荷"
-    PATH: str = "examples.csm.load"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
-                 desc="包含节点坐标的网格对象", 
-                 title="网格")
+                desc="包含节点坐标的网格对象", 
+                title="网格")
     ]
     
     OUTPUT_SLOTS = [
         PortConf("external_load", DataType.TENSOR, 
-                 desc="全局载荷向量 (展平为一维)", 
-                 title="外部载荷")
+                desc="全局载荷向量 (展平为一维)", 
+                title="外部载荷")
     ]
 
     @staticmethod
@@ -143,6 +147,7 @@ class Bar942Load(CNodeType):
         external_load = F.reshape(-1)  # Convert to 1D array
         return external_load
     
+    
 class Bar942Boundary(CNodeType):
     r"""942-bar truss standard boundary conditions.
 
@@ -160,7 +165,7 @@ class Bar942Boundary(CNodeType):
         is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
     """
     TITLE: str = "942杆边界"
-    PATH: str = "examples.csm.boundary"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
                  desc="包含节点坐标的网格对象", 
@@ -169,8 +174,11 @@ class Bar942Boundary(CNodeType):
     
     OUTPUT_SLOTS = [
         PortConf("is_bd_dof", DataType.TENSOR, 
-                 desc="边界自由度的布尔标识数组", 
-                 title="边界自由度")
+                desc="边界自由度的布尔标识数组", 
+                title="边界自由度"),
+        PortConf("gd_value", DataType.TENSOR, 
+                desc="边界位移约束值 (与边界自由度对应)", 
+                title="边界位移值")
     ]
 
     @staticmethod
@@ -188,8 +196,9 @@ class Bar942Boundary(CNodeType):
         for i in range(12):
                 node_idx = i + 232  # 对应节点233-244
                 is_bd_dof[node_idx * GD : (node_idx + 1) * GD] = True
-
-        return is_bd_dof
+                
+        gd_value = bm.zeros(NN * GD, dtype=bm.float64)
+        return is_bd_dof, gd_value
 
 
 class TrussTowerLoad(CNodeType):
@@ -206,7 +215,7 @@ class TrussTowerLoad(CNodeType):
         external_load (tensor): Global load vector [N] (flattened).
     """
     TITLE: str = "桁架塔载荷"
-    PATH: str = "examples.csm.load"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
                  desc="包含节点坐标的网格对象", 
@@ -234,7 +243,7 @@ class TrussTowerLoad(CNodeType):
         load_total = options.get("load_total")
         
         # 直接创建一维载荷向量 (NN*3,)
-        F = bm.zeros((NN * dofs_per_node,), dtype=bm.float64)
+        external_load = bm.zeros((NN * dofs_per_node,), dtype=bm.float64)
         
         # 找到顶部节点 (z > 18.999)
         top_nodes = bm.where(node[:, 2] > 18.999)[0]
@@ -242,11 +251,11 @@ class TrussTowerLoad(CNodeType):
         # 将总载荷均匀分配到每个顶部节点
         load_per_node = load_total / len(top_nodes)
         for i in top_nodes:
-            F[3*i + 2] = -load_per_node  # Z方向向下（负载荷）
-        
-        return F
-    
-    
+            external_load[3*i + 2] = -load_per_node  # Z方向向下（负载荷）
+
+        return external_load
+
+
 class TrussTowerBoundary(CNodeType):
     r"""Truss tower standard boundary conditions.
 
@@ -262,7 +271,7 @@ class TrussTowerBoundary(CNodeType):
         is_bd_dof (tensor): Boolean array indicating boundary DOFs (all fixed DOFs = True).
     """
     TITLE: str = "桁架塔边界"
-    PATH: str = "examples.csm.boundary"
+    PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.TENSOR, 1, 
                  desc="包含节点坐标的网格对象", 
@@ -271,8 +280,11 @@ class TrussTowerBoundary(CNodeType):
     
     OUTPUT_SLOTS = [
         PortConf("is_bd_dof", DataType.TENSOR, 
-                 desc="边界自由度的布尔标识数组", 
-                 title="边界自由度")
+                desc="边界自由度的布尔标识数组", 
+                title="边界自由度"),
+        PortConf("gd_value", DataType.TENSOR, 
+                desc="边界位移约束值 (与边界自由度对应)", 
+                title="边界位移值")
     ]
 
     @staticmethod
@@ -282,15 +294,16 @@ class TrussTowerBoundary(CNodeType):
         mesh = options.get("mesh")
         node = mesh.entity('node')
         NN = node.shape[0]
-        dofs_per_node = 3
-        
-        is_bd_dof = bm.zeros(NN * dofs_per_node, dtype=bm.bool)
-        
+        GD = 3
+
+        is_bd_dof = bm.zeros(NN * GD, dtype=bm.bool)
+
         # 找到底部所有节点 (z ≈ 0)
         bottom_nodes = bm.where(node[:, 2] < 1e-6)[0]
         
         # 固定这些节点的所有自由度
         for node_idx in bottom_nodes:
-            is_bd_dof[node_idx * dofs_per_node: (node_idx + 1) * dofs_per_node] = True
+            is_bd_dof[node_idx * GD: (node_idx + 1) * GD] = True
 
-        return is_bd_dof
+        gd_value = bm.zeros(NN * GD, dtype=bm.float64)
+        return is_bd_dof, gd_value

@@ -11,11 +11,11 @@ const = cgraph.create("Bar25Boundary")
 spacer = cgraph.create("FunctionSpace")
 materialer = cgraph.create("BarMaterial")
 assembly = cgraph.create("BarStiffnessAssembly")
-# bar25_model = cgraph.create("BarModel")
-# solver = cgraph.create("DirectSolver")
-# postprocess = cgraph.create("UDecoupling")
-# coord = cgraph.create("Rbar3d")
-# strain_stress = cgraph.create("BarStrainStress")
+boundary = cgraph.create("DirichletBCApply")
+solver = cgraph.create("DirectSolver")
+postprocess = cgraph.create("UDecoupling")
+coord = cgraph.create("Rbar3d")
+strain_stress = cgraph.create("BarStrainStress")
 # to_vtk = cgraph.create("TO_VTK")
 
 geometry()
@@ -32,43 +32,37 @@ assembly(
     area=section().area
 )
 
-# bar25_model(
-#     bar_type="bar25",
-#     space_type="lagrangespace",
-#     GD = model25().GD,
-#     mesh = mesher25(),
-#     E = materialer25().E,
-#     nu = materialer25().nu,
-#     external_load = model25().external_load,
-#     dirichlet_dof = model25().dirichlet_dof,
-#     dirichlet_bc = model25().dirichlet_bc
-# )
+boundary(
+    K=assembly().K,
+    F=load().external_load,
+    GD=3,
+    mesh=mesher(),
+    dirichlet_dof=const().is_bd_dof,
+    gd_value=const().gd_value
+)
 
-# solver(A = bar25_model().K,
-#        b = bar25_model().F)
+solver(A = boundary().K_bc,
+       b = boundary().F_bc)
 
-# postprocess(out = solver().out, node_ldof=3, type="Truss")
-# coord(mesh=mesher25(), index=None)
+postprocess(out = solver().out, node_ldof=3, type="Truss")
+coord(mesh=mesher(), index=None)
 
-# strain_stress(
-#     bar_type="bar25",
-#     E = materialer25().E,
-#     nu = materialer25().nu,
-#     mesh = mesher25(),
-#     uh = solver().out,
-#     coord_transform = coord().R
-# )
+strain_stress(
+    E = materialer().E,
+    nu = materialer().nu,
+    mesh = mesher(),
+    uh = solver().out,
+    coord_transform = coord().R
+)
 
-# to_vtk(mesh = mesher25(),
+# to_vtk(mesh = mesher(),
 #         uh = (postprocess().uh, strain_stress().stress),
 #         path = "C:/Users/Administrator/Desktop/truss/")
 
 # 最终连接到图输出节点上
-WORLD_GRAPH.output(A=section(), E=materialer().E, nu=materialer().nu,
-                   K=assembly().K)
-# WORLD_GRAPH.output(uh=postprocess().uh, 
-#                    strain=strain_stress().strain, stress=strain_stress().stress
-#                    )
+# WORLD_GRAPH.output(A=section(), E=materialer().E, nu=materialer().nu,
+#                    K=assembly().K)
+WORLD_GRAPH.output(uh=postprocess().uh, strain=strain_stress().strain, stress=strain_stress().stress)
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
