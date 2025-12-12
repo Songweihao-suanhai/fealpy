@@ -12,4 +12,3 @@ from .heat_transfer import HeatTransferParticleGeneration,HeatTransferParticleIt
 from .allen_cahn_fem_simulation import AllenCahnFEMSimulation
 from .gauge_uzawa_ns_simulation import GaugeUzawaNSSimulation
 from .mm_gu_acns_fem_main import MMGUACNSFEMSolver
-from .chns_equation import CHNSEquation

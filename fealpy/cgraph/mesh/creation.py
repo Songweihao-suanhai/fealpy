@@ -4,7 +4,7 @@ from .utils import get_mesh_class
 
 __all__ = ["CreateMesh", "PolygonMesh2d",
            "DLDMicrofluidicChipMesh2d", "DLDMicrofluidicChipMesh3d",
-           "NACA4Mesh2d"]
+           "NACA4Mesh2d", "RTIMesher2d"]
 
 
 class CreateMesh(CNodeType):
@@ -249,7 +249,7 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
 
 class NACA4Mesh2d(CNodeType):
     TITLE: str = "二维 NACA 四位数翼型几何建模与网格生成"
-    PATH: str = "preprocess.mesher"
+    PATH: str = "examples.CFD"
     DESC: str = """该节点生成二维 NACA4 系列翼型的网格剖分, 依据翼型参数自动构建翼型几何形状及
                 流道边界，为翼型流场数值模拟提供几何与网格基础。"""
     INPUT_SLOTS = [
@@ -302,21 +302,26 @@ class NACA4Mesh2d(CNodeType):
         return mesh
     
 class FlowPastCylinder2d(CNodeType):
-    TITLE: str = "二维圆柱绕流网格"
+    TITLE: str = "二维圆柱绕流几何建模与网格生成"
     PATH: str = "preprocess.mesher"
     INPUT_SLOTS= [
-        PortConf("box", DataType.TENSOR, 1, default=(0.0, 2.2, 0.0, 0.41), title="求解域"),
-        PortConf("center", DataType.TENSOR, 1, default=(0.2, 0.2), title="圆心坐标"),
+        PortConf("box", DataType.TEXT, 0, default=(0.0, 2.2, 0.0, 0.41), title="求解域"),
+        PortConf("center", DataType.TEXT, 0, default=(0.2, 0.2), title="圆心坐标"),
         PortConf("radius", DataType.FLOAT, 0, default=0.05, title="圆柱半径"),
         PortConf("n_circle", DataType.INT, 0, default=100, title="圆柱周围点数"),
         PortConf("h", DataType.FLOAT, 0, default=0.01, title="全局网格尺寸")
     ]
-    OUTPUT_SLOTS = []
+    OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="网格")
+    ]
     @staticmethod
     def run(box, center, radius, n_circle, h):
         import gmsh 
+        import math
         from fealpy.backend import backend_manager as bm
         from fealpy.mesh import TriangleMesh 
+        box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
+        center = bm.tensor(eval(center, None, vars(math)), dtype=bm.float64)
         cx = center[0]
         cy = center[1] 
         gmsh.initialize() 
@@ -370,7 +375,38 @@ class FlowPastCylinder2d(CNodeType):
             boundary.append(bm.array(node_tags - 1, dtype=bm.int32)) 
         boundary = boundary 
         gmsh.finalize() 
-        return TriangleMesh(node_coords, tri_nodes)
+        mesh = TriangleMesh(node_coords, tri_nodes)
+        mesh.box = box
+        mesh.center = center
+        return mesh
+
+
+class RTIMesher2d(CNodeType):
+    TITLE: str = "二维 RTI 问题几何建模与网格生成"
+    PATH: str = "examples.CFD"
+    INPUT_SLOTS= [
+        PortConf("material", DataType.LIST, title="物理属性"),
+        PortConf("box", DataType.TEXT, 0, title="求解域"),
+        PortConf("nx", DataType.INT, 0, default=64, title="x方向单元数"),
+        PortConf("ny", DataType.INT, 0, default=256, title="y方向单元数"),
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, title="网格")
+    ]
+    @staticmethod
+    def run(material, box, nx, ny):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.mesh import TriangleMesh
+        import math
+        box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
+        mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
+        mesh.box = box
+        mesh.rho = material[0]
+        mesh.Re = material[1]
+        mesh.Fr = material[2]
+        mesh.epsilon = material[3]
+        mesh.Pe = material[4]
+        return mesh
 
 
 
