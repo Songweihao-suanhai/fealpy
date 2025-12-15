@@ -7,8 +7,6 @@ class BarStrainStress(CNodeType):
     r"""compute Strain and Stress for Bar Elements.
     
     Inputs:
-        E (FLOAT): Elastic modulus of the axle material.
-        nu (FLOAT): Poisson’s ratio of the axle material.
         mesh (MESH): Mesh containing node and cell information.
         uh (TENSOR): Post-processed displacement vector.
         coord_transform (TENSOR): Coordinate transformation matrix.
@@ -21,8 +19,6 @@ class BarStrainStress(CNodeType):
     TITLE: str = "杆单元应变-应力计算"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("E", DataType.FLOAT, 1, desc="杆件的弹性模量", title="弹性模量"),
-        PortConf("nu", DataType.FLOAT, 1, desc="杆件的泊松比", title="泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
         PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移", title="全局位移"),
         PortConf("coord_transform", DataType.TENSOR, 1, desc="坐标变换矩阵", title="坐标变换")
@@ -37,11 +33,16 @@ class BarStrainStress(CNodeType):
     def run(**options):
         from fealpy.csm.material import BarMaterial
         
+        mesh = options.get("mesh")
+        
+        E_scalar = float(mesh.celldata['E'][0])
+        nu_scalar = float(mesh.celldata['nu'][0])
+        
         material = BarMaterial(
             model=None,
             name="bar",
-            elastic_modulus=options.get("E"),
-            poisson_ratio=options.get("nu")
+            elastic_modulus=E_scalar,
+            poisson_ratio=nu_scalar
         )
         
         uh = options.get("uh").reshape(-1, 3)
