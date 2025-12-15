@@ -1,33 +1,44 @@
 from ...nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["Bar25Geometry", "Bar942Geometry", "TrussTowerGeometry"]
+__all__ = ["Bar25TrussModel", "Bar942TrussModel", "TrussTowerGeometry"]
 
 
-class Bar25Geometry(CNodeType):
-    r"""25-bar truss geometry data generator.
+class Bar25TrussModel(CNodeType):
+    r"""25-bar truss mesh generator with complete physical properties.
 
     Generates node coordinates and cell connectivity for the classic 25-bar 
     space truss structure. 
     
     Inputs:
-        None (uses standard geometry configuration)
+        A (float): Cross-sectional area of truss members [mm²], default 1.0.
+        E (float): Young's modulus [MPa], default 1500.0.
+        nu (float): Poisson's ratio, default 0.3.
+        fx (float): Load in x-direction at top nodes (Z=5080) [N], default 0.0.
+        fy (float): Load in y-direction at top nodes (Z=5080) [N], default 900.0.
+        fz (float): Load in z-direction at top nodes (Z=5080) [N], default 0.0.
         
     Outputs:
-        node (tensor): Node coordinate array (10 x 3) [mm].
-        cell (tensor): Cell connectivity array (25 x 2).
+        mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
     """
-    TITLE: str = "25杆桁架几何"
+    TITLE: str = "25杆桁架几何建模与网格生成"
     PATH: str = "examples.CSM"
-    INPUT_SLOTS = []
+    INPUT_SLOTS = [
+        PortConf("A", DataType.FLOAT, 0, desc="Cross-sectional area of truss members [mm²]", title="截面面积", default=2000.0),
+        PortConf("E", DataType.FLOAT, 0, desc="Young's modulus [MPa]", title="弹性模量", default=1500.0),
+        PortConf("nu", DataType.FLOAT, 0, desc="Poisson's ratio", title="泊松比", default=0.3),
+        PortConf("fx", DataType.FLOAT, 0, desc="Load in x-direction at top nodes (Z=5080) [N]", title="X向载荷", default=0.0),
+        PortConf("fy", DataType.FLOAT, 0, desc="Load in y-direction at top nodes (Z=5080) [N]", title="Y向载荷", default=900.0),
+        PortConf("fz", DataType.FLOAT, 0, desc="Load in z-direction at top nodes (Z=5080) [N]", title="Z向载荷", default=0.0)
+    ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array (10x3)", title="节点坐标"),
-        PortConf("cell", DataType.TENSOR, desc="Cell connectivity array (25x2)", title="单元")
+        PortConf("mesh", DataType.MESH, title="网格")
     ]
 
     @staticmethod
     def run(**options):
         from fealpy.backend import bm
+        from fealpy.mesh import EdgeMesh
         
         # Standard 25-bar truss node coordinates (unit: mm)
         node = bm.array([
@@ -53,19 +64,51 @@ class Bar25Geometry(CNodeType):
             [9, 5], [2, 6], [7, 3], [8, 4]              # Bottom diagonal bracing
         ], dtype=bm.int32)
         
+        mesh = EdgeMesh(node, cell)
+        NN = mesh.number_of_nodes()
+        NC = mesh.number_of_cells()
         
-        return node, cell
+        # 材料属性
+        A = options.get("A")
+        E = options.get("E")
+        nu = options.get("nu")
+        
+        mesh.celldata['A'] = bm.full(NC, A, dtype=bm.float64)
+        mesh.celldata['E'] = bm.full(NC, E, dtype=bm.float64)
+        mesh.celldata['nu'] = bm.full(NC, nu, dtype=bm.float64)
+
+        # 载荷: 在Z=5080高度的节点(节点0,1)上施加Y方向900N的力
+        fx = options.get("fx")
+        fy = options.get("fy")
+        fz = options.get("fz")
+        
+        load = bm.zeros((NN, 3), dtype=bm.float64)
+        load[0:2, 0] = fx  # 节点0,1的x方向载荷
+        load[0:2, 1] = fy  # 节点0,1的y方向载荷
+        load[0:2, 2] = fz  # 节点0,1的z方向载荷
+        mesh.nodedata['load'] = load
+        
+        # 约束: 固定底部四个节点(节点6,7,8,9)的所有自由度
+        # constraint格式: [node_idx, flag_x, flag_y, flag_z]
+        constraint = bm.zeros((NN, 4), dtype=bm.float64)
+        constraint[:, 0] = bm.arange(NN, dtype=bm.float64)
+        
+        # 固定节点6,7,8,9(索引)的所有自由度
+        constrained_nodes = bm.array([6, 7, 8, 9], dtype=bm.int32)
+        constraint[constrained_nodes, 1:4] = 1.0  # x,y,z方向全部固定
+        mesh.nodedata['constraint'] = constraint
+        
+        return mesh
 
 
-class Bar942Geometry(CNodeType):
-    r"""942-bar truss geometry data generator.
+class Bar942TrussModel(CNodeType):
+    r"""942-bar truss mesh generator with complete physical properties.
 
-    Generates the classic 942-bar space truss tower structure with four 
-    progressively changing cross-sections:
-    - Layer 1: Square top section
-    - Layer 2: Octagonal section
-    - Layer 3: Dodecagonal section
-    - Layer 4: Bottom support layer
+    Generates the classic 942-bar space truss tower structure mesh with:
+    - Geometry (node coordinates and cell connectivity)
+    - Material properties (A, E) stored in mesh.celldata
+    - Loads stored in mesh.nodedata
+    - Constraints stored in mesh.nodedata
     
     Inputs:
         d1 (float): Half-width of first layer (square top) [mm].
@@ -78,12 +121,16 @@ class Bar942Geometry(CNodeType):
         l3 (float): Height of third segment (total dodecagonal height) [mm].
         l2 (float): Height of second segment (octagonal top height) [mm], default l3+29260.
         l1 (float): Height of first segment (square top height) [mm], default l2+21950.
+        A (float): Cross-sectional area of truss members [mm²], default 4.0.
+        E (float): Young's modulus [MPa], default 2.1e5.
+        fx (float): Load in x-direction at top nodes [N], default 0.0.
+        fy (float): Load in y-direction at top nodes [N], default 400.0.
+        fz (float): Load in z-direction at top nodes [N], default -100.0.
         
     Outputs:
-        node (tensor): Node coordinate array.
-        cell (tensor): Cell connectivity array.
+        mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
     """
-    TITLE: str = "942杆桁架几何"
+    TITLE: str = "942杆桁架几何建模与网格生成"
     PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("d1", DataType.FLOAT, 0, desc="Half-width of first layer (square top)", title="第一层半宽", default=2135.0),
@@ -95,17 +142,24 @@ class Bar942Geometry(CNodeType):
         PortConf("r4", DataType.FLOAT, 0, desc="Radius of fourth layer (bottom support)", title="第四层半径", default=8535.0),
         PortConf("l3", DataType.FLOAT, 0, desc="Height of third segment (total dodecagonal height)", title="第三段高度", default=43890.0),
         PortConf("l2", DataType.FLOAT, 0, desc="Height of second segment (octagonal top height), default l3+29260", title="第二段高度", default=None),
-        PortConf("l1", DataType.FLOAT, 0, desc="Height of first segment (square top height), default l2+21950", title="第一段高度", default=None)
+        PortConf("l1", DataType.FLOAT, 0, desc="Height of first segment (square top height), default l2+21950", title="第一段高度", default=None),
+        PortConf("A", DataType.FLOAT, 0, desc="Cross-sectional area of truss members [mm²]", title="截面面积", default=4.0),
+        PortConf("E", DataType.FLOAT, 0, desc="Young's modulus", title="弹性模量", default=2.1e5),
+        PortConf("nu", DataType.FLOAT, 0, desc="Poisson's ratio", title="泊松比", default=0.3),
+        PortConf("fx", DataType.FLOAT, 0, desc="Load in x-direction at top nodes [N]", title="X向载荷", default=0.0),
+        PortConf("fy", DataType.FLOAT, 0, desc="Load in y-direction at top nodes [N]", title="Y向载荷", default=400.0),
+        PortConf("fz", DataType.FLOAT, 0, desc="Load in z-direction at top nodes [N]", title="Z向载荷", default=-100.0)
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("node", DataType.TENSOR, desc="Node coordinate array", title="节点坐标"),
-        PortConf("cell", DataType.TENSOR, desc="Cell connectivity array", title="单元")
+        PortConf("mesh", DataType.MESH, title="网格")
     ]
 
     @staticmethod
     def run(**options):
+        from fealpy.backend import bm
         from fealpy.csm.mesh.bar942 import Bar942
+        from fealpy.mesh import EdgeMesh
         
         bar = Bar942()
         node, cell = bar.build_truss_3d(
@@ -121,7 +175,38 @@ class Bar942Geometry(CNodeType):
             l1=options.get("l1")
         )
         
-        return node, cell
+        mesh = EdgeMesh(node, cell)
+        NN = mesh.number_of_nodes()
+        NC = mesh.number_of_cells()
+        
+        A = options.get("A")
+        E = options.get("E")
+        nu = options.get("nu")
+        
+        mesh.celldata['A'] = bm.full(NC, A, dtype=bm.float64)
+        mesh.celldata['E'] = bm.full(NC, E, dtype=bm.float64)
+        mesh.celldata['nu'] = bm.full(NC, nu, dtype=bm.float64)
+
+        fx = options.get("fx")
+        fy = options.get("fy")
+        fz = options.get("fz")
+        
+        load = bm.zeros((NN, 3), dtype=bm.float64)
+        load[0:2, 0] = fx  # 节点0,1的x方向载荷
+        load[0:2, 1] = fy  # 节点0,1的y方向载荷
+        load[0:2, 2] = fz  # 节点0,1的z方向载荷
+        mesh.nodedata['load'] = load
+        
+        # constraint格式: [node_idx, flag_x, flag_y, flag_z]
+        constraint = bm.zeros((NN, 4), dtype=bm.float64)
+        constraint[:, 0] = bm.arange(NN, dtype=bm.float64)
+        
+        # 固定节点232-243(索引)的所有自由度
+        constrained_nodes = bm.arange(232, min(244, NN), dtype=bm.int32)
+        constraint[constrained_nodes, 1:4] = 1.0  # x,y,z方向全部固定
+        mesh.nodedata['constraint'] = constraint
+        
+        return mesh
 
 
 class TrussTowerGeometry(CNodeType):

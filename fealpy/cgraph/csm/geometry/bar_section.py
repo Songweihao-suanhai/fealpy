@@ -2,7 +2,6 @@ from ...nodetype import CNodeType, PortConf, DataType
 
 
 __all__ = ["UniformSection",
-           "PredefinedSection", 
            "TrussTowerSection"]
 
 
@@ -79,53 +78,7 @@ class UniformSection(CNodeType):
         else:
             raise ValueError(f"Unsupported shape_type: {shape_type}")
         
-        return area
-    
-    
-class PredefinedSection(CNodeType):
-    r"""Predefined cross-section from standard cases.
-
-    Loads predefined cross-sectional area arrays from standard benchmark problems.
-    Supports 25-bar and 942-bar truss structures with literature-standard section values.
-    
-    Inputs:
-        section_source (MENU): Source of predefined cross-section data.
-
-    Outputs:
-        area (float): Cross-sectional area array.
-    """
-    TITLE: str = "预定义截面属性"
-    PATH: str = "examples.CSM"
-    INPUT_SLOTS = [
-        PortConf("section_source", DataType.MENU, 0, 
-                 desc="预定义截面数据的来源", 
-                 title="截面来源", 
-                 default="bar25", items=["bar25", "bar942"])
-    ]
-    
-    OUTPUT_SLOTS = [
-        PortConf("area", DataType.FLOAT, 
-                 desc="各杆件的横截面面积", 
-                 title="横截面面积")
-    ]
-
-    @staticmethod
-    def run(**options):
-        section_source = options.get("section_source")
-        
-        if section_source == "bar25":
-            from fealpy.csm.model.truss.bar_data25_3d import BarData25
-            model = BarData25()
-            area = model.A   
-        elif section_source == "bar942":
-            from fealpy.csm.model.truss.bar_data942_3d import BarData942
-            model = BarData942()
-            area = model.A   
-        else:
-            raise ValueError(f"Unsupported section_source: {section_source}")
-        
-        return area
-    
+        return area    
 
 class TrussTowerSection(CNodeType):
     r"""Truss tower cross-section calculator (dual section type).
