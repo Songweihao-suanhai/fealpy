@@ -6,7 +6,7 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 mesher = cgraph.create("Bar25TrussModel")
 spacer = cgraph.create("FunctionSpace")
 assembly = cgraph.create("AssembleBarStiffness")
-boundary = cgraph.create("DirichletMethodBC")
+boundary = cgraph.create("BoundaryCondition")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
 coord = cgraph.create("Rbar3d")
@@ -17,7 +17,7 @@ mesher(A = 2000, E = 1500, nu=0.3,
         )
 spacer(type="lagrange", mesh=mesher(), p=1)
 assembly(mesh=mesher())
-boundary(mesh=mesher(), K=assembly())
+boundary(mesh=mesher(), K=assembly(), method="direct")
 
 solver(A = boundary().K_bc,
        b = boundary().F_bc)
