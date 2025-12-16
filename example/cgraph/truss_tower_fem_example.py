@@ -3,23 +3,15 @@ from fealpy.backend import backend_manager as bm
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-model = cgraph.create("TrussTower3d")
-mesher = cgraph.create("TrussTowerMesh")
+mesher = cgraph.create("TrussTowerModel")
 spacer = cgraph.create("FunctionSpace")
-materialer = cgraph.create("BarMaterial")
-truss_tower = cgraph.create("TrussTower")
+assembly = cgraph.create("AssembleBarStiffness")
+boundary = cgraph.create("BoundaryCondition")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
 coord = cgraph.create("Rbar3d")
 strain_stress = cgraph.create("BarStrainStress")
 
-model(
-    dov=0.015,
-    div=0.010,
-    doo=0.010,
-    dio=0.007,
-    load=84820.0
-)
 mesher(
     n_panel = 19,
     Lz = 19.0,
@@ -27,34 +19,26 @@ mesher(
     Wy = 0.40,
     lc = 0.1,
     ne_per_bar = 1,
-    face_diag = True
+    face_diag = True,
+    vertical_D_outer = 0.015,
+    vertical_D_inner = 0.010,
+    other_D_outer = 0.010,
+    other_D_inner = 0.007,
+    E = 2.0e11,
+    nu = 0.3,
+    load_case = 1,
+    load_value = 1.0    
 )
 spacer(type="lagrange", mesh=mesher(), p=1)
-materialer(property="Steel", bar_type="truss_tower", E=2.0e11, nu=0.3)
-truss_tower(
-    dov=model().dov,
-    div=model().div,
-    doo=model().doo,
-    dio=model().dio,
-    space_type="lagrangespace",
-    GD = model().GD,
-    mesh = mesher(),
-    E = materialer().E,
-    nu = materialer().nu,
-    load = model().external_load,
-    dirichlet_dof = model().dirichlet_dof,
-    vertical = 76,
-    other = 176
-)
-solver(A = truss_tower().K,
-       b = truss_tower().F)
+assembly(mesh=mesher())
+boundary(mesh=mesher(), K=assembly(), method="direct")
+
+solver(A = boundary().K_bc,
+       b = boundary().F_bc)
 
 postprocess(out = solver().out, node_ldof=3, type="Truss")
 coord(mesh=mesher(), index=None)
 strain_stress(
-    bar_type="truss_tower",
-    E = materialer().E,
-    nu = materialer().nu,
     mesh = mesher(),
     uh = solver().out,
     coord_transform = coord().R
