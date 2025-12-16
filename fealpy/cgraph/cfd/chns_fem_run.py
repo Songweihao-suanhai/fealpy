@@ -38,7 +38,7 @@ class CHNSFEMRun(CNodeType):
         p (Function): Pressure field.
         phi (Function): Phase-field function.
     """
-    TITLE: str = "有限元求解 CHNS 方程"
+    TITLE: str = " CHNS 方程计算模型"
     PATH: str = "simulation.solvers"
     DESC: str = """该节点实现了两相不可压流体的 Cahn–Hilliard–Navier–Stokes (CHNS)simulation.discretization"
                 器。CHNS 模型结合了相场法与流体力学方程，用以描述两种不可混溶流体的界面演化与流动耦合过程。
@@ -89,10 +89,12 @@ class CHNSFEMRun(CNodeType):
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
     ]
     OUTPUT_SLOTS = [
-        PortConf("u", DataType.FUNCTION, title="速度"),
-        PortConf("p", DataType.FUNCTION, title="压力"),
-        PortConf("phi", DataType.FUNCTION, title="相场函数"),
-        PortConf("rho", DataType.FUNCTION, title="密度")
+        PortConf("phi0", DataType.TENSOR, title="上一时间步相场"),
+        PortConf("phi1", DataType.TENSOR, title="当前时间步相场"),
+        PortConf("u0", DataType.TENSOR, title="上一时间步速度"),
+        PortConf("u1", DataType.TENSOR, title="当前时间步速度"),
+        PortConf("p1", DataType.TENSOR, title="当前时间步压力"),
+        PortConf("rho", DataType.TENSOR, title="密度"),
     ]
     @staticmethod
     def run(dt, i, mobility, interface, free_energy, time_derivative, convection, 
@@ -165,4 +167,4 @@ class CHNSFEMRun(CNodeType):
         # right_point = node[index, :]
         # print("界面与右边界交点:", right_point)
 
-        return u1, p1, phi2, rho
+        return phi0, phi1, u0, u1, p1, rho

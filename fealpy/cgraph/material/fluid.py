@@ -1,7 +1,7 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
 
-__all__ = ['RTIMaterial']
+__all__ = ['RTIMaterial', 'IncompressibleFluid']
 
 class RTIMaterial(CNodeType):
     TITLE: str = "RTI 现象流体物理属性"
@@ -31,5 +31,24 @@ class RTIMaterial(CNodeType):
         material = [rho, Re, Fr, epsilon, Pe]
 
         return material
+    
+class IncompressibleFluid(CNodeType):
+    TITLE: str = "不可压缩流体物理属性"
+    PATH: str = "example.CFD"
+    INPUT_SLOTS = [
+        PortConf("mu", DataType.FLOAT, 0, title="动力粘度", default=0.001),
+        PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0)
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("material", DataType.NONE, title="物理属性")
+    ]
+    @staticmethod
+    def run(mu, rho):
+        material = {
+            'mu': mu, 
+            'rho': rho
+            }
+        return material
+
 
 
