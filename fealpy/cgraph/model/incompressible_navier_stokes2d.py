@@ -129,8 +129,8 @@ class IncompressibleNSMathematics(CNodeType):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian
         import math
-        mu = mesh.nodedata['mu']
-        rho = mesh.nodedata['rho']
+        mu = mesh.mu
+        rho = mesh.rho
 
         time_derivative = rho
         convection = rho
@@ -145,51 +145,46 @@ class IncompressibleNSMathematics(CNodeType):
             result[..., 1] = 0
             return result
         
-        u_bd = bm.tensor(eval(velocity_boundary, None, vars(math)), dtype=bm.float64)
-        box = mesh.box
-        eps = 1e-10
-        
-        @cartesian
-        def is_outflow_boundary(p):
-            x = p[...,0]
-            y = p[...,1]
-            cond1 = bm.abs(x - box[1]) < eps
-            cond2 = bm.abs(y-box[2])>eps
-            cond3 = bm.abs(y-box[3])>eps
-            return (cond1) & (cond2 & cond3) 
-        
-        @cartesian
-        def is_inflow_boundary(p):
-            return bm.abs(p[..., 0]-box[0]) < eps
-        
-        @cartesian
-        def is_wall_boundary(p):
-            return (bm.abs(p[..., 1] -box[2]) < eps) | \
-                (bm.abs(p[..., 1] -box[3]) < eps)
-        
+        # u_bd = bm.tensor(eval(velocity_boundary, None, vars(math)), dtype=bm.float64)
+
         @cartesian
         def is_velocity_boundary(p):
-            return ~is_outflow_boundary(p)
-            # return None
+            return ~mesh.is_outlet_boundary(p)
+            # # return None
         
         @cartesian
         def is_pressure_boundary(p=None):
             if p is None:
                 return 1
             else:
-                return is_outflow_boundary(p) 
+                return mesh.is_outlet_boundary(p) 
                 #return bm.zeros_like(p[...,0], dtype=bm.bool)
             # return 0
-
+            
+        def is_boundary():
+            is_u_boundary = is_velocity_boundary
+            is_p_boundary = is_pressure_boundary
+            return (is_u_boundary, is_p_boundary)
+     
         @cartesian
-        def u_inflow_dirichlet( p):
+        def u_dirichlet( p):
+            def ubd(x, y):
+                return eval(
+                    velocity_boundary,
+                    {
+                        "bm": bm,
+                        "x": x,
+                        "y": y
+                    }
+                )
             x = p[...,0]
             y = p[...,1]
+            u_bd = ubd(x, y)
             value = bm.zeros_like(p)
-            value[...,0] = bm.array(u_bd[0])
-            value[...,1] = bm.array(u_bd[1])
+            value[...,0] = u_bd[0]
+            value[...,1] = u_bd[1]
             return value
-        
+
         @cartesian
         def pressure_dirichlet(p, t):
             x = p[...,0]
@@ -201,20 +196,16 @@ class IncompressibleNSMathematics(CNodeType):
         def velocity_dirichlet(p, t):
             x = p[...,0]
             y = p[...,1]
-            index = is_inflow_boundary(p)
+
+            index = mesh.is_inlet_boundary(p)
             result = bm.zeros_like(p)
-            result[index] = u_inflow_dirichlet(p[index])
+            result[index] = u_dirichlet(p[index])
             return result
         
         def dirichlet_boundary():
             u_dirichlet = velocity_dirichlet
             p_dirichlet = pressure_dirichlet
             return (u_dirichlet, p_dirichlet)
-        
-        def is_boundary():
-            is_u_boundary = is_velocity_boundary
-            is_p_boundary = is_pressure_boundary
-            return (is_u_boundary, is_p_boundary)
         
         def velocity0(p, t):
             x = p[...,0]

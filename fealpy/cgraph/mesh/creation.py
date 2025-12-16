@@ -260,12 +260,11 @@ class NACA4Mesh2d(CNodeType):
         PortConf("alpha", DataType.FLOAT, 0, default=0.0, title="攻角"),
         PortConf("N", DataType.INT, 0, default=200, title="翼型轮廓分段数"),
         PortConf("box", DataType.TEXT, 0, default=[-0.5, 2.7, -0.4, 0.4], title="求解域"),
-        PortConf("mu", DataType.FLOAT, 0, default=0.001, title="动力粘度"),
-        PortConf("rho", DataType.FLOAT, 0, default=1.0, title="密度"),
         PortConf("h", DataType.FLOAT, 0, default=0.02, title="全局网格尺寸"),
         PortConf("thickness", DataType.FLOAT, 0, default=None, title="边界层厚度"),
         PortConf("ratio", DataType.FLOAT, 0, default=2.4, title="边界层增长率"),
-        PortConf("size", DataType.FLOAT, 0, default=None, title="翼型附近网格尺寸")
+        PortConf("size", DataType.FLOAT, 0, default=None, title="翼型附近网格尺寸"),
+        PortConf("material", DataType.NONE, 1, title="材料"),
     ]
     OUTPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, title="网格")
@@ -274,6 +273,7 @@ class NACA4Mesh2d(CNodeType):
         import math
         from fealpy.backend import backend_manager as bm
         from fealpy.mesher.naca4_mesher import NACA4Mesher
+        from fealpy.decorator import cartesian
 
         m = options.get("m", 0.0)
         p = options.get("p", 0.0)
@@ -283,8 +283,7 @@ class NACA4Mesh2d(CNodeType):
         N = options.get("N", 200)
         box = options.get("box")
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
-        mu = options.get("mu", 0.001)
-        rho = options.get("rho", 1.0)
+        material = options.get("material", None)
         h = options.get("h", 0.02)
         thickness = options.get("thickness", h/10)
         ratio = options.get("ratio", 2.4)
@@ -296,8 +295,29 @@ class NACA4Mesh2d(CNodeType):
         mesher = NACA4Mesher(m , p , t, c, alpha, N, box, singular_points)
         mesh = mesher.init_mesh(h, hs, is_quad=0, thickness = thickness, ratio=ratio, size=size)
         mesh.box = box
-        mesh.nodedata['mu'] = bm.array([mu])
-        mesh.nodedata['rho'] = bm.array([rho])
+        NN = mesh.number_of_nodes()
+        eps = 1e-10
+        def is_inlet_boundary(p):
+            x = p[..., 0]
+            return bm.abs(x - box[0]) < eps
+        def is_outlet_boundary(p):
+            x = p[...,0]
+            y = p[...,1]
+            cond1 = bm.abs(x - box[1]) < eps
+            cond2 = bm.abs(y-box[2])>eps
+            cond3 = bm.abs(y-box[3])>eps
+            return (cond1) & (cond2 & cond3) 
+        def is_wall_boundary(p):
+            y = p[..., 1]
+            return (bm.abs(y - box[2]) < eps) | (bm.abs(y - box[3]) < eps)
+        
+        mesh.is_inlet_boundary = is_inlet_boundary
+        mesh.is_outlet_boundary = is_outlet_boundary
+        mesh.is_wall_boundary = is_wall_boundary
+
+        for k, value in material.items():
+            setattr(mesh, k, value)
+            mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
 
         return mesh
     

@@ -78,7 +78,12 @@ chnsrun(
     is_boundary = mathmatics().is_boundary
 )
 to_vtk(mesh = mesher(),
-        uh = (chnsrun().u, chnsrun().p, chnsrun().phi, chnsrun().rho),
+        uh = (chnsrun().phi0,
+              chnsrun().phi1,
+              chnsrun().u0,
+              chnsrun().u1,
+              chnsrun().p1,
+              chnsrun().rho),
         path = "/home/libz/Rti_2d",
         i = None)
 
