@@ -284,6 +284,7 @@ class NACA4Mesh2d(CNodeType):
         box = options.get("box")
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
         material = options.get("material", None)
+        material = material[0]
         h = options.get("h", 0.02)
         thickness = options.get("thickness", h/10)
         ratio = options.get("ratio", 2.4)
@@ -417,15 +418,44 @@ class RTIMesher2d(CNodeType):
     def run(material, box, nx, ny):
         from fealpy.backend import backend_manager as bm
         from fealpy.mesh import TriangleMesh
+        from fealpy.decorator import cartesian
         import math
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
         mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
         mesh.box = box
-        mesh.rho = material[0]
-        mesh.Re = material[1]
-        mesh.Fr = material[2]
-        mesh.epsilon = material[3]
-        mesh.Pe = material[4]
+        material = material[0]
+        NN = mesh.number_of_nodes()
+        eps = 1e-10
+
+        @cartesian
+        def is_up_boundary(p):
+            tag_up = bm.abs(p[..., 1] - box[3]) < eps
+            return tag_up
+        
+        @cartesian
+        def is_down_boundary(p):
+            tag_down = bm.abs(p[..., 1] - box[2]) < eps
+            return tag_down
+        
+        @cartesian
+        def is_left_boundary(p):
+            tag_left = bm.abs(p[..., 0] - box[0]) < eps
+            return tag_left
+        
+        @cartesian
+        def is_right_boundary(p):
+            tag_right = bm.abs(p[..., 0] - box[1]) < eps
+            return tag_right
+        
+        mesh.is_up_boundary = is_up_boundary
+        mesh.is_down_boundary = is_down_boundary
+        mesh.is_left_boundary = is_left_boundary
+        mesh.is_right_boundary = is_right_boundary
+
+        for k, value in material.items():
+            setattr(mesh, k, value)
+            mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
+
         return mesh
 
 

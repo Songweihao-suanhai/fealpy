@@ -5,7 +5,7 @@ __all__ = ['RTIMaterial', 'IncompressibleFluid']
 
 class RTIMaterial(CNodeType):
     TITLE: str = "RTI 现象流体物理属性"
-    PATH: str = "preprocess.material"
+    PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("rho_up", DataType.FLOAT, 0, title="上层流体密度", default=3.0),
         PortConf("rho_down", DataType.FLOAT, 0, title="下层流体密度", default=1.0),
@@ -28,26 +28,32 @@ class RTIMaterial(CNodeType):
             return result
         Pe = 1/epsilon
 
-        material = [rho, Re, Fr, epsilon, Pe]
+        material = [{
+            'rho': rho, 
+            'Re': Re, 
+            'Fr': Fr, 
+            'epsilon': epsilon,
+            'Pe': Pe
+            }]
 
         return material
     
 class IncompressibleFluid(CNodeType):
     TITLE: str = "不可压缩流体物理属性"
-    PATH: str = "example.CFD"
+    PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("mu", DataType.FLOAT, 0, title="动力粘度", default=0.001),
         PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0)
     ]
     OUTPUT_SLOTS = [
-        PortConf("material", DataType.NONE, title="物理属性")
+        PortConf("material", DataType.LIST, title="物理属性")
     ]
     @staticmethod
     def run(mu, rho):
-        material = {
+        material = [{
             'mu': mu, 
             'rho': rho
-            }
+            }]
         return material
 
 
