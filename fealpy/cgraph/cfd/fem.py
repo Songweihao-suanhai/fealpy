@@ -1,0 +1,269 @@
+from fealpy.backend import backend_manager as bm
+from fealpy.decorator import barycentric, cartesian
+from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator, BlockForm,
+                        FluidBoundaryFrictionIntegrator,ScalarConvectionIntegrator, ViscousWorkIntegrator,
+                        PressWorkIntegrator, LinearBlockForm, LinearForm, SourceIntegrator)
+
+class FEMBase:
+    def lagrange_multiplier(pspace, A, b, c=0):
+        """
+        Constructs the augmented system matrix for Lagrange multipliers.
+        c is the integral of pressure, default is 0.
+        """
+        from fealpy.backend import backend_manager as bm
+        from fealpy.sparse import COOTensor
+        from fealpy.fem import LinearForm, SourceIntegrator, BlockForm
+        LagLinearForm = LinearForm(pspace)
+        LagLinearForm.add_integrator(SourceIntegrator(source=1))
+        LagA = LagLinearForm.assembly()
+
+        A1 = COOTensor(bm.array([bm.zeros(len(LagA), dtype=bm.int32),
+                                bm.arange(len(LagA), dtype=bm.int32)]), LagA, spshape=(1, len(LagA)))
+
+        A = BlockForm([[A, A1.T], [A1, None]])
+        A = A.assembly_sparse_matrix(format='csr')
+        b0 = bm.array([c])
+        b  = bm.concatenate([b, b0], axis=0)
+        return A, b
+
+    def apply_bc(space, dirichlet, is_boundary, t):
+        r"""Dirichlet boundary conditions for unsteady Navier-Stokes equations."""
+        from fealpy.fem import DirichletBC
+        from fealpy.decorator import cartesian
+        BC = DirichletBC(space=space,
+                gd = cartesian(lambda p : dirichlet(p, t)),
+                threshold = is_boundary,
+                method = 'interp')
+        return BC.apply
+
+def fem_ipcs(uspace, pspace, dirichlet_boundary, is_boundary, q, apply_bc):
+    (velocity_dirichlet, pressure_dirichlet) = dirichlet_boundary()
+    (is_velocity_boundary, is_pressure_boundary) = is_boundary()
+    if apply_bc is None:
+        apply_bc = FEMBase.apply_bc
+    
+    #预测速度左端项
+    predict_Bform = BilinearForm(uspace)
+    predict_BM = ScalarMassIntegrator(q=q)  
+    predict_Bform.add_integrator(predict_BM)
+    
+    if is_pressure_boundary() != 0:
+        predict_BF = FluidBoundaryFrictionIntegrator(q=q, threshold=is_pressure_boundary)
+        predict_Bform.add_integrator(predict_BF)
+    
+    predict_BVW = ScalarDiffusionIntegrator(q=q)
+    predict_Bform.add_integrator(predict_BVW)
+
+    #预测速度右端项
+    from fealpy.fem import (LinearForm, SourceIntegrator, GradSourceIntegrator, 
+                            BoundaryFaceSourceIntegrator)
+    predict_Lform = LinearForm(uspace) 
+    predict_LS = SourceIntegrator(q=q)
+    predict_LS_f = SourceIntegrator(q=q)
+    predict_LGS = GradSourceIntegrator(q=q)
+    
+    predict_Lform.add_integrator(predict_LS)
+    predict_Lform.add_integrator(predict_LGS)
+    predict_Lform.add_integrator(predict_LS_f)
+    if is_pressure_boundary() != 0:
+        predict_LBFS = BoundaryFaceSourceIntegrator(q=q, threshold=is_pressure_boundary)
+        predict_Lform.add_integrator(predict_LBFS)
+
+    #预测速度更新函数
+    def predict_velocity_update(u0, p0, dt, ctd, cc, pc, cv, cbf): 
+        mesh = uspace.mesh
+        
+        predict_BM.coef = ctd/dt
+        predict_BVW.coef = cv
+        
+        @barycentric
+        def LS_coef(bcs, index):
+            masscoef = ctd(bcs, index)[..., bm.newaxis] if callable(ctd) else ctd
+            result = 1/dt*masscoef*u0(bcs, index)
+            ccoef = cc(bcs, index)[..., bm.newaxis] if callable(cc) else cc
+            result -= ccoef * bm.einsum('...j, ...ij -> ...i', u0(bcs, index), u0.grad_value(bcs, index))
+            return result
+
+        @barycentric
+        def LGS_coef(bcs, index):
+            I = bm.eye(mesh.GD)
+            result = bm.repeat(p0(bcs,index)[...,bm.newaxis], mesh.GD, axis=-1)
+            result = bm.expand_dims(result, axis=-1) * I
+            result *= pc(bcs, index) if callable(pc) else pc
+            return result
+        
+        
+        @barycentric
+        def LBFS_coef(bcs, index):
+            result = -bm.einsum('...i, ...j->...ij', p0(bcs, index), mesh.face_unit_normal(index=index))
+            result *= pc(bcs, index) if callable(pc) else pc
+            return result
+        
+        predict_LS_f.source = cbf
+        predict_LS.source = LS_coef
+        predict_LGS.source = LGS_coef
+        if is_pressure_boundary() != 0:
+            predict_BF.coef = -cv
+            predict_LBFS.source = LBFS_coef
+
+    #预测速度方程线性系统组装
+    def predict_velocity(u0, p0, t, dt, ctd, cc, pc, cv, cbf): 
+        Bform = predict_Bform
+        Lform = predict_Lform
+        predict_velocity_update(u0, p0, dt, ctd, cc, pc, cv, cbf)
+        A = Bform.assembly()
+        b = Lform.assembly()
+        apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
+        A, b = apply_bcu(A, b)
+        return A, b 
+        
+    #压力修正左端项
+    pressure_Bform = BilinearForm(pspace)
+    pressure_BD = ScalarDiffusionIntegrator(q=q)
+    pressure_Bform.add_integrator(pressure_BD) 
+
+    #压力修正右端项
+    pressure_Lform = LinearForm(pspace)
+    pressure_LS = SourceIntegrator(q=q)
+    pressure_LGS = GradSourceIntegrator(q=q)
+    
+    pressure_Lform.add_integrator(pressure_LS)
+    pressure_Lform.add_integrator(pressure_LGS)
+
+    #压力修正更新函数
+    def pressure_update(us, p0, dt, ctd, pc):
+        
+        pressure_BD.coef = pc
+
+        @barycentric
+        def LS_coef(bcs, index=None):
+            result = -1/dt*bm.trace(us.grad_value(bcs, index), axis1=-2, axis2=-1)
+            result *= ctd(bcs, index) if callable(ctd) else ctd
+            return result
+        pressure_LS.source = LS_coef
+        
+        @barycentric
+        def LGS_coef(bcs, index=None):
+            result = p0.grad_value(bcs, index)
+            result *= pc(bcs, index) if callable(pc) else pc
+            return result
+        pressure_LGS.source = LGS_coef
+
+    #压力修正方程线性系统组装
+    def correct_pressure(us, p0, t, dt, ctd, pc):
+        Bform = pressure_Bform
+        Lform = pressure_Lform
+        pressure_update(us, p0, dt, ctd, pc)
+        A = Bform.assembly()
+        b = Lform.assembly()
+        if is_pressure_boundary() == 0:
+            A, b = FEMBase.lagrange_multiplier(pspace, A, b, 0)
+        else:
+            apply_bcp = apply_bc(pspace, pressure_dirichlet, is_pressure_boundary, t)
+            A, b = apply_bcp(A, b)
+        return A, b
+        
+    #速度修正左端项
+    correct_Bform = BilinearForm(uspace)
+    correct_BM = ScalarMassIntegrator(q=q)
+    correct_Bform.add_integrator(correct_BM)
+
+    #速度修正右端项
+    correct_Lform = LinearForm(uspace)
+    correct_LS = SourceIntegrator(q=q)
+    correct_Lform.add_integrator(correct_LS)
+
+    #速度修正更新函数
+    def correct_velocity_update(us, p0, p1, dt, ctd):
+
+        correct_BM.coef = ctd
+        @barycentric
+        def BM_coef(bcs, index):
+            masscoef = ctd(bcs, index)[..., bm.newaxis] if callable(ctd) else ctd
+            result = masscoef * us(bcs, index)
+            result -= dt*(p1.grad_value(bcs, index) - p0.grad_value(bcs, index))
+            return result
+        correct_LS.source = BM_coef
+
+    #速度修正方程线性系统组装
+    def correct_velocity(us, p0, p1, t, dt, ctd):
+        """速度校正"""
+        Bform = correct_Bform
+        Lform = correct_Lform
+        correct_velocity_update(us, p0, p1, dt, ctd)
+        A = Bform.assembly()
+        b = Lform.assembly()
+        apply_bcu = apply_bc(uspace, velocity_dirichlet, is_velocity_boundary, t)
+        A, b = apply_bcu(A, b)
+        return A, b
+        
+    return predict_velocity, correct_pressure, correct_velocity
+
+def fem_bdf2(uspace, pspace, dirichlet_boundary, is_boundary, q):
+
+    def update(u_0, u_1, dt, t, ctd, cc, pc, cv, cbf, apply_bc = True):
+        
+        ## BilinearForm
+        
+        A00 = BilinearForm(uspace)
+        BM = ScalarMassIntegrator(q=q)
+        BM.coef = 3*ctd/(2*dt)
+        BC = ScalarConvectionIntegrator(q=q)
+        def BC_coef(bcs, index): 
+            ccoef = cc(bcs, index)[..., bm.newaxis] if callable(cc) else cc
+            result = 2* ccoef * u_1(bcs, index)
+            return result
+        BC.coef = BC_coef
+        BD = ViscousWorkIntegrator(q=q)
+        BD.coef = 2*cv 
+
+        A00.add_integrator(BM)
+        A00.add_integrator(BC)
+        A00.add_integrator(BD)
+
+        A01 = BilinearForm((pspace, uspace))
+        BPW0 = PressWorkIntegrator(q=q)
+        BPW0.coef = -pc
+        A01.add_integrator(BPW0) 
+
+        A10 = BilinearForm((pspace, uspace))
+        BPW1 = PressWorkIntegrator(q=q)
+        BPW1.coef = -1
+        A10.add_integrator(BPW1)
+        
+        A = BlockForm([[A00, A01], [A10.T, None]])
+
+        ## LinearForm
+        L0 = LinearForm(uspace) 
+        LSI_U = SourceIntegrator(q=q)
+        @barycentric
+        def LSI_U_coef(bcs, index):
+            masscoef = ctd(bcs, index)[..., bm.newaxis] if callable(ctd) else ctd
+            result0 =  masscoef * (4*u_1(bcs, index) - u_0(bcs, index)) / (2*dt)
+            
+            ccoef = cc(bcs, index)[..., bm.newaxis] if callable(cc) else cc
+            result1 = ccoef*bm.einsum('cqij, cqj->cqi', u_1.grad_value(bcs, index), u_0(bcs, index))
+            cbfcoef = cbf(bcs, index) if callable(cbf) else cbf
+            
+            result = result0 + result1 + cbfcoef
+            return result
+        LSI_U.source = LSI_U_coef
+        L0.add_integrator(LSI_U)
+
+        L1 = LinearForm(pspace)
+        L = LinearBlockForm([L0, L1])
+
+        A = A.assembly()
+        L = L.assembly()
+        if apply_bc is True:
+            (velocity_dirichlet, pressure_dirichlet) = dirichlet_boundary()
+            (is_velocity_boundary, is_pressure_boundary) = is_boundary()
+            gd_v = cartesian(lambda p: velocity_dirichlet(p, t))
+            gd_p = cartesian(lambda p: pressure_dirichlet(p, t))
+            gd = (gd_v, gd_p)
+            is_bd = (is_velocity_boundary, is_pressure_boundary)
+            apply = apply_bc((uspace, pspace), gd, is_bd, t)
+            A, L = apply(A, L)
+        return A, L
+    
+    return update

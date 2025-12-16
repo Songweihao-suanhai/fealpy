@@ -24,7 +24,7 @@ def lagrange_multiplier(A, b, c=0, uspace=None, pspace=None):
     b  = bm.concatenate([b, b0], axis=0)
     return A, b
 
-__all__ = ["StationaryNSRun", "IncompressibleNSIPCSRun"]
+__all__ = ["StationaryNSRun", "IncompressibleNSFEMModel"]
 
 class StationaryNSRun(CNodeType):
     r"""Finite element iterative solver for steady incompressible Navier-Stokes equations.
@@ -100,7 +100,7 @@ class StationaryNSRun(CNodeType):
 
         return uh1, uh_x, uh_y, ph1
     
-class IncompressibleNSIPCSRun(CNodeType):
+class IncompressibleNSFEMModel(CNodeType):
     r"""IPCS solver for unsteady incompressible Navier-Stokes equations.
     Inputs:
         i (int): Current time step index.
@@ -115,59 +115,94 @@ class IncompressibleNSIPCSRun(CNodeType):
         uh (tensor): Numerical velocity field at the current time step.
         ph (tensor): Numerical pressure field at the current time step.
     """
-    TITLE: str = "IPCS 计算模型"
+    TITLE: str = "不可压缩 NS 计算模型"
     PATH: str = "simulation.solvers"
     DESC: str  = """该节点实现非稳态不可压 Navier-Stokes 方程的 IPCS 分步算法求解器，按时间步推进依次完成速度预测、
                 压力修正与速度校正，并输出速度与压力场的时序数值结果。"""
     INPUT_SLOTS = [
-        PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("i", DataType.FLOAT, title="当前时间步"),
+        PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
+        PortConf("method_name", DataType.MENU, 0, title="算法", default="IPCS", items=["IPCS", "Newton"]),
         PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
         PortConf("convection", DataType.FLOAT, title="对流项系数"),
         PortConf("pressure", DataType.FLOAT, title="压力项系数"),
         PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
         PortConf("source", DataType.FUNCTION, title="源项"),
+        PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
+        PortConf("apply_bc", DataType.FUNCTION, title="边界处理函数"),
+        PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度"),
         PortConf("uh0", DataType.TENSOR, title="上一时间步速度"),
-        PortConf("ph0", DataType.TENSOR, title="上一时间步压力"),
-        PortConf("predict_velocity", DataType.FUNCTION, title="预测速度方程离散"),
-        PortConf("correct_pressure", DataType.FUNCTION, title="压力修正方程离散"),
-        PortConf("correct_velocity", DataType.FUNCTION, title="速度修正方程离散"),
+        PortConf("ph0", DataType.TENSOR, title="上一时间步压力")
     ]
     OUTPUT_SLOTS = [
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
     ]
-    def run(dt, i, time_derivative, convection, pressure, viscosity, source,
-            uh0, ph0, predict_velocity, correct_pressure, correct_velocity):
+    def run(i, dt, method_name, time_derivative, convection, pressure, viscosity, 
+            source, dirichlet_boundary, is_boundary, apply_bc, q, uh0, ph0):
         from fealpy.solver import cg
-        from fealpy.decorator import cartesian
+        from fealpy.decorator import cartesian, variantmethod, barycentric
+        from fealpy.backend import backend_manager as bm
+        from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
+                                FluidBoundaryFrictionIntegrator, DirichletBC)
 
-        uh1 = uh0.space.function()
-        uhs = uh0.space.function()
-        ph1 = ph0.space.function()
-        pgdof = ph0.space.number_of_global_dofs()
+        class IncompressibleNSFEM:
+            def __init__(self):
+                self.uspace = uh0.space
+                self.pspace = ph0.space
+                self.q = q
+                self.dirichlet_boundary = dirichlet_boundary
+                self.is_boundary = is_boundary
+
+            @variantmethod("IPCS")
+            def method(self):
+                self.method_name = "IPCS"
+                uspace = self.uspace
+                pspace = self.pspace
+                dirichlet_boundary = self.dirichlet_boundary
+                is_boundary = self.is_boundary
+                q = self.q
+                from fealpy.cgraph.cfd.fem import fem_ipcs
+                return fem_ipcs(uspace, pspace, dirichlet_boundary, is_boundary, q, apply_bc=apply_bc)
+
+            def run(self):
+                if self.method_name == "IPCS":
+                    predict_velocity, correct_pressure, correct_velocity = self.method()
+                    uh1 = uh0.space.function()
+                    uhs = uh0.space.function()
+                    ph1 = ph0.space.function()
+                    pgdof = ph0.space.number_of_global_dofs()
+                    
+                    t  = dt * (i + 1)
+                    body_force = cartesian(lambda p:source(p, t))
+                    A0, b0 = predict_velocity(uh0, ph0, 
+                                            t = t, 
+                                            dt = dt, 
+                                            ctd = time_derivative, 
+                                            cc = convection, 
+                                            pc = pressure, 
+                                            cv = viscosity, 
+                                            cbf = body_force)
+                    uhs[:] = cg(A0, b0)
+
+                    A1, b1 = correct_pressure(uhs, ph0, 
+                                            t = t, 
+                                            dt = dt, 
+                                            ctd = time_derivative, 
+                                            pc = pressure)
+                    ph1[:] = cg(A1, b1)[:pgdof]
+
+                    A2, b2 = correct_velocity(uhs, ph0, ph1, t = t, dt = dt, ctd = time_derivative)
+                    uh1[:] = cg(A2, b2)
+
+                    return uh1, ph1
+                
+                else:
+                    pass
         
-        t  = dt * (i + 1)
-        body_force = cartesian(lambda p:source(p, t))
-        A0, b0 = predict_velocity(uh0, ph0, 
-                                  t = t, 
-                                  dt = dt, 
-                                  ctd = time_derivative, 
-                                  cc = convection, 
-                                  pc = pressure, 
-                                  cv = viscosity, 
-                                  cbf = body_force)
-        uhs[:] = cg(A0, b0)
-
-        A1, b1 = correct_pressure(uhs, ph0, 
-                                  t = t, 
-                                  dt = dt, 
-                                  ctd = time_derivative, 
-                                  pc = pressure)
-        ph1[:] = cg(A1, b1)[:pgdof]
-
-        A2, b2 = correct_velocity(uhs, ph0, ph1, t = t, dt = dt, ctd = time_derivative)
-        uh1[:] = cg(A2, b2)
-
-        return uh1, ph1
-
+        model = IncompressibleNSFEM()
+        model.method[method_name]()
+        uh, ph = model.run()
+        return uh, ph
+                    
