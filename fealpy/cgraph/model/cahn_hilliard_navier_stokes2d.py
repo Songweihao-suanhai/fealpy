@@ -160,35 +160,9 @@ class RTIMathmatics(CNodeType):
             '''
             result = bm.zeros_like(p[..., 0], dtype=bm.float64)
             return result
-
-        @cartesian
-        def is_pressure_boundary(p):
-            result = bm.zeros_like(p[..., 0], dtype=bool)
-            return result
-
-        @cartesian
-        def is_velocity_boundary():
-            is_x_boundary = is_ux_boundary
-            is_y_boundary = is_uy_boundary
-            return (is_x_boundary , is_y_boundary)
         
-        @cartesian
-        def is_ux_boundary(p):
-            tag_up = bm.abs(p[..., 1] - box[3]) < eps
-            tag_down = bm.abs(p[..., 1] - box[2]) < eps
-            tag_left = bm.abs(p[..., 0] - box[0]) < eps
-            tag_right = bm.abs(p[..., 0] - box[1]) < eps
-            return tag_up | tag_down | tag_left | tag_right 
-        
-        @cartesian
-        def is_uy_boundary(p):
-            tag_up = bm.abs(p[..., 1] - box[3]) < eps
-            tag_down = bm.abs(p[..., 1] - box[2]) < eps
-            return tag_up | tag_down
-
-        @cartesian
-        def is_pressure_boundary():
-            return 0
+        # @cartesian
+        # def is_ux_
         
         phispace = phi.space
         uspace = u.space    

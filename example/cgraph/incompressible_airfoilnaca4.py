@@ -8,7 +8,6 @@ material = cgraph.create("IncompressibleFluid")
 mesher = cgraph.create("NACA4Mesh2d")
 physics = cgraph.create("IncompressibleNSPhysics")
 mathmatics = cgraph.create("IncompressibleNSMathematics")
-simulation = cgraph.create("IncompressibleNSIPCS")
 IncompressibleNSRun = cgraph.create("IncompressibleNSFEMModel")
 to_vtk = cgraph.create("TO_VTK")
 
