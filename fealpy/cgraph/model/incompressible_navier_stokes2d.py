@@ -106,7 +106,6 @@ class IncompressibleNSMathematics(CNodeType):
     TITLE: str = "不可压缩 NS 数学模型"
     PATH: str = "preprocess.modeling"
     INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, 1, title="网格"),
         PortConf("u", DataType.TENSOR, 1, title="速度"),
         PortConf("p", DataType.TENSOR, 1, title="压力"),
         PortConf("velocity_boundary", DataType.TEXT, 0, title="速度边界条件"),
@@ -125,10 +124,11 @@ class IncompressibleNSMathematics(CNodeType):
         PortConf("u0", DataType.TENSOR, title="初始速度"),
         PortConf("p0", DataType.TENSOR, title="初始压力")
     ]
-    def run(mesh, u, p, velocity_boundary, pressure_boundary, velocity_0, pressure_0):
+    def run(u, p, velocity_boundary, pressure_boundary, velocity_0, pressure_0):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian
         import math
+        mesh = u.space.mesh
         mu = mesh.mu
         rho = mesh.rho
 
