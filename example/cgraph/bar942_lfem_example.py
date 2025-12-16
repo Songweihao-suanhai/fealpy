@@ -6,7 +6,7 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 mesher = cgraph.create("Bar942TrussModel")
 spacer = cgraph.create("FunctionSpace")
 assembly = cgraph.create("AssembleBarStiffness")
-boundary = cgraph.create("PenaltyMethodBC")
+boundary = cgraph.create("BoundaryCondition")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")
 coord = cgraph.create("Rbar3d")
@@ -20,7 +20,7 @@ mesher(d1 = 2135, d2 = 5335, d3 = 7470, d4 = 9605,
         )
 spacer(type="lagrange", mesh=mesher(), p=1)
 assembly(mesh=mesher())
-boundary(mesh=mesher(), K=assembly(), penalty=1e12)
+boundary(mesh=mesher(), K=assembly(), method="penalty", penalty=1e12)
 
 solver(A = boundary().K_bc,
        b = boundary().F_bc)
@@ -36,8 +36,8 @@ strain_stress(
 
 # 最终连接到图输出节点上
 WORLD_GRAPH.output(mesh=mesher())
-WORLD_GRAPH.output(uh=postprocess().uh, 
-                   strain=strain_stress().strain, stress=strain_stress().stress
+WORLD_GRAPH.output(uh=solver().out, 
+                   #strain=strain_stress().strain, stress=strain_stress().stress
                    )
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
