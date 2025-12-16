@@ -120,7 +120,7 @@ class IncompressibleNSFEMModel(CNodeType):
     DESC: str  = """该节点实现非稳态不可压 Navier-Stokes 方程的 IPCS 分步算法求解器，按时间步推进依次完成速度预测、
                 压力修正与速度校正，并输出速度与压力场的时序数值结果。"""
     INPUT_SLOTS = [
-        PortConf("i", DataType.FLOAT, title="当前时间步"),
+        PortConf("i", DataType.FLOAT, title="迭代步"),
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("method_name", DataType.MENU, 0, title="算法", default="IPCS", items=["IPCS", "Newton"]),
         PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),

@@ -10,13 +10,13 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 material = cgraph.create("RTIMaterial")
 mesher = cgraph.create("RTIMesher2d")
 physics = cgraph.create("CHNSPhysics")
-mathmatics = cgraph.create("RTIMathmatics")
+mathmatics = cgraph.create("CHNSMathmatics")
 bdf2 = cgraph.create("IncompressibleNSBDF2")
 chfem = cgraph.create("CahnHilliardFEMSimulation")
 chnsrun = cgraph.create("CHNSFEMRun")
 to_vtk = cgraph.create("TO_VTK")
 
-box = "[0, 1.0, 0.0, 4.0]"
+box = "[0.0, 1.0, 0.0, 4.0]"
 material(
     rho_up = 3.0,
     rho_down = 1.0,
