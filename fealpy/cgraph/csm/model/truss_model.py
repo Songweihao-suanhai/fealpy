@@ -20,7 +20,7 @@ class Bar25TrussModel(CNodeType):
     Outputs:
         mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
     """
-    TITLE: str = "25杆桁架几何建模与网格生成"
+    TITLE: str = "25杆桁架模型"
     PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("A", DataType.FLOAT, 0, desc="桁架杆件横截面积", title="截面面积", default=2000.0),
@@ -130,7 +130,7 @@ class Bar942TrussModel(CNodeType):
     Outputs:
         mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
     """
-    TITLE: str = "942杆桁架几何建模与网格生成"
+    TITLE: str = "942杆桁架模型"
     PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("d1", DataType.FLOAT, 0, desc="第一层半宽", title="第一层半宽", default=2135.0),
@@ -232,7 +232,7 @@ class TrussTowerModel(CNodeType):
     Outputs:
         mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
     """
-    TITLE: str = "桁架塔几何建模与网格生成"
+    TITLE: str = "桁架塔模型"
     PATH: str = "examples.CSM"
     INPUT_SLOTS = [
         PortConf("n_panel", DataType.INT, 0, desc="Z方向面板数量(≥1)", title="面板数量", default=19),
