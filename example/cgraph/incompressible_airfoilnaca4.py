@@ -1,4 +1,3 @@
-import json
 import fealpy.cgraph as cgraph
 
 
@@ -36,7 +35,6 @@ physics(
     p_p = 1,
 )
 mathmatics(
-    mesh = mesher().mesh,
     u = physics().u,
     p = physics().p,
     velocity_boundary = "[(y+0.4)*(0.4-y), 0.0]",

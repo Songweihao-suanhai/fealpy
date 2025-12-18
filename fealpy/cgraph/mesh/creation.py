@@ -454,7 +454,8 @@ class RTIMesher2d(CNodeType):
 
         for k, value in material.items():
             setattr(mesh, k, value)
-            mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
+            if value is float:
+                mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
 
         return mesh
 

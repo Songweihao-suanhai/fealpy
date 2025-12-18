@@ -665,7 +665,6 @@ class TO_VTK(CNodeType):
 
         export_dir = Path(path).expanduser().resolve()
         export_dir.mkdir(parents=True, exist_ok=True)
-        mesh.nodedata.clear()
         N = len(uh)
         for j in range(N):
             u = uh[j]

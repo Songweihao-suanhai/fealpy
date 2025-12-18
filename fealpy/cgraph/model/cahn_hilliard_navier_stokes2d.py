@@ -1,7 +1,7 @@
 from typing import Union, Type
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["CHNSPhysics", "RTIMathmatics"]
+__all__ = ["CHNSPhysics", "CHNSMathmatics"]
 
 SPACE_CLASSES = {
     "bernstein": ("bernstein_fe_space", "BernsteinFESpace"),
@@ -76,8 +76,8 @@ class CHNSPhysics(CNodeType):
         return phi, u, p
 
 
-class RTIMathmatics(CNodeType):
-    TITLE: str = "RTI 数学模型"
+class CHNSMathmatics(CNodeType):
+    TITLE: str = "CHNS 数学模型"
     PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("phi", DataType.TENSOR, title="相场"),
@@ -132,8 +132,6 @@ class RTIMathmatics(CNodeType):
                 return result
             return body_force
         source = body_force
-        
-        eps = 1e-10
 
         @cartesian
         def init_interface(p):
@@ -161,8 +159,19 @@ class RTIMathmatics(CNodeType):
             result = bm.zeros_like(p[..., 0], dtype=bm.float64)
             return result
         
-        # @cartesian
-        # def is_ux_
+        @cartesian
+        def is_ux_boundary(p):
+            tag_up = mesh.is_up_boundary(p)
+            tag_down = mesh.is_down_boundary(p)
+            tag_left = mesh.is_left_boundary(p)
+            tag_right = mesh.is_right_boundary(p)
+            return tag_up | tag_down | tag_left | tag_right
+        
+        @cartesian
+        def is_uy_boundary(p):
+            tag_up = mesh.is_up_boundary(p)
+            tag_down = mesh.is_down_boundary(p)
+            return tag_up | tag_down
         
         phispace = phi.space
         uspace = u.space    
