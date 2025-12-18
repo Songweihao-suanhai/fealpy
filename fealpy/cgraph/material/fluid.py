@@ -39,22 +39,34 @@ class RTIMaterial(CNodeType):
         return material
     
 class IncompressibleFluid(CNodeType):
-    TITLE: str = "不可压缩流体物理属性"
+    TITLE: str = "不可压缩流体材料属性"
     PATH: str = "examples.CFD"
     INPUT_SLOTS = [
+        PortConf("material", DataType.MENU, 0, title="材料", default="water", items=["water", "air", "custom"]),
         PortConf("mu", DataType.FLOAT, 0, title="动力粘度", default=0.001),
         PortConf("rho", DataType.FLOAT, 0, title="密度", default=1.0)
     ]
     OUTPUT_SLOTS = [
-        PortConf("material", DataType.LIST, title="物理属性")
+        PortConf("mp", DataType.LIST, title="材料属性")
     ]
     @staticmethod
-    def run(mu, rho):
-        material = [{
-            'mu': mu, 
-            'rho': rho
-            }]
-        return material
+    def run(material, mu, rho):
+        if material == "water":
+            mp = [{
+                'mu': 0.001, 
+                'rho': 1000.0
+                }]
+        elif material == "air": 
+            mp = [{
+                'mu': 0.0000181, 
+                'rho': 1.225
+                }] 
+        else:
+            mp = [{
+                'mu': mu, 
+                'rho': rho
+                }]
+        return mp
 
 
 

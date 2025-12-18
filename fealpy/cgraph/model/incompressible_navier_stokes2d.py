@@ -149,7 +149,7 @@ class IncompressibleNSMathematics(CNodeType):
 
         @cartesian
         def is_velocity_boundary(p):
-            return ~mesh.is_outlet_boundary(p)
+            return ~mesh.geo.is_outlet_boundary(p)
             # # return None
         
         @cartesian
@@ -157,7 +157,7 @@ class IncompressibleNSMathematics(CNodeType):
             if p is None:
                 return 1
             else:
-                return mesh.is_outlet_boundary(p) 
+                return mesh.geo.is_outlet_boundary(p) 
                 #return bm.zeros_like(p[...,0], dtype=bm.bool)
             # return 0
             
@@ -197,7 +197,7 @@ class IncompressibleNSMathematics(CNodeType):
             x = p[...,0]
             y = p[...,1]
 
-            index = mesh.is_inlet_boundary(p)
+            index = mesh.geo.is_inlet_boundary(p)
             result = bm.zeros_like(p)
             result[index] = u_dirichlet(p[index])
             return result
