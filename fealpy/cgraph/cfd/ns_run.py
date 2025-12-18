@@ -123,11 +123,7 @@ class IncompressibleNSFEMModel(CNodeType):
         PortConf("i", DataType.FLOAT, title="迭代步"),
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("method_name", DataType.MENU, 0, title="算法", default="IPCS", items=["IPCS", "Newton"]),
-        PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
-        PortConf("convection", DataType.FLOAT, title="对流项系数"),
-        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
-        PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
-        PortConf("source", DataType.FUNCTION, title="源项"),
+        PortConf("equation", DataType.LIST, 1, title="方程"),
         PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("apply_bc", DataType.FUNCTION, title="边界处理函数"),
@@ -139,13 +135,19 @@ class IncompressibleNSFEMModel(CNodeType):
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
     ]
-    def run(i, dt, method_name, time_derivative, convection, pressure, viscosity, 
-            source, dirichlet_boundary, is_boundary, apply_bc, q, uh0, ph0):
+    def run(i, dt, method_name, equation, dirichlet_boundary, is_boundary, apply_bc, q, uh0, ph0):
         from fealpy.solver import cg
         from fealpy.decorator import cartesian, variantmethod, barycentric
         from fealpy.backend import backend_manager as bm
         from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator,
                                 FluidBoundaryFrictionIntegrator, DirichletBC)
+        
+        equation = equation[0]
+        time_derivative = equation["time_derivative"]
+        convection = equation["convection"]
+        pressure = equation["pressure"]
+        viscosity = equation["viscosity"]   
+        source = equation["source"]
 
         class IncompressibleNSFEM:
             def __init__(self):
