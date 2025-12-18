@@ -1,50 +1,80 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["Timoaxle"]
+__all__ = ['BarStiffnessAssembly',
+           'TimoshenkoBeamAssembly']
 
-
-class Timoaxle(CNodeType):
-    r"""Assemble the global stiffness matrix and load vector for the train axle finite element model.
+class BarStiffnessAssembly(CNodeType):
+    """Assemble global stiffness matrix for bar/truss elements.
     
     Inputs:
-        beam_para (TENSOR): Beam section parameters, each row represents [Diameter, Length, Count].
-        axle_para (TENSOR): Axle section parameters, each row represents [Diameter, Length, Count].
-        space_type (str): Type of function space (e.g., "lagrangespace").
-        GD (int): Geometric dimension of the model.
-        mesh (mesh): A scalar Lagrange function space.
-        beam_E (float): Elastic modulus of the beam component.
-        beam_nu (float): Poisson's ratio of the beam component.
-        axle_E (float): Elastic modulus of the axle (shaft) component.
-        axle_nu (float): Poisson's ratio of the axle (shaft) component.
-        cindex (int): Total number of elements in the beam–axle model.
-        external_load (function): Function that returns the global load vector.
-        dirichlet_dof (function): Function that returns the Dirichlet boundary degree-of-freedom.
-        penalty (float, optional): Penalty coefficient used for enforcing Dirichlet boundary conditions.
+        mesh (MESH): Mesh object containing bar elements with celldata['A'] and celldata['E'].
         
     Outputs:
-        K (tensor): Global stiffness matrix after applying boundary constraints.
-        F (tensor): Global load vector after applying the selected load type and boundary conditions.
-    
+        K (LINOPS): Global stiffness matrix in CSR format (GD*NN, GD*NN).
+
+    Note:
+        mesh.celldata['A']: Cross-sectional area of each bar element.
+        mesh.celldata['E']: Young's modulus of each bar element.
     """
-    TITLE: str = "列车车轴有限元模型"
+        
+    TITLE: str = "杆单元刚度矩阵组装"
+    PATH: str = "simulation.discretization"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, 1, 
+                 desc="包含杆单元的网格对象", 
+                 title="网格")
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("K", DataType.LINOPS, 
+                 desc="全局刚度矩阵 (稀疏CSR格式)", 
+                 title="全局刚度矩阵")
+    ]
+
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import backend_manager as bm
+        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
+        from fealpy.fem import BilinearForm
+        from fealpy.csm.fem.bar_integrator import BarIntegrator
+        
+        mesh = options.get("mesh")
+        # 简单的 PDE 模型类
+        class SimpleBarModel:
+            def __init__(self):
+                self.GD = 3
+                self.A = mesh.celldata['A']
+        
+        # 简单的材料类（只存储 E）
+        class SimpleMaterial:
+            def __init__(self):
+                self.E = mesh.celldata['E']
+        
+        
+        # 创建模型和材料对象
+        model = SimpleBarModel()
+        material = SimpleMaterial()
+        
+        space = LagrangeFESpace(mesh, p=1)
+        tspace = TensorFunctionSpace(space, shape=(-1, 3))
+        
+        bform = BilinearForm(tspace)
+        integrator = BarIntegrator(space=tspace, model=model, material=material)
+        bform.add_integrator(integrator)
+        K = bform.assembly()
+        return K
+    
+    
+class TimoshenkoBeamAssembly(CNodeType):
+    r"""
+    """
+    TITLE: str = "铁木辛柯梁单元刚度矩阵组装"
     PATH: str = "simulation.discretization" 
     INPUT_SLOTS = [
-        PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
-        PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
-        PortConf("space_type", DataType.MENU, 0, title="函数空间类型", default="lagrangespace", items=["lagrangespace"]),
-        PortConf("GD", DataType.INT, 1, desc="模型的几何维数", title="几何维数"),
-        PortConf("mesh", DataType.MESH, 1, desc="列车车轴网格", title="网格"),
-        PortConf("beam_E", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的弹性模量"),
-        PortConf("beam_nu", DataType.FLOAT, 1, desc="梁材料属性",  title="梁的泊松比"),
-        PortConf("axle_E", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的弹性模量"),
-        PortConf("axle_nu", DataType.FLOAT, 1, desc="弹簧材料属性",  title="弹簧的泊松比"),
-        PortConf("external_load", DataType.FUNCTION, 1, desc="返回全局载荷向量", title="外部载荷"),
-        PortConf("dirichlet_dof", DataType.FUNCTION, 1, desc="返回 Dirichlet 自由度", title="边界自由度"),
-        PortConf("penalty", DataType.FLOAT, 0, desc="乘大数法处理边界", title="乘大数法系数", default=1e20),
+        PortConf("mesh", DataType.MESH, 1, desc="包含梁单元的网格对象", title="网格")
     ]
     OUTPUT_SLOTS = [
-        PortConf("K", DataType.LINOPS, desc="含边界条件处理后的刚度矩阵", title="全局刚度矩阵",),
-        PortConf("F", DataType.TENSOR, desc="含边界条件作用的全局载荷向量",  title="载荷向量"),
+        PortConf("K", DataType.LINOPS, desc="全局刚度矩阵", title="全局刚度矩阵",)
     ]
 
     @staticmethod
