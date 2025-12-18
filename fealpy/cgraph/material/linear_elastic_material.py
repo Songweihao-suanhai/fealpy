@@ -1,98 +1,106 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BarMaterial", 
+__all__ = ["LinearElasticMaterial", 
            "AxleMaterial"]
 
  
-class BarMaterial(CNodeType):
-    r"""Material property definition for truss/bar structures.
+class LinearElasticMaterial(CNodeType):
+    r"""Linear elastic material property definition node.
     
+    Universal linear elastic material for all structural elements (bar, beam, solid, etc.).
     Supports two input modes:
-    1. Predefined case (bar25/bar942/truss_tower): Uses standard material parameters
-    2. Custom: Choose material type (property) or input custom E, nu
+    1. Predefined materials: Select from material database
+    2. Custom input: Manually input material properties
     
     Inputs:
-        bar_type (MENU): Bar structure type.
-        property (MENU): Material type (for custom bar_type).
-        E (float): Elastic modulus [Pa] (for custom property).
-        nu (float): Poisson's ratio (for custom property).
+        Inputs:
+        property (MENU): Material type selection.
+        E (FLOAT): Elastic modulus [Pa] (only effective when property='custom-input').
+        nu (FLOAT): Poisson's ratio (only effective when property='custom-input').
+        rho (FLOAT): Density [kg/m³] (only effective when property='custom-input').
 
     Outputs:
-        E (float): Elastic modulus [Pa].
-        nu (float): Poisson's ratio.
+        E (FLOAT): Elastic modulus [Pa].
+        nu (FLOAT): Poisson's ratio.
+        rho (FLOAT): Density [kg/m³].
+        mu (FLOAT): Shear modulus [Pa], calculated as mu = E / (2 * (1 + nu)).
+        lambda_ (FLOAT): Lamé's first parameter [Pa].
     """
-    TITLE: str = "杆材料属性"
+    TITLE: str = "线弹性材料"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("bar_type", DataType.MENU, 0, 
-                 desc="杆件结构类型", 
-                 title="结构类型", 
-                 default="custom",
-                 items=["bar25", "bar942", "truss_tower", "custom"]),
         PortConf("property", DataType.MENU, 0, 
-                 desc="材料材质类型 (仅custom结构类型有效)", 
-                 title="材料材质", 
-                 default="custom-input", 
-                 items=["structural-steel", "aluminum", "concrete", "titanium", "brass", "custom-input"]),
+                desc="材料类型选择", 
+                title="材料类型", 
+                default="structural-steel", 
+                items=["structural-steel", "stainless-steel", "aluminum", "aluminum-alloy", 
+                       "titanium", "titanium-alloy", "brass", "copper", "concrete", "wood", 
+                       "carbon-fiber", "fiberglass", "custom-input"]),
         PortConf("E", DataType.FLOAT, 0, 
-                 desc="弹性模量 [Pa] (仅custom材质有效)", 
-                 title="弹性模量", 
-                 default=2.0e11),
+                desc="弹性模量(仅当材料类型为'custom-input'时有效)", 
+                title="弹性模量", 
+                default=2.0e11),
         PortConf("nu", DataType.FLOAT, 0, 
-                 desc="泊松比 (仅custom材质有效)", 
-                 title="泊松比", 
-                 default=0.3)
+                desc="泊松比 (仅当材料类型为'custom-input'时有效)", 
+                title="泊松比", 
+                default=0.3),
+        PortConf("rho", DataType.FLOAT, 0, 
+                desc="密度 [kg/m³] (仅当材料类型为'custom-input'时有效)", 
+                title="密度", 
+                default=7850.0)
     ]
     
     OUTPUT_SLOTS = [
         PortConf("E", DataType.FLOAT, title="弹性模量"),
-        PortConf("nu", DataType.FLOAT, title="泊松比")
+        PortConf("nu", DataType.FLOAT, title="泊松比"),
+        PortConf("rho", DataType.FLOAT, title="密度"),
+        PortConf("mu", DataType.FLOAT, title="剪切模量"),
+        PortConf("lambda_", DataType.FLOAT, title="拉梅常数")
     ]
     
     @staticmethod
     def run(**options):
-        bar_type = options.get("bar_type")
         property_type = options.get("property")
-        E = options.get("E")
-        nu = options.get("nu")
-        
-        # 第一层：案例预设参数
-        case_presets = {
-            "bar25": {"E": 1500, "nu": 0.3},           
-            "bar942": {"E": 2.1e5, "nu": 0.3},         
-            "truss_tower": {"E": 2.0e11, "nu": 0.3}    
-        }
-        
-        if bar_type in case_presets:
-            material = case_presets[bar_type]
-            return (material["E"], material["nu"])
-        
-        # 第二层：材质数据库（用于custom结构类型）
+        # 材质数据库
         material_database = {
             # 金属材料
-            "structural-steel": {"E": 2.0e11, "nu": 0.3},
-            "stainless-steel": {"E": 1.93e11, "nu": 0.31},
-            "aluminum": {"E": 7.0e10, "nu": 0.33},
-            "aluminum-alloy": {"E": 7.2e10, "nu": 0.33},
-            "titanium": {"E": 1.1e11, "nu": 0.34},
-            "titanium-alloy": {"E": 1.14e11, "nu": 0.34},
-            "brass": {"E": 1.0e11, "nu": 0.34},
-            "copper": {"E": 1.2e11, "nu": 0.34},
+            "structural-steel": {"E": 2.0e11, "nu": 0.3, "rho": 7850.0},
+            "stainless-steel": {"E": 1.93e11, "nu": 0.31, "rho": 8000.0},
+            "aluminum": {"E": 7.0e10, "nu": 0.33, "rho": 2700.0},
+            "aluminum-alloy": {"E": 7.2e10, "nu": 0.33, "rho": 2800.0},
+            "titanium": {"E": 1.1e11, "nu": 0.34, "rho": 4500.0},
+            "titanium-alloy": {"E": 1.14e11, "nu": 0.34, "rho": 4430.0},
+            "brass": {"E": 1.0e11, "nu": 0.34, "rho": 8500.0},
+            "copper": {"E": 1.2e11, "nu": 0.34, "rho": 8960.0},
             
             # 非金属材料
-            "concrete": {"E": 3.0e10, "nu": 0.2},
-            "wood": {"E": 1.0e10, "nu": 0.35},
+            "concrete": {"E": 3.0e10, "nu": 0.2, "rho": 2400.0},
+            "wood": {"E": 1.0e10, "nu": 0.35, "rho": 600.0},
             
             # 复合材料
-            "carbon-fiber": {"E": 1.5e11, "nu": 0.3},
-            "fiberglass": {"E": 3.5e10, "nu": 0.25}
+            "carbon-fiber": {"E": 1.5e11, "nu": 0.3, "rho": 1600.0},
+            "fiberglass": {"E": 3.5e10, "nu": 0.25, "rho": 2000.0}
         }
         
         # 如果选择了预定义材质
         if property_type in material_database:
             material = material_database[property_type]
-            return (material["E"], material["nu"])
-        return E, nu
+            E = material["E"]
+            nu = material["nu"]
+            rho = material["rho"]
+        else:
+            # 使用自定义输入
+            E = options.get("E")
+            nu = options.get("nu")
+            rho = options.get("rho")
+        
+        # 计算剪切模量: mu = E / (2 * (1 + nu))
+        mu = E / (2.0 * (1.0 + nu))
+        
+        # 计算拉梅第一参数: lambda = E * nu / ((1 + nu) * (1 - 2 * nu))
+        lambda_ = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
+
+        return E, nu, rho, mu, lambda_
 
 
 class AxleMaterial(CNodeType):
