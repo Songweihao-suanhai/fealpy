@@ -18,7 +18,7 @@ class NACA4Geometry2d(CNodeType):
         PortConf("material", DataType.NONE, 1, title="材料"),
     ]
     OUTPUT_SLOTS = [
-        PortConf("geometry", DataType.LIST, title="几何数据")
+        PortConf("geometry", DataType.LIST, title="几何信息")
     ]
     
     @staticmethod
@@ -72,12 +72,12 @@ class NACA4Geometry2d(CNodeType):
         return geometry
 
 class NACA4Mesh2d(CNodeType):
-    TITLE: str = "二维 NACA 四位数翼型几何建模与网格生成"
+    TITLE: str = "二维 NACA 四位数翼型网格生成"
     PATH: str = "examples.CFD"
     DESC: str = """该节点生成二维 NACA4 系列翼型的网格剖分, 依据翼型参数自动构建翼型几何形状及
                 流道边界，为翼型流场数值模拟提供几何与网格基础。"""
     INPUT_SLOTS = [
-        PortConf("geometry", DataType.LIST, 1, title="几何数据"),
+        PortConf("geometry", DataType.LIST, 1, title="几何信息"),
         PortConf("h", DataType.FLOAT, 0, default=0.02, title="全局网格尺寸"),
         PortConf("thickness", DataType.FLOAT, 0, default=None, title="边界层厚度"),
         PortConf("ratio", DataType.FLOAT, 0, default=2.4, title="边界层增长率"),

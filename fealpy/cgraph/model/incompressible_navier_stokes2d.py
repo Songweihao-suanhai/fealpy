@@ -114,11 +114,7 @@ class IncompressibleNSMathematics(CNodeType):
         PortConf("pressure_0", DataType.FLOAT, 0, title="初始压力值", default=0.0),
     ]
     OUTPUT_SLOTS = [
-        PortConf("time_derivative", DataType.FLOAT, title="时间项系数"),
-        PortConf("convection", DataType.FLOAT, title="对流项系数"),
-        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
-        PortConf("viscosity", DataType.FLOAT, title="粘性项系数"),
-        PortConf("source", DataType.FUNCTION, title="源项"),
+        PortConf("equation", DataType.LIST, title="方程"),
         PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("u0", DataType.TENSOR, title="初始速度"),
@@ -136,6 +132,7 @@ class IncompressibleNSMathematics(CNodeType):
         convection = rho
         pressure = 1.0
         viscosity = mu
+        
         @cartesian
         def source(p, t):
             x = p[..., 0]
@@ -145,12 +142,18 @@ class IncompressibleNSMathematics(CNodeType):
             result[..., 1] = 0
             return result
         
-        # u_bd = bm.tensor(eval(velocity_boundary, None, vars(math)), dtype=bm.float64)
+        equation = [
+            {"time_derivative": time_derivative,
+             "convection": convection,
+             "pressure": pressure,
+             "viscosity": viscosity,
+             "source": source
+            }
+        ]
 
         @cartesian
         def is_velocity_boundary(p):
             return ~mesh.geo.is_outlet_boundary(p)
-            # # return None
         
         @cartesian
         def is_pressure_boundary(p=None):
@@ -158,8 +161,6 @@ class IncompressibleNSMathematics(CNodeType):
                 return 1
             else:
                 return mesh.geo.is_outlet_boundary(p) 
-                #return bm.zeros_like(p[...,0], dtype=bm.bool)
-            # return 0
             
         def is_boundary():
             is_u_boundary = is_velocity_boundary
@@ -223,6 +224,5 @@ class IncompressibleNSMathematics(CNodeType):
         u0 = uspace.interpolate(cartesian(lambda p:velocity0(p, 0)))
         p0 = pspace.interpolate(cartesian(lambda p:pressure0(p, 0)))
 
-        return (time_derivative, convection, pressure, viscosity, 
-                source, dirichlet_boundary, is_boundary, u0, p0)
+        return (equation, dirichlet_boundary, is_boundary, u0, p0)
     
