@@ -4,6 +4,7 @@ import fealpy.cgraph as cgraph
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
 material = cgraph.create("IncompressibleFluid")
+geometry = cgraph.create("NACA4Geometry2d")
 mesher = cgraph.create("NACA4Mesh2d")
 physics = cgraph.create("IncompressibleNSPhysics")
 mathmatics = cgraph.create("IncompressibleNSMathematics")
@@ -15,16 +16,24 @@ material(
     mu = 0.001,
     rho = 1.0
 )
-mesher(
+geometry(
     m = 0.0,
     p = 0.0,
     t = 0.12,
     c = 1.0,
-    alpha = 0.0,
+    alpha = 10,
     N = 100,
     box = box,
+    material = material().mp
+)
+mesher(
+    geometry = geometry().geometry,
     h = 0.05,
-    material = material().material
+    thickness = 0.005,
+    ratio = 2.4,
+    le_size = 0.016,
+    te_size = 0.016,
+    size = 0.001
 )
 physics(
     mesh = mesher().mesh,
@@ -63,7 +72,6 @@ to_vtk(mesh = mesher(),
         i = None)
 
 WORLD_GRAPH.output(path = to_vtk().path)
-# WORLD_GRAPH.output(dirichlet_boundary = mathmatics().dirichlet_boundary)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
