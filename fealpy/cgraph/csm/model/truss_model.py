@@ -10,15 +10,15 @@ class Bar25TrussModel(CNodeType):
     space truss structure. 
     
     Inputs:
-        A (float): Cross-sectional area of truss members [mm²].
-        E (float): Young's modulus [MPa].
-        nu (float): Poisson's ratio.
-        fx (float): Load in x-direction at top nodes (Z=5080) [N].
-        fy (float): Load in y-direction at top nodes (Z=5080) [N].
-        fz (float): Load in z-direction at top nodes (Z=5080) [N].
+        A (FLOAT): Cross-sectional area of truss members [mm²].
+        E (FLOAT): Young's modulus [MPa].
+        nu (FLOAT): Poisson's ratio.
+        fx (FLOAT): Load in x-direction at top nodes (Z=5080) [N].
+        fy (FLOAT): Load in y-direction at top nodes (Z=5080) [N].
+        fz (FLOAT): Load in z-direction at top nodes (Z=5080) [N].
         
     Outputs:
-        mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
+        mesh (MESH): Edge mesh with nodedata and celldata containing physical properties.
     """
     TITLE: str = "25杆桁架模型"
     PATH: str = "examples.CSM"
@@ -111,24 +111,24 @@ class Bar942TrussModel(CNodeType):
     - Constraints stored in mesh.nodedata
     
     Inputs:
-        d1 (float): Half-width of first layer.
-        d2 (float): Width of second layer.
-        d3 (float): Width of third layer.
-        d4 (float): Width of fourth layer.
-        r2 (float): Radius of second layer.
-        r3 (float): Radius of third layer.
-        r4 (float): Radius of fourth layer.
-        l3 (float): Height of third segment.
-        l2 (float): Height of second segment, default l3+29260.
-        l1 (float): Height of first segment, default l2+21950.
-        A (float): Cross-sectional area of truss members [mm²], default 4.0.
-        E (float): Young's modulus [MPa], default 2.1e5.
-        fx (float): Load in x-direction at top nodes [N], default 0.0.
-        fy (float): Load in y-direction at top nodes [N], default 400.0.
-        fz (float): Load in z-direction at top nodes [N], default -100.0.
-        
+        d1 (FLOAT): Half-width of first layer.
+        d2 (FLOAT): Width of second layer.
+        d3 (FLOAT): Width of third layer.
+        d4 (FLOAT): Width of fourth layer.
+        r2 (FLOAT): Radius of second layer.
+        r3 (FLOAT): Radius of third layer.
+        r4 (FLOAT): Radius of fourth layer.
+        l3 (FLOAT): Height of third segment.
+        l2 (FLOAT): Height of second segment, default l3+29260.
+        l1 (FLOAT): Height of first segment, default l2+21950.
+        A (FLOAT): Cross-sectional area of truss members [mm²], default 4.0.
+        E (FLOAT): Young's modulus [MPa], default 2.1e5.
+        fx (FLOAT): Load in x-direction at top nodes [N], default 0.0.
+        fy (FLOAT): Load in y-direction at top nodes [N], default 400.0.
+        fz (FLOAT): Load in z-direction at top nodes [N], default -100.0.
+
     Outputs:
-        mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
+        mesh (MESH): Edge mesh with nodedata and celldata containing physical properties.
     """
     TITLE: str = "942杆桁架模型"
     PATH: str = "examples.CSM"
@@ -213,24 +213,24 @@ class TrussTowerModel(CNodeType):
     r"""Truss tower mesh generator with complete physical properties.
     
     Inputs:
-       n_panel (int): Number of panels along the z-direction (≥1).
-        Lz (float): Total height of the truss tower in z-direction [m].
-        Wx (float): Half-width of rectangular cross-section in x-direction [m].
-        Wy (float): Half-width of rectangular cross-section in y-direction [m].
-        lc (float): Characteristic geometric length for mesh size control [m].
-        ne_per_bar (int): Number of elements per bar along length (≥1).
-        face_diag (bool): Whether to add in-plane diagonal bracing on four faces.
-        vertical_D_outer (float): Outer diameter of vertical bars [mm], default 15.0.
-        vertical_D_inner (float): Inner diameter of vertical bars [mm], default 10.0.
-        other_D_outer (float): Outer diameter of other bars [mm], default 10.0.
-        other_D_inner (float): Inner diameter of other bars [mm], default 7.0.
-        E (float): Young's modulus [Pa], default 2.0e11.
-        nu (float): Poisson's ratio, default 0.3.
-        load_case (menu): Load case: 1-vertical load at top, 2-quarter unit load at each top node, default 1.
-        load_value (float): Load magnitude [N], default 1.0.
-        
+       n_panel (INT): Number of panels along the z-direction (≥1).
+        Lz (FLOAT): Total height of the truss tower in z-direction [m].
+        Wx (FLOAT): Half-width of rectangular cross-section in x-direction [m].
+        Wy (FLOAT): Half-width of rectangular cross-section in y-direction [m].
+        lc (FLOAT): Characteristic geometric length for mesh size control [m].
+        ne_per_bar (INT): Number of elements per bar along length (≥1).
+        face_diag (BOOL): Whether to add in-plane diagonal bracing on four faces.
+        vertical_D_outer (FLOAT): Outer diameter of vertical bars [mm], default 15.0.
+        vertical_D_inner (FLOAT): Inner diameter of vertical bars [mm], default 10.0.
+        other_D_outer (FLOAT): Outer diameter of other bars [mm], default 10.0.
+        other_D_inner (FLOAT): Inner diameter of other bars [mm], default 7.0.
+        E (FLOAT): Young's modulus [Pa], default 2.0e11.
+        nu (FLOAT): Poisson's ratio, default 0.3.
+        load_case (MENU): Load case: 1-vertical load at top, 2-quarter unit load at each top node, default 1.
+        load_value (FLOAT): Load magnitude [N], default 1.0.
+
     Outputs:
-        mesh (EdgeMesh): Edge mesh with nodedata and celldata containing physical properties.
+        mesh (MESH): Edge mesh with nodedata and celldata containing physical properties.
     """
     TITLE: str = "桁架塔模型"
     PATH: str = "examples.CSM"

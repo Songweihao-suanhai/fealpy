@@ -1,69 +1,7 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ['AssembleBarStiffness',
-           'BoundaryCondition']
+__all__ = ['BoundaryCondition']
 
-
-class AssembleBarStiffness(CNodeType):
-    """Assemble global stiffness matrix for bar/truss elements.
-    
-    Inputs:
-        mesh (EdgeMesh): Mesh object containing bar elements with celldata['A'] and celldata['E'].
-        
-    Outputs:
-        K (sparse matrix): Global stiffness matrix in CSR format (GD*NN, GD*NN).
-    
-    Note:
-        mesh.celldata['A']: Cross-sectional area of each bar element.
-        mesh.celldata['E']: Young's modulus of each bar element.
-    """
-        
-    TITLE: str = "杆单元刚度矩阵组装"
-    PATH: str = "simulation.discretization"
-    INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, 1, 
-                 desc="包含杆单元的网格对象", 
-                 title="网格")
-    ]
-    
-    OUTPUT_SLOTS = [
-        PortConf("K", DataType.LINOPS, 
-                 desc="全局刚度矩阵 (稀疏CSR格式)", 
-                 title="刚度矩阵")
-    ]
-
-    @staticmethod
-    def run(**options):
-        from fealpy.backend import backend_manager as bm
-        from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
-        from fealpy.fem import BilinearForm
-        from fealpy.csm.fem.bar_integrator import BarIntegrator
-        
-        mesh = options.get("mesh")
-        # 简单的 PDE 模型类
-        class SimpleBarModel:
-            def __init__(self):
-                self.GD = 3
-                self.A = mesh.celldata['A']
-        
-        # 简单的材料类（只存储 E）
-        class SimpleMaterial:
-            def __init__(self):
-                self.E = mesh.celldata['E']
-        
-        
-        # 创建模型和材料对象
-        model = SimpleBarModel()
-        material = SimpleMaterial()
-        
-        space = LagrangeFESpace(mesh, p=1)
-        tspace = TensorFunctionSpace(space, shape=(-1, 3))
-        
-        bform = BilinearForm(tspace)
-        integrator = BarIntegrator(space=tspace, model=model, material=material)
-        bform.add_integrator(integrator)
-        K = bform.assembly()
-        return K
 
 class BoundaryCondition(CNodeType):
     r"""Apply Dirichlet boundary conditions using different methods.
@@ -73,22 +11,22 @@ class BoundaryCondition(CNodeType):
     2. Penalty Method: Multiplies diagonal terms by large penalty factor
     
     Inputs:
-        mesh (EdgeMesh): Mesh object containing bar elements.
-        K (linops): Global stiffness matrix in CSR format.
-        method (str): Boundary condition method ("direct" or "penalty").
-        penalty (float, optional): Penalty factor for penalty method (default: 1e12).
+        mesh (MESH): Mesh object containing bar elements.
+        K (LINOPS): Global stiffness matrix in CSR format.
+        method (STRING): Boundary condition method ("direct" or "penalty").
+        penalty (FLOAT): Penalty factor for penalty method (default: 1e12).
         
     Outputs:
-        K_bc (linops): Modified stiffness matrix with boundary conditions applied.
-        F_bc (tensor): Modified load vector with boundary conditions applied.
-    
+        K_bc (LINOPS): Modified stiffness matrix with boundary conditions applied.
+        F_bc (TENSOR): Modified load vector with boundary conditions applied.
+
     Note:
         - mesh.nodedata['load']: Applied loads at nodes (NN, 3).
         - mesh.nodedata['constraint']: Constraint flags (NN, 4), format [node_idx, flag_x, flag_y, flag_z].
         - Direct method maintains better numerical conditioning than Penalty method.
         - Constrained DOF displacements are set to 0 (can be extended for non-zero prescribed values).
     """
-    TITLE: str = "边界条件处理"
+    TITLE: str = "杆梁单元边界条件处理"
     PATH: str = "simulation.boundary"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, 

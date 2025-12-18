@@ -5,7 +5,7 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 
 mesher = cgraph.create("Bar25TrussModel")
 spacer = cgraph.create("FunctionSpace")
-assembly = cgraph.create("AssembleBarStiffness")
+assembly = cgraph.create("BarStiffnessAssembly")
 boundary = cgraph.create("BoundaryCondition")
 solver = cgraph.create("DirectSolver")
 postprocess = cgraph.create("UDecoupling")

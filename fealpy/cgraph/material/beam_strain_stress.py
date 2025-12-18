@@ -139,23 +139,12 @@ class TimoAxleStrainStress(CNodeType):
             axle_indices (TENSOR): Indices of axle elements.
 
         Outputs:
-            beam_strain (TENSOR): Strain of the beam elements.
-            beam_stress (TENSOR): Stress of the beam elements.
-            axle_strain (TENSOR): Strain of the axle elements.
-            axle_stress (TENSOR): Stress of the axle elements.
             strain (TENSOR): Strain of the bar elements.
             stress (TENSOR): Stress of the bar elements.
-
     """
-    TITLE: str = "列车车轴应变-应力计算"
+    TITLE: str = "梁单元应变-应力计算"
     PATH: str = "material.solid"
     INPUT_SLOTS = [
-        PortConf("beam_para", DataType.TENSOR, 1, desc="梁结构参数数组，每行为 [直径, 长度, 数量]", title="梁段参数"),
-        PortConf("axle_para", DataType.TENSOR, 1, desc="轴结构参数数组，每行为 [直径, 长度, 数量]", title="轴段参数"),
-        PortConf("beam_E", DataType.FLOAT, 1, desc="梁段的弹性模量", title="梁的弹性模量"),
-        PortConf("beam_nu", DataType.FLOAT, 1, desc="梁段的泊松比", title="梁的泊松比"),
-        PortConf("axle_E", DataType.FLOAT, 1, desc="轴段的弹性模量", title="弹簧的弹性模量"),
-        PortConf("axle_nu", DataType.FLOAT, 1, desc="轴段的泊松比", title="弹簧的泊松比"),
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
         PortConf("uh", DataType.TENSOR, 1, desc="未经后处理的位移向量", title="位移向量"),
         PortConf("y", DataType.FLOAT, 0, desc="截面局部 Y 坐标", title="Y坐标", default=0.0),
@@ -168,10 +157,6 @@ class TimoAxleStrainStress(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("beam_strain", DataType.TENSOR, title="梁应变"),
-        PortConf("beam_stress", DataType.TENSOR, title="梁应力"),
-        PortConf("axle_strain", DataType.TENSOR, title="轴应变"),
-        PortConf("axle_stress", DataType.TENSOR, title="轴应力"),
         PortConf("strain", DataType.TENSOR, title="应变"),
         PortConf("stress", DataType.TENSOR, title="应力")
     ]
@@ -238,6 +223,4 @@ class TimoAxleStrainStress(CNodeType):
         strain[axle_indices] = axle_strain
         stress[axle_indices] = axle_stress
         
-        return (beam_strain, beam_stress,
-                axle_strain, axle_stress, 
-                strain, stress, )
+        return strain, stress
