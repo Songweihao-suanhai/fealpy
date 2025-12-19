@@ -123,7 +123,6 @@ class IncompressibleNSMathematics(CNodeType):
     def run(u, p, velocity_boundary, pressure_boundary, velocity_0, pressure_0):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import cartesian
-        import math
         mesh = u.space.mesh
         mu = mesh.mu
         rho = mesh.rho
