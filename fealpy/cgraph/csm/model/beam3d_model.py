@@ -238,107 +238,84 @@ class TimoshenkoBeamAxleModel(CNodeType):
         
         k_spring = axle_para[0, 0]  # 弹簧刚度
         spring_z = axle_para[0, 1]  # Z向偏移
-        n_springs = int(axle_para[0, 2])  # 弹簧数量
         
         # === 生成梁节点坐标 ===
         cumulative_length = bm.concatenate([bm.array([0.0]), bm.cumsum(beam_para[:, 1])])
         
-        node_list = []
-        for i in range(len(beam_para)):
-            seg = int(beam_para[i, 2])
-            length = beam_para[i, 1]
-            start_len = cumulative_length[i]
+        node_coords = []
+        for i, (diameter, length, n_seg) in enumerate(beam_para):
+            n_seg = int(n_seg)
+            start_x = cumulative_length[i]
+            end_x = cumulative_length[i + 1]
             
-            if i == 0:
-                x_coords = bm.linspace(start_len, start_len + length, seg + 1)
-            else:
-                # 其他段不包含起点（已被前一段的终点覆盖）
-                x_coords = bm.linspace(start_len, start_len + length, seg + 1)[1:]
-            node_list.append(x_coords)
+            # 第一段包含起点,其余段不包含(避免重复)
+            n_nodes = n_seg + 1 if i == 0 else n_seg
+            x_coords = bm.linspace(start_x, end_x, n_seg + 1)
+            if i > 0:
+                x_coords = x_coords[1:]  # 去掉起点
+            node_coords.extend(x_coords)
             
-            x_coords = bm.concatenate(node_list)
-            n_beam_nodes = len(x_coords)
-            base_nodes = bm.stack([x_coords, 
-                    bm.zeros(n_beam_nodes, dtype=bm.float64),
-                    bm.zeros(n_beam_nodes, dtype=bm.float64)], axis=1)
+        n_beam_nodes = len(node_coords)
+        beam_nodes = bm.zeros((n_beam_nodes, 3), dtype=bm.float64)
+        beam_nodes[:, 0] = bm.array(node_coords)
         
         # === 弹簧支座节点 ===   
         spring_node_indices = bm.concatenate([bm.arange(4, 9), bm.arange(14, 19)])
-        spring_nodes = base_nodes[spring_node_indices].copy()
-        spring_nodes[:, 2] -= spring_z  # Z 方向偏移
-        
-        node = bm.concatenate([base_nodes, spring_nodes], axis=0)
+        spring_nodes = beam_nodes[spring_node_indices].copy()
+        spring_nodes[:, 2] -= spring_z
+
+        node = bm.concatenate([beam_nodes, spring_nodes], axis=0)
         NN = len(node)
         
-        # 梁单元连接关系
+        # 梁单元
         n_beam_cells = n_beam_nodes - 1
         beam_cells = bm.stack([bm.arange(n_beam_cells), 
                             bm.arange(1, n_beam_cells + 1)], axis=1)
         
-        # 梁单元直径
-        beam_diameters = bm.repeat(beam_para[:, 0], beam_para[:, 2].astype(bm.int32))
-        
-        spring_start_idx = n_beam_nodes
+        # 弹簧单元
         spring_cells = bm.stack([spring_node_indices,
-                                bm.arange(spring_start_idx, spring_start_idx + len(spring_node_indices))],
-                                axis=1)
+                             bm.arange(n_beam_nodes, n_beam_nodes + len(spring_node_indices))],
+                            axis=1)
         
         # 合并所有单元
         cell = bm.concatenate([beam_cells, spring_cells], axis=0)
         NC = len(cell)
+        n_spring_cells = len(spring_cells)
         
+        # === 设置单元属性 ===
         # 单元类型: 0=beam, 1=spring
         cell_types = bm.concatenate([
-            bm.zeros(n_beam_cells, dtype=bm.int32),  # beam
-            bm.ones(len(spring_node_indices), dtype=bm.int32)  # spring
+            bm.zeros(n_beam_cells, dtype=bm.int32),
+            bm.ones(n_spring_cells, dtype=bm.int32)
         ])
         
-        cell_diameters = bm.concatenate([
-            beam_diameters,
-            bm.zeros(len(spring_node_indices), dtype=bm.float64)
-        ])
+        # 梁单元直径(根据beam_para重复)
+        beam_diameters = bm.repeat(beam_para[:, 0], 
+                                beam_para[:, 2].astype(bm.int32))
         
-        cell_E = bm.concatenate([
-            bm.full(n_beam_cells, E, dtype=bm.float64),
-            bm.zeros(len(spring_node_indices), dtype=bm.float64)
-        ])
-        
-        cell_G = bm.concatenate([
-            bm.full(n_beam_cells, G, dtype=bm.float64),
-            bm.zeros(len(spring_node_indices), dtype=bm.float64)
-        ])
-        
-        cell_k_spring = bm.concatenate([
-            bm.zeros(n_beam_cells, dtype=bm.float64),
-            bm.full(len(spring_node_indices), k_spring, dtype=bm.float64)
-        ])
+        # 为所有单元设置属性(弹簧单元用0填充)
+        is_beam = cell_types == 0
+        D = bm.concatenate([beam_diameters, 
+                            bm.zeros(n_spring_cells, dtype=bm.float64)])
         
         mesh = EdgeMesh(node, cell)
         
+        # === 存储单元数据 ===
         mesh.celldata['type'] = cell_types
-        mesh.celldata['D'] = cell_diameters
-        mesh.celldata['E'] = cell_E
-        mesh.celldata['G'] = cell_G
-        mesh.celldata['k_spring'] = cell_k_spring
+        mesh.celldata['D'] = D
+        mesh.celldata['E'] = bm.where(is_beam, E, 0.0)
+        mesh.celldata['G'] = bm.where(is_beam, G, 0.0)
+        mesh.celldata['k_spring'] = bm.where(is_beam, 0.0, k_spring)
         mesh.celldata['shear_factor'] = bm.full(NC, shear_factor, dtype=bm.float64)
         
         # 计算梁截面属性
-        is_beam = cell_types == 0
-        D = cell_diameters
-        
         Ax = bm.where(is_beam, bm.pi * D**2 / 4, 0.0)
-        Ay = bm.where(is_beam, Ax / shear_factor, 0.0)
-        Az = bm.where(is_beam, Ax / shear_factor, 0.0)
-        Iy = bm.where(is_beam, bm.pi * D**4 / 64, 0.0)
-        Iz = Iy
-        J = Iy + Iz
-        
         mesh.celldata['Ax'] = Ax
-        mesh.celldata['Ay'] = Ay
-        mesh.celldata['Az'] = Az
-        mesh.celldata['J'] = J
-        mesh.celldata['Iy'] = Iy
-        mesh.celldata['Iz'] = Iz
+        mesh.celldata['Ay'] = bm.where(is_beam, Ax / shear_factor, 0.0)
+        mesh.celldata['Az'] = bm.where(is_beam, Ax / shear_factor, 0.0)
+        mesh.celldata['Iy'] = bm.where(is_beam, bm.pi * D**4 / 64, 0.0)
+        mesh.celldata['Iz'] = mesh.celldata['Iy']
+        mesh.celldata['J'] = 2 * mesh.celldata['Iy']  # 圆形截面: J = Iy + Iz = 2*Iy
         
         # === 设置载荷 ===
         F_vertical = options.get("F_vertical")
@@ -352,11 +329,11 @@ class TimoshenkoBeamAxleModel(CNodeType):
         load[11, 3] = M_torque
         mesh.nodedata['load'] = load
         
-        # === 设置约束 ===
+         # === 设置约束 ===
         constraint = bm.zeros((NN, 7), dtype=bm.float64)
-        constraint[:, 0] = bm.arange(NN, dtype=bm.float64)
-        constrained_nodes = bm.arange(spring_start_idx, NN, dtype=bm.int32)
-        constraint[constrained_nodes, 1:7] = 1.0
+        constraint[:, 0] = bm.arange(NN, dtype=bm.float64)  # 节点编号
+        # 弹簧支座节点全约束
+        constraint[n_beam_nodes:, 1:7] = 1.0
         mesh.nodedata['constraint'] = constraint
 
         return mesh
