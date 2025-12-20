@@ -115,7 +115,7 @@ class IncompressibleNSFEMModel(CNodeType):
         uh (tensor): Numerical velocity field at the current time step.
         ph (tensor): Numerical pressure field at the current time step.
     """
-    TITLE: str = "不可压缩 NS 计算模型"
+    TITLE: str = "不可压缩 NS 有限元计算模型"
     PATH: str = "simulation.solvers"
     DESC: str  = """该节点实现非稳态不可压 Navier-Stokes 方程的 IPCS 分步算法求解器，按时间步推进依次完成速度预测、
                 压力修正与速度校正，并输出速度与压力场的时序数值结果。"""
@@ -165,8 +165,11 @@ class IncompressibleNSFEMModel(CNodeType):
                 dirichlet_boundary = self.dirichlet_boundary
                 is_boundary = self.is_boundary
                 q = self.q
-                from fealpy.cgraph.cfd.fem import fem_ipcs
-                return fem_ipcs(uspace, pspace, dirichlet_boundary, is_boundary, q, apply_bc=apply_bc)
+                from fealpy.cgraph.cfd.fem import IncompressibleNS
+                model = IncompressibleNS()
+                model.method.set("IPCS")
+                method = model.method
+                return method(uspace, pspace, dirichlet_boundary, is_boundary, q, apply_bc)
 
             def run(self):
                 if self.method_name == "IPCS":

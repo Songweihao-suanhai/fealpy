@@ -85,14 +85,8 @@ class CHNSMathmatics(CNodeType):
         PortConf("p", DataType.TENSOR, title="压力")
     ]
     OUTPUT_SLOTS = [
-        PortConf("mobility", DataType.FLOAT, title="迁移率"),
-        PortConf("interface", DataType.FLOAT, title="界面参数"),
-        PortConf("free_energy", DataType.FLOAT, title="自由能参数"),
-        PortConf("time_derivative", DataType.FUNCTION, title="NS时间项系数"),
-        PortConf("convection", DataType.FUNCTION, title="对流项系数"),
-        PortConf("pressure", DataType.FLOAT, title="压力项系数"),
-        PortConf("viscosity", DataType.NONE, title="粘性项系数"),
-        PortConf("source", DataType.FUNCTION, title="源项函数"),
+        PortConf("equation", DataType.LIST, title="方程"),
+        PortConf("boundary_condition", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("phi0", DataType.TENSOR, title="初始相场1"),
         PortConf("phi1", DataType.TENSOR, title="初始相场2"),
@@ -133,6 +127,17 @@ class CHNSMathmatics(CNodeType):
             return body_force
         source = body_force
 
+        equation = [{
+            "mobility": mobility,
+            "interface": interface,
+            "free_energy": free_energy,
+            "time_derivative": time_derivative,
+            "convection": convection,
+            "pressure": pressure,
+            "viscosity": viscosity,
+            "source": source
+        }]
+
         @cartesian
         def init_interface(p):
             '''
@@ -159,6 +164,9 @@ class CHNSMathmatics(CNodeType):
             result = bm.zeros_like(p[..., 0], dtype=bm.float64)
             return result
         
+        def boundary_condition():
+            return velocity_dirichlet, pressure_dirichlet
+        
         @cartesian
         def is_ux_boundary(p):
             tag_up = mesh.is_up_boundary(p)
@@ -183,8 +191,7 @@ class CHNSMathmatics(CNodeType):
         u1 = uspace.function()
         p0 = pspace.function()
         
-        return (mobility, interface, free_energy, time_derivative, convection, pressure, 
-                viscosity, source, is_boundary, phi0, phi1, u0, u1, p0)
+        return (equation, boundary_condition, is_boundary, phi0, phi1, u0, u1, p0)
     
 
 

@@ -4,7 +4,7 @@ from ..nodetype import CNodeType, PortConf, DataType
 __all__ = ['RTIMaterial', 'IncompressibleFluid']
 
 class RTIMaterial(CNodeType):
-    TITLE: str = "RTI 现象流体物理属性"
+    TITLE: str = "RTI 现象流体材料属性"
     PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("rho_up", DataType.FLOAT, 0, title="上层流体密度", default=3.0),

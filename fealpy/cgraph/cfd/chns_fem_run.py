@@ -1,44 +1,12 @@
 
 from ..nodetype import CNodeType, PortConf, DataType
 
-class CHNSFEMRun(CNodeType):
-    r"""Finite Element Solver for the Coupled Cahn–Hilliard–Navier–Stokes (CHNS) Equations.
+__all__ = ["CHNSFEMModel"]
 
-    This node implements a time-dependent finite element solver for the two-phase incompressible flow
-    described by the **Cahn–Hilliard–Navier–Stokes (CHNS)** equations. The CHNS model captures 
-    interface dynamics between immiscible fluids using a phase-field formulation coupled with
-    Navier–Stokes equations.
-
-    The solver advances the system in time using a given time step (`dt`) and total number of steps (`nt`).
-    It alternates between solving:
-        - **Cahn–Hilliard (CH)** equation: updates the phase field (`phi`) and chemical potential (`mu`);
-        - **Navier–Stokes (NS)** equation: updates the velocity (`u`) and pressure (`p`) fields,
-          with the local density `rho(phi)` determined by the phase field.
-
-    Inputs:
-        dt (float): Time step size.
-        nt (int): Number of time steps.
-        rho_up (float): Density of the upper fluid.
-        rho_down (float): Density of the lower fluid.
-        Fr (float): Froude number (controls gravitational effects).
-        ns_update (function): Function that assembles the Navier–Stokes system.
-        ch_update (function): Function that assembles the Cahn–Hilliard system.
-        phispace (SpaceType): Finite element function space for the phase field.
-        uspace (SpaceType): Function space for the velocity field.
-        pspace (SpaceType): Function space for the pressure field.
-        is_ux_boundary (function): Predicate for x-velocity component boundary.
-        is_uy_boundary (function): Predicate for y-velocity component boundary.
-        init_interface (function): Initial phase-field (interface) function.
-        mesh (MeshType): Finite element mesh.
-
-    Outputs:
-        u (Function): Velocity vector field at the final time.
-        ux (Function): x-component of velocity field.
-        uy (Function): y-component of velocity field.
-        p (Function): Pressure field.
-        phi (Function): Phase-field function.
+class CHNSFEMModel(CNodeType):
+    r"""Cahn–Hilliard–Navier–Stokes (CHNS) Equation Finite Element Solver.
     """
-    TITLE: str = " CHNS 方程计算模型"
+    TITLE: str = " CHNS 方程有限元计算模型"
     PATH: str = "simulation.solvers"
     DESC: str = """该节点实现了两相不可压流体的 Cahn–Hilliard–Navier–Stokes (CHNS)simulation.discretization"
                 器。CHNS 模型结合了相场法与流体力学方程，用以描述两种不可混溶流体的界面演化与流动耦合过程。
@@ -71,22 +39,18 @@ class CHNSFEMRun(CNodeType):
     INPUT_SLOTS = [
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("i", DataType.INT, title="当前时间步"),
-        PortConf("mobility", DataType.FLOAT, title="迁移率"),
-        PortConf("interface", DataType.FLOAT, title="界面参数"),
-        PortConf("free_energy", DataType.FLOAT, title="自由能参数"),
-        PortConf("time_derivative", DataType.FUNCTION, title="时间项系数"),
-        PortConf("convection", DataType.FUNCTION, title="对流项系数"),
-        PortConf("pressure", DataType.FUNCTION, title="压力项系数"),
-        PortConf("viscosity", DataType.FUNCTION, title="粘性项系数"),
-        PortConf("source", DataType.FUNCTION, title="源项"),
+        PortConf("equation", DataType.LIST, 1, title="方程"),
+        PortConf("boundary_condition", DataType.FUNCTION, title="边界条件"),
+        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
+        PortConf("apply_bc", DataType.FUNCTION, title="边界处理函数", default=None),
+        PortConf("ns_q", DataType.INT, 0, default = 3, min_val=3, title="NS积分精度"),
+        PortConf("ch_q", DataType.INT, 0, default = 5, min_val=5, title="CH积分精度"),
+        PortConf("s", DataType.FLOAT, 0, title="稳定参数", default=1.0),
         PortConf("phi0", DataType.TENSOR, title="上上时间步相场"),
         PortConf("phi1", DataType.TENSOR, title="上一时间步相场"),
         PortConf("u0", DataType.TENSOR, title="上上时间步速度"),
         PortConf("u1", DataType.TENSOR, title="上一时间步速度"),
         PortConf("p0", DataType.TENSOR, title="上一时间步压力"),
-        PortConf("ns_update", DataType.FUNCTION, title="NS 更新函数"),
-        PortConf("ch_update", DataType.FUNCTION, title="CH 更新函数"),
-        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
     ]
     OUTPUT_SLOTS = [
         PortConf("phi0", DataType.TENSOR, title="上一时间步相场"),
@@ -97,74 +61,107 @@ class CHNSFEMRun(CNodeType):
         PortConf("rho", DataType.TENSOR, title="密度"),
     ]
     @staticmethod
-    def run(dt, i, mobility, interface, free_energy, time_derivative, convection, 
-            pressure, viscosity, source, phi0, phi1, u0, u1, p0,
-            ns_update, ch_update, is_boundary):
+    def run(dt, i, equation, boundary_condition, is_boundary, apply_bc, ns_q, ch_q, s, phi0, phi1, u0, u1, p0):
         from fealpy.backend import backend_manager as bm
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
+        from fealpy.decorator import variantmethod
 
         bm.set_backend('pytorch')
         bm.set_default_device('cpu')
 
-        phispace = phi0.space
-        uspace = u0.space
-        pspace = p0.space
-        p1 = p0
-        phigdof = phispace.number_of_global_dofs()
-        ugdof = uspace.number_of_global_dofs()
-        pgdof = pspace.number_of_global_dofs()
-        mu1 = phispace.function()
-        t = (i + 1) * dt
+        equation = equation[0]
+        mobility = equation["mobility"]
+        interface = equation["interface"]
+        free_energy = equation["free_energy"]
+        time_derivative = equation["time_derivative"]
+        convection = equation["convection"]
+        pressure = equation["pressure"]
+        viscosity = equation["viscosity"]   
+        source = equation["source"]
 
-        # node = mesh.entity_barycenter('node')
-        # tol = 1e-14
-        # left_bd = bm.where(bm.abs(node[:, 0]) < tol)[0]
-        # right_bd = bm.where(bm.abs(node[:, 0]-1.0) < tol)[0]
-        
-        ch_A, ch_b = ch_update(u0, u1, phi0, phi1, dt, 
+        class CHNSFEM:
+            def __init__(self):
+                self.phispace = phi0.space
+                self.uspace = u0.space
+                self.pspace = p0.space
+                self.boundary_condition = boundary_condition
+                self.is_boundary = is_boundary
+                self.ns_q = ns_q
+                self.ch_q = ch_q
+                self.s = s
+
+            @variantmethod("ch_fem")
+            def ch_method(self):
+                self.ch_method_name = "ch_fem"
+                from fealpy.cgraph.cfd.fem import CahnHilliard
+                return CahnHilliard.method(self.phispace, self.ch_q, self.s)
+
+            @variantmethod("ns_bdf2")
+            def ns_method(self):
+                self.ns_method_name = "BDF2"
+                uspace = self.uspace
+                pspace = self.pspace
+                boundary_condition = self.boundary_condition
+                is_boundary = self.is_boundary
+                q = self.ns_q
+                from fealpy.cgraph.cfd.fem import IncompressibleNS
+                method = IncompressibleNS.method[self.ns_method_name]
+                return method(uspace, pspace, boundary_condition, is_boundary, q)
+
+            def run(self):
+                phispace = self.phispace
+                uspace = self.uspace
+                pspace = self.pspace
+                ch_update = self.ch_method()
+                ns_update = self.ns_method()
+                phigdof = phispace.number_of_global_dofs()
+                ugdof = uspace.number_of_global_dofs()
+                pgdof = pspace.number_of_global_dofs()
+                mu1 = phispace.function()
+                p1 = p0
+                t = (i + 1) * dt
+
+                ch_A, ch_b = ch_update(u0, u1, phi0, phi1, dt, 
                                mobility, interface, free_energy)
-        ch_A = ch_A.assembly()
-        ch_b = ch_b.assembly()
-        ch_x = spsolve(ch_A, ch_b, 'mumps')
+                ch_x = spsolve(ch_A, ch_b, 'mumps')
 
-        phi2 = ch_x[:phigdof]
-        mu2 = ch_x[phigdof:]  
+                phi2 = ch_x[:phigdof]
+                mu2 = ch_x[phigdof:]  
+                
+                # 更新NS方程参数
+                rho = time_derivative(phi1)
+                ctd = time_derivative(phi1)
+                cc = convection(phi1)
+                body_force = source(phi1)
+
+                if apply_bc is None:
+                    (is_ux_boundary, is_uy_boundary) = is_boundary
+                    is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
+                    is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
+                    gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
+                    BC = DirichletBC((uspace, pspace), gd=gd, threshold=is_bd, method='interp')
+                    ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = ctd, cc = cc,
+                                        pc = pressure, cv = viscosity, 
+                                        cbf = body_force, apply_bc = BC.apply)
+                else:
+                    ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = ctd, cc = cc,
+                                        pc = pressure, cv = viscosity, 
+                                        cbf = body_force, apply_bc = apply_bc)
+                    
+                ns_x = spsolve(ns_A, ns_b, 'mumps')
+                
+                u0[:] = u1[:]
+                u1[:] = ns_x[:ugdof]
+                p1[:] = ns_x[ugdof:]
+                    
+                phi0[:] = phi1[:]
+                phi1[:] = phi2[:]
+                mu1[:] = mu2[:]
+
+                return phi0, phi1, u0, u1, p1, rho
         
-        # 更新NS方程参数
-        rho = time_derivative(phi1)
-        ctd = time_derivative(phi1)
-        cc = convection(phi1)
-        body_force = source(phi1)
-        ns_A, ns_b = ns_update(u0, u1, dt, phi1, ctd = ctd, cc = cc,
-                               pc = pressure, cv = viscosity, 
-                               cbf = body_force, apply_bc = False)
-        (is_ux_boundary, is_uy_boundary) = is_boundary
-        is_bd = uspace.is_boundary_dof((is_ux_boundary, is_uy_boundary), method='interp')
-        is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
-        gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
-        BC = DirichletBC((uspace, pspace), gd=gd, threshold=is_bd, method='interp')
-        ns_A, ns_b = BC.apply(ns_A, ns_b)
-        ns_x = spsolve(ns_A, ns_b, 'mumps')
-        
-        u0[:] = u1[:]
-        u1[:] = ns_x[:ugdof]
-        p1[:] = ns_x[ugdof:]
-            
-        phi0[:] = phi1[:]
-        phi1[:] = phi2[:]
-        mu1[:] = mu2[:]
-
-        # phi2_lbdval = phi2[left_bd]
-        # mask = bm.abs(phi2_lbdval) < 0.5
-        # index = left_bd[mask]
-        # left_point = node[index, :]
-        # print("界面与左边界交点:", left_point)
-
-        # phi2_rbdval = phi2[right_bd]
-        # mask = bm.abs(phi2_rbdval) < 0.5
-        # index = right_bd[mask]
-        # right_point = node[index, :]
-        # print("界面与右边界交点:", right_point)
+        model = CHNSFEM()
+        phi0, phi1, u0, u1, p1, rho = model.run()
 
         return phi0, phi1, u0, u1, p1, rho
