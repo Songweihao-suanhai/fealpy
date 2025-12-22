@@ -3,10 +3,10 @@ from ..nodetype import CNodeType, PortConf, DataType
 __all__ = ['RTIMesher2d']
 
 class RTIMesher2d(CNodeType):
-    TITLE: str = "二维 RTI 问题几何建模与网格生成"
+    TITLE: str = "二维 RTI 问题网格建模"
     PATH: str = "examples.CFD"
     INPUT_SLOTS= [
-        PortConf("material", DataType.LIST, title="物理属性"),
+        PortConf("material", DataType.LIST, title="材料属性"),
         PortConf("box", DataType.TEXT, 0, title="求解域"),
         PortConf("nx", DataType.INT, 0, default=64, title="x方向单元数"),
         PortConf("ny", DataType.INT, 0, default=256, title="y方向单元数"),
@@ -23,7 +23,6 @@ class RTIMesher2d(CNodeType):
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
         mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
         mesh.box = box
-        material = material[0]
         NN = mesh.number_of_nodes()
         eps = 1e-10
 
@@ -52,9 +51,12 @@ class RTIMesher2d(CNodeType):
         mesh.is_left_boundary = is_left_boundary
         mesh.is_right_boundary = is_right_boundary
 
-        for k, value in material.items():
-            setattr(mesh, k, value)
-            if value is float:
-                mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
+        if material is not None:
+
+            material = material[0]
+            for k, value in material.items():
+                setattr(mesh, k, value)
+                if value is float:
+                    mesh.nodedata[k] = material[k] * bm.ones((NN, ), dtype=bm.float64)
 
         return mesh
