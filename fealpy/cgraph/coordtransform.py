@@ -2,11 +2,7 @@ from typing import Type
 
 from .nodetype import CNodeType, PortConf, DataType
 
-__all__ = [
-    "Rbar2d",
-    "Rbar3d",
-    "Rbeam3d"
-]
+__all__ = ["Rbar2d", "Rbar3d", "Rbeam3d", "RbeamAxle3d"]
 
 
 class Rbar2d(CNodeType):
@@ -17,7 +13,6 @@ class Rbar2d(CNodeType):
 
     Inputs:
         mesh (MESH): The mesh object containing node and element information.
-        index (TENSOR): Indices of elements to compute. Defaults to all elements.
 
     Outputs:
         R (TENSOR): The coordinate transformation matrix of shape (NC, 2, 4),
@@ -50,7 +45,6 @@ class Rbar3d(CNodeType):
 
     Inputs:
         mesh (MESH): The mesh object containing node and element information.
-        index (TENSOR): Indices of elements to compute. Defaults to all elements.
 
     Outputs:
         R (TENSOR): The coordinate transformation matrix of shape (NC, 2, 6),
@@ -85,7 +79,6 @@ class Rbeam3d(CNodeType):
     Inputs:
         mesh (MESH): The mesh object containing node and element information.
         vref (MENU): Reference vector for defining local coordinate system.
-        index (TENSOR): Indices of elements to compute. Defaults to all elements.
 
     Outputs:
         R (TENSOR): The coordinate transformation matrix of shape (NC, 12, 12),
@@ -96,8 +89,7 @@ class Rbeam3d(CNodeType):
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
         PortConf("vref", DataType.MENU, 0, desc="参考向量，用于定义局部坐标系", title="参考向量", default=[0, 1, 0],
-                 items=[[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-        PortConf("index", DataType.TENSOR, 1, desc="单元索引，默认为所有单元", title="单元索引", default=None)
+                 items=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     ]
     OUTPUT_SLOTS = [
         PortConf("R", DataType.TENSOR, desc="坐标变换矩阵", title="坐标变换矩阵"),
@@ -109,9 +101,56 @@ class Rbeam3d(CNodeType):
         from fealpy.csm.utils import CoordTransform
         mesh = options.get("mesh")
         vref = options.get("vref")
-        index = options.get("index")
-        indices = index if index is not None else slice(index)
         
         coord_transform = CoordTransform(method="beam3d")
-        R = coord_transform.coord_transform_beam3d(mesh, vref, indices)
+        R = coord_transform.coord_transform_beam3d(mesh, vref)
         return R
+
+
+class RbeamAxle3d(CNodeType):
+    r"""Coordinate Transformation for 3D Beam-Axle Coupled Elements.
+    
+    Inputs:
+        mesh (MESH): The mesh object containing node, element and celldata['type'].
+                     celldata['type']: 0=beam elements, 1=axle/spring elements.
+        vref (MENU): Reference vector for defining local coordinate system.
+
+    Outputs:
+        R_beam (TENSOR): Coordinate transformation matrix for beam elements (NC_beam, 12, 12).
+        R_axle (TENSOR): Coordinate transformation matrix for axle elements (NC_axle, 2, 6).
+        beam_indices (TENSOR): Indices of beam elements.
+        axle_indices (TENSOR): Indices of axle elements.
+    """
+    TITLE: str = "梁-轴耦合单元坐标变换"
+    PATH: str = "utils.coordtransform"
+    INPUT_SLOTS = [
+        PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
+        PortConf("vref", DataType.MENU, 0, desc="参考向量，用于定义局部坐标系", title="参考向量", 
+                 default=[0, 1, 0], items=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    ]
+    
+    OUTPUT_SLOTS = [
+        PortConf("R_beam", DataType.TENSOR, desc="梁单元坐标变换矩阵", title="梁坐标变换"),
+        PortConf("R_axle", DataType.TENSOR, desc="轴单元坐标变换矩阵", title="轴坐标变换")
+    ]
+    
+    @staticmethod
+    def run(**options):
+        from fealpy.backend import bm
+        from fealpy.csm.utils import CoordTransform
+        
+        mesh = options.get("mesh")
+        vref = options.get("vref")
+        
+        cell_types = mesh.celldata['type']
+        
+        # 获取梁单元和轴单元的索引
+        beam_indices = bm.where(cell_types == 0)[0]
+        axle_indices = bm.where(cell_types == 1)[0]
+        
+        coord_transform_beam = CoordTransform(method="beam3d")
+        R_beam = coord_transform_beam.coord_transform_beam3d(mesh, vref, index=beam_indices)
+        
+        coord_transform_axle = CoordTransform(method="beam3d")
+        R_axle = coord_transform_axle.coord_transform_beam3d(mesh, vref, index=axle_indices)
+        return R_beam, R_axle

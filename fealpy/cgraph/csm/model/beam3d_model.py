@@ -94,6 +94,7 @@ class ChannelBeamModel(CNodeType):
         
         # === 存储单元数据 ===
         mesh.celldata['E'] = bm.full(NC, E, dtype=bm.float64)
+        mesh.celldata['nu'] = bm.full(NC, nu, dtype=bm.float64)
         mesh.celldata['G'] = bm.full(NC, G, dtype=bm.float64)
         mesh.celldata['rho'] = bm.full(NC, rho, dtype=bm.float64)
         
@@ -303,6 +304,7 @@ class TimoshenkoBeamAxleModel(CNodeType):
         mesh.celldata['type'] = cell_types
         mesh.celldata['D'] = D
         mesh.celldata['E'] = bm.where(is_beam, E, 0.0)
+        mesh.celldata['nu'] = bm.where(is_beam, nu, 0.0)
         mesh.celldata['G'] = bm.where(is_beam, G, 0.0)
         mesh.celldata['k_axle'] = bm.where(is_beam, 0.0, k_spring)
         mesh.celldata['shear_factor'] = bm.full(NC, shear_factor, dtype=bm.float64)

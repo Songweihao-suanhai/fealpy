@@ -1,8 +1,7 @@
 from typing import Union
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["BeamMaterial", 
-           "ChannelBeamMaterial"]
+__all__ = ["BeamMaterial"]
 
 
 class BeamMaterial(CNodeType):
@@ -54,64 +53,3 @@ class BeamMaterial(CNodeType):
             getattr(beam_material, name)
             for name in ["E", "nu"]
         )
-
-
-class ChannelBeamMaterial(CNodeType):
-    r"""Timoshenko Beam Material Definition Node.
-
-    Inputs:
-        property (STRING): Material type, e.g., "Steel".
-        beam_type (MENU): Beam model type selection.
-        mu_y (FLOAT): Ratio of maximum to average shear stress for y-direction shear.
-        mu_z (FLOAT): Ratio of maximum to average shear stress for z-direction shear.
-        E (FLOAT): Elastic modulus of the beam material.
-        nu (FLOAT): Poisson's ratio of the beam material.
-        density (FLOAT): Density of the beam material.
-
-    Outputs:
-        property (STRING): Material type.
-        beam_type (MENU): Beam model type.
-        E (FLOAT): Elastic modulus of the beam material.
-        mu (FLOAT): Shear modulus, computed as `E / [2(1 + nu)]`.
-    """
-    TITLE: str = "槽形梁材料属性"
-    PATH: str = "material.solid"
-    INPUT_SLOTS = [
-        PortConf("property", DataType.MENU, 0, desc="材料名称", title="材料材质", default="structural-steel", 
-                 items=["structural-steel", "aluminum", "concrete", "plastic", "wood", "alloy"]),
-        PortConf("type", DataType.MENU, 0, desc="材料类型选择", title="梁类型", default="Timoshenko", 
-                items=["Euler-Bernoulli", "Timoshenko"]),
-        PortConf("mu_y", DataType.FLOAT, 1, desc="y方向剪切应力比", title="y方向剪切应力比", default=2.44),
-        PortConf("mu_z", DataType.FLOAT, 1, desc="z方向剪切应力比", title="z方向剪切应力比", default=2.38),
-        PortConf("E", DataType.FLOAT, 0, desc="梁的弹性模量", title="弹性模量", default=2.1e11),
-        PortConf("nu", DataType.FLOAT, 0, desc="梁的泊松比", title="泊松比", default=0.25),
-        PortConf("density", DataType.FLOAT, 0, desc="梁的密度", title="密度", default=7800)
-    ]
-    
-    OUTPUT_SLOTS = [
-        PortConf("E", DataType.FLOAT, title="梁的弹性模量"),
-        PortConf("nu", DataType.FLOAT, title="梁的泊松比"),
-        PortConf("mu", DataType.FLOAT, title="梁的剪切模量"),
-        PortConf("rho", DataType.FLOAT, title="梁的密度")
-    ]
-    
-    @staticmethod
-    def run(**options):
-        from fealpy.csm.model.beam.channel_beam_data_3d import ChannelBeamData3D
-        from fealpy.csm.material import TimoshenkoBeamMaterial
-        
-        mu_y = options.get("mu_y")
-        mu_z = options.get("mu_z")
-        model = ChannelBeamData3D(mu_y=mu_y, mu_z=mu_z)
-
-        beam_material = TimoshenkoBeamMaterial(model=model,
-                                        name=options.get("type"),
-                                        elastic_modulus=options.get("E"),
-                                        poisson_ratio=options.get("nu"),
-                                        density=options.get("density"))
-
-        return tuple(
-            getattr(beam_material, name)
-            for name in ["E", "nu", "mu", "rho"]
-        )
-        
