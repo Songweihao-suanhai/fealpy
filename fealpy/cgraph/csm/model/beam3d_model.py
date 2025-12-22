@@ -91,9 +91,8 @@ class ChannelBeamModel(CNodeType):
         mesh = EdgeMesh(node, cell)
         NN = mesh.number_of_nodes()
         NC = mesh.number_of_cells()
-
-        # === 设置单元属性 ===
-        mesh.celldata['type'] = bm.zeros(NC, dtype=bm.int32)  # 0 = beam
+        
+        # === 存储单元数据 ===
         mesh.celldata['E'] = bm.full(NC, E, dtype=bm.float64)
         mesh.celldata['G'] = bm.full(NC, G, dtype=bm.float64)
         mesh.celldata['rho'] = bm.full(NC, rho, dtype=bm.float64)
@@ -305,7 +304,7 @@ class TimoshenkoBeamAxleModel(CNodeType):
         mesh.celldata['D'] = D
         mesh.celldata['E'] = bm.where(is_beam, E, 0.0)
         mesh.celldata['G'] = bm.where(is_beam, G, 0.0)
-        mesh.celldata['k_spring'] = bm.where(is_beam, 0.0, k_spring)
+        mesh.celldata['k_axle'] = bm.where(is_beam, 0.0, k_spring)
         mesh.celldata['shear_factor'] = bm.full(NC, shear_factor, dtype=bm.float64)
         
         # 计算梁截面属性

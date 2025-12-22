@@ -26,8 +26,7 @@ class Rbar2d(CNodeType):
     TITLE: str = "2D杆件坐标变换"
     PATH: str = "utils.coordtransform"
     INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
-        PortConf("index", DataType.TENSOR, 1, desc="单元索引，默认为所有单元", title="单元索引", default=None)
+        PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格")
     ]
     OUTPUT_SLOTS = [
         PortConf("R", DataType.TENSOR, desc="坐标变换矩阵", title="坐标变换矩阵"),
@@ -37,11 +36,9 @@ class Rbar2d(CNodeType):
     def run(**options):
         from fealpy.csm.utils import CoordTransform
         mesh = options.get("mesh")
-        index = options.get("index")
-        indices = index if index is not None else slice(index)
         
         coord_transform = CoordTransform(method="bar2d")
-        R = coord_transform.coord_transform_bar2d(mesh, indices)
+        R = coord_transform.coord_transform_bar2d(mesh)
         return R
     
     
@@ -62,8 +59,7 @@ class Rbar3d(CNodeType):
     TITLE: str = "3D杆件坐标变换"
     PATH: str = "utils.coordtransform"
     INPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格"),
-        PortConf("index", DataType.INT, 1, desc="单元索引，默认为所有单元", title="单元索引", default=None)
+        PortConf("mesh", DataType.MESH, 1, desc="包含节点和单元信息的网格", title="网格")
     ]
     OUTPUT_SLOTS = [
         PortConf("R", DataType.TENSOR, desc="坐标变换矩阵", title="坐标变换矩阵"),
@@ -74,11 +70,9 @@ class Rbar3d(CNodeType):
         from fealpy.backend import bm
         from fealpy.csm.utils import CoordTransform
         mesh = options.get("mesh")
-        index = options.get("index")
-        indices = index if index is not None else slice(index)
-        
+    
         coord_transform = CoordTransform(method="bar3d")
-        R = coord_transform.coord_transform_bar3d(mesh, indices)
+        R = coord_transform.coord_transform_bar3d(mesh)
         return R
 
 

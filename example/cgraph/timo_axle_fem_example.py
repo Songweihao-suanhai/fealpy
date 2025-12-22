@@ -5,10 +5,10 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 
 mesher = cgraph.create("TimoshenkoBeamAxleModel")
 spacer = cgraph.create("FunctionSpace")
-# spring = cgraph.create("SpringStiffnessAssembly")
-assembly_beam = cgraph.create("TimoshenkoBeamAssembly")
-# solver = cgraph.create("DirectSolver")
-# postprocess = cgraph.create("UDecoupling")
+assembly = cgraph.create("TimobeamAxleSystemAssembly")
+boundary = cgraph.create("BeamBoundaryCondition")
+solver = cgraph.create("DirectSolver")
+postprocess = cgraph.create("UDecoupling")
 # coord1 = cgraph.create("Rbeam3d")
 # coord2 = cgraph.create("Rbeam3d")
 # strain_stress = cgraph.create("TimoAxleStrainStress")
@@ -25,17 +25,12 @@ mesher(beam_para=[[120, 141, 2], [150, 28, 2], [184, 177, 4],
       F_axial=3140.0,
       M_torque=14000e3)
 spacer(type="lagrange", mesh=mesher(), p=1)
-assembly_beam(mesh=mesher())
+assembly(mesh=mesher())
+boundary(mesh=mesher(), K=assembly(), method="penalty", penalty=1e20)
+solver(A = boundary().K_bc,
+       b = boundary().F_bc)
+postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
 
-# spring(mesh=mesher(),
-#        R=R2,
-#        rotation_factor=1e3)
-
-
-# solver(A = timoaxle_model().K,
-#        b = timoaxle_model().F)
-
-# postprocess(out = solver().out, node_ldof=6, type="Timo_beam")
 # R1 = coord1(mesh=mesher(), vref=[0, 1, 0])
 # R2 = coord2(mesh=mesher(), vref=[0, 1, 0])
 # strain_stress(
@@ -52,8 +47,8 @@ assembly_beam(mesh=mesher())
 
 
 # 最终连接到图输出节点上
-WORLD_GRAPH.output(mesher=mesher(), k=assembly_beam())
-# WORLD_GRAPH.output(out=solver().out,strain=strain_stress().strain, stress=strain_stress().stress)
+# WORLD_GRAPH.output(mesher=mesher(), k=assembly())
+WORLD_GRAPH.output(out=solver().out)
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
