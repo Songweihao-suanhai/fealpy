@@ -27,7 +27,7 @@ solver(A = boundary().K_bc,
 
 postprocess(out=solver().out, node_ldof=3, type="Truss")
 
-coord(mesh=mesher(), index=None)
+coord(mesh=mesher())
 strain_stress(
     mesh=mesher(),
     uh=solver().out,
