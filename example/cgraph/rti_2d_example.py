@@ -53,11 +53,7 @@ chnsrun(
     ns_q = 3,
     ch_q = 5,
     s = 1.0,
-    phi0 = mathmatics().phi0,
-    phi1 = mathmatics().phi1,
-    u0 = mathmatics().u0,
-    u1 = mathmatics().u1,
-    p0 = mathmatics().p0,
+    x0 = mathmatics().x0
 )
 to_vtk(mesh = mesher(),
         uh = (chnsrun().phi0,

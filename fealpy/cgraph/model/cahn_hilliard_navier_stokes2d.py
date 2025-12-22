@@ -88,11 +88,7 @@ class CHNSMathmatics(CNodeType):
         PortConf("equation", DataType.LIST, title="方程"),
         PortConf("boundary_condition", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
-        PortConf("phi0", DataType.TENSOR, title="初始相场1"),
-        PortConf("phi1", DataType.TENSOR, title="初始相场2"),
-        PortConf("u0", DataType.TENSOR, title="初始速度1"),
-        PortConf("u1", DataType.TENSOR, title="初始速度2"),
-        PortConf("p0", DataType.TENSOR, title="初始压力")
+        PortConf("x0", DataType.LIST, title="初始值")
     ]
     @staticmethod
     def run(phi, u, p):
@@ -190,8 +186,9 @@ class CHNSMathmatics(CNodeType):
         u0 = uspace.function()
         u1 = uspace.function()
         p0 = pspace.function()
+        x0 = [phi0, phi1, u0, u1, p0]
         
-        return (equation, boundary_condition, is_boundary, phi0, phi1, u0, u1, p0)
+        return (equation, boundary_condition, is_boundary, x0)
     
 
 

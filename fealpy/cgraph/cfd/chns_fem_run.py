@@ -46,11 +46,7 @@ class CHNSFEMModel(CNodeType):
         PortConf("ns_q", DataType.INT, 0, default = 3, min_val=3, title="NS积分精度"),
         PortConf("ch_q", DataType.INT, 0, default = 5, min_val=5, title="CH积分精度"),
         PortConf("s", DataType.FLOAT, 0, title="稳定参数", default=1.0),
-        PortConf("phi0", DataType.TENSOR, title="上上时间步相场"),
-        PortConf("phi1", DataType.TENSOR, title="上一时间步相场"),
-        PortConf("u0", DataType.TENSOR, title="上上时间步速度"),
-        PortConf("u1", DataType.TENSOR, title="上一时间步速度"),
-        PortConf("p0", DataType.TENSOR, title="上一时间步压力"),
+        PortConf("x0", DataType.LIST, title="已知值"),
     ]
     OUTPUT_SLOTS = [
         PortConf("phi0", DataType.TENSOR, title="上一时间步相场"),
@@ -59,9 +55,10 @@ class CHNSFEMModel(CNodeType):
         PortConf("u1", DataType.TENSOR, title="当前时间步速度"),
         PortConf("p1", DataType.TENSOR, title="当前时间步压力"),
         PortConf("rho", DataType.TENSOR, title="密度"),
+        PortConf("xh", DataType.LIST, title="当前时间步解")
     ]
     @staticmethod
-    def run(dt, i, equation, boundary_condition, is_boundary, apply_bc, ns_q, ch_q, s, phi0, phi1, u0, u1, p0):
+    def run(dt, i, equation, boundary_condition, is_boundary, apply_bc, ns_q, ch_q, s, x0):
         from fealpy.backend import backend_manager as bm
         from fealpy.solver import spsolve
         from fealpy.fem import DirichletBC
@@ -79,6 +76,11 @@ class CHNSFEMModel(CNodeType):
         pressure = equation["pressure"]
         viscosity = equation["viscosity"]   
         source = equation["source"]
+        phi0 = x0[0]
+        phi1 = x0[1]
+        u0 = x0[2]
+        u1 = x0[3]
+        p0 = x0[4]
 
         class CHNSFEM:
             def __init__(self):
@@ -163,5 +165,6 @@ class CHNSFEMModel(CNodeType):
         
         model = CHNSFEM()
         phi0, phi1, u0, u1, p1, rho = model.run()
+        xh = [phi0, phi1, u0, u1, p1]
 
-        return phi0, phi1, u0, u1, p1, rho
+        return phi0, phi1, u0, u1, p1, rho, xh
