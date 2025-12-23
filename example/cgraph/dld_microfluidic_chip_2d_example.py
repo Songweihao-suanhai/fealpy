@@ -4,7 +4,7 @@ import fealpy.cgraph as cgraph
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-pde = cgraph.create("DLDMicrofluidicChip2D")
+mater = cgraph.create("IncompressibleFluid")
 mesher = cgraph.create("DLDMicrofluidicChipMesh2d")
 uspacer = cgraph.create("TensorFunctionSpace")
 pspacer = cgraph.create("FunctionSpace")

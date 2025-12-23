@@ -4,69 +4,58 @@ import fealpy.cgraph as cgraph
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-pde = cgraph.create("IncompressibleCylinder2d")
-uspacer = cgraph.create("TensorFunctionSpace")
-pspacer = cgraph.create("FunctionSpace")
-dbc_u = cgraph.create("ProjectDBC")
-dbc_p = cgraph.create("ProjectDBC")
-simulation = cgraph.create("IncompressibleNSIPCS")
-timeline = cgraph.create("CFDTimeline")
-IncompressibleNSRun = cgraph.create("IncompressibleNSIPCSRun")
+material = cgraph.create("IncompressibleFluid")
+mesher = cgraph.create("FlowPastCylinder2d")
+physics = cgraph.create("IncompressibleNSPhysics")
+mathmatics = cgraph.create("IncompressibleNSMathematics")
+model = cgraph.create("IncompressibleNSFEMModel")
+to_vtk = cgraph.create("TO_VTK")
 
-pde(
+material(
     mu = 0.001,
-    rho = 1.0,
-    cx = 0.2,
-    cy = 0.2,
+    rho = 1.0
+)
+box = '[0.0, 2.2, 0.0, 0.41]'
+mesher(
+    box = box,
+    center = '(0.2, 0.2)',
     radius = 0.05,
     n_circle = 100,
-    h = 0.06)
-uspacer(mesh = pde().mesh, p=2, gd = 2)
-pspacer(mesh = pde().mesh, p=1)
-dbc_u(
-    space = uspacer(), 
-    dirichlet = pde().velocity_dirichlet, 
-    is_boundary = pde().is_velocity_boundary
+    h = 0.06,
+    material = material().mp
 )
-dbc_p(
-    space = pspacer(), 
-    dirichlet = pde().pressure_dirichlet, 
-    is_boundary = pde().is_pressure_boundary
+physics(
+    mesh = mesher().mesh,
+    utype = "lagrange",
+    u_p = 2,
+    u_gd = 2,
+    ptype = "lagrange",
+    p_p = 1,
 )
-simulation(
-    constitutive = 1,
-    mu = pde().mu,
-    rho = pde().rho,
-    source = pde().source,
-    uspace = uspacer(),
-    pspace = pspacer(),
-    is_pressure_boundary = pde().is_pressure_boundary,
-    apply_bcu = dbc_u().apply_bc,
-    apply_bcp = dbc_p().apply_bc,
-    q = 3
-) 
-timeline(
-    T0 = 0.0,
-    T1 = 1.0,
-    NT = 1000
+mathmatics(
+    u = physics().u,
+    p = physics().p,
+    velocity_boundary = "[y*(0.41 - y)*1.5, 0.0]",
+    pressure_boundary = 0.0,
+    velocity_0 = 0.0,
+    pressure_0 = 0.0,
 )
-IncompressibleNSRun(
-    T0=timeline().T0,
-    T1=timeline().T1,
-    NL=timeline().NL,
-    uspace = uspacer(), 
-    pspace = pspacer(), 
-    velocity_0 = pde().velocity_0,
-    pressure_0 = pde().pressure_0,
-    is_pressure_boundary = pde().is_pressure_boundary,
-    predict_velocity = simulation().predict_velocity,
-    correct_pressure = simulation().correct_pressure,
-    correct_velocity = simulation().correct_velocity,
-    mesh = pde().mesh,
-    output_dir = "/home/libz/cylinder"
+model(
+    dt = 0.001,
+    i = 0,
+    method_name = "IPCS",
+    equation = mathmatics().equation,
+    dirichlet_boundary = mathmatics().dirichlet_boundary,
+    is_boundary = mathmatics().is_boundary,
+    uh0 = mathmatics().u0,
+    ph0 = mathmatics().p0
 )
+to_vtk(mesh = mesher(),
+        uh = (model().uh, model().ph),
+        path = "/home/libz/cylinder2d",
+        i = None)
 
-WORLD_GRAPH.output(uh_x = IncompressibleNSRun().uh_x)
+WORLD_GRAPH.output(path = to_vtk().path)
 WORLD_GRAPH.error_listeners.append(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
