@@ -36,6 +36,7 @@ class FEMBase:
                 method = 'interp')
         return BC.apply
 
+
 class IncompressibleNS(FEMBase):
 
     @variantmethod("IPCS")
@@ -348,3 +349,11 @@ class CahnHilliard(FEMBase):
             return A, L
         
         return update
+    
+
+class AllenCahn(FEMBase):
+    pass
+
+
+class GaugeUzawaNS(FEMBase):
+    pass

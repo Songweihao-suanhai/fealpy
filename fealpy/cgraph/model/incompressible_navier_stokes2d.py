@@ -1,7 +1,7 @@
 from typing import Union, Type
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["IncompressibleNS2dbenchmark", "IncompressibleNSPhysics", "IncompressibleNSMathematics"]
+__all__ = ["IncompressibleNS2dbenchmark", "IncompressibleFluidPhysics", "IncompressibleNSMathematics"]
 
 
 SPACE_CLASSES = {
@@ -64,8 +64,8 @@ class IncompressibleNS2dbenchmark(CNodeType):
         )
     
 
-class IncompressibleNSPhysics(CNodeType):
-    TITLE: str = "不可压缩 NS 物理量定义"
+class IncompressibleFluidPhysics(CNodeType):
+    TITLE: str = "不可压缩流体物理量定义"
     PATH: str = "preprocess.modeling"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
@@ -115,7 +115,7 @@ class IncompressibleNSMathematics(CNodeType):
     ]
     OUTPUT_SLOTS = [
         PortConf("equation", DataType.LIST, title="方程"),
-        PortConf("dirichlet_boundary", DataType.FUNCTION, title="边界条件"),
+        PortConf("boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("u0", DataType.TENSOR, title="初始速度"),
         PortConf("p0", DataType.TENSOR, title="初始压力")

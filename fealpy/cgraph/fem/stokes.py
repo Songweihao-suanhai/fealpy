@@ -1,35 +1,19 @@
 
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["StokesEquation"]
+__all__ = ["StokesFEMModel"]
 
 
-class StokesEquation(CNodeType):
-    r"""Stokes equations with Dirichlet boundary conditions.
+class StokesFEMModel(CNodeType):
 
-    Inputs:
-        uspace(space): Function space for the velocity field.
-        pspace(space): Function space for the pressure field.
-        velocity_dirichlet (function): Dirichlet boundary condition for velocity.
-        pressure_dirichlet (function): Dirichlet boundary condition for pressure.
-        is_velocity_boundary (function): Predicate function identifying velocity boundary regions.
-        is_pressure_boundary (function): Predicate function identifying pressure boundary regions.
-    
-    Outputs:
-        bform (tensor): Assembled system operator.
-        lform (tensor): Assembled right-hand side vector.
-    """
-    TITLE: str = "Stokes 方程 (第一类边界条件)"
+    TITLE: str = "Stokes 方程离散"
     PATH: str = "simulation.discretization"
-    DESC: str = """该节点构建并组装带Dirichlet边界条件的Stokes方程有限元离散系统, 
-                输出包含系统算子与右端项向量，用于稳态粘性流动求解。"""
     INPUT_SLOTS = [
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("pspace", DataType.SPACE, title="压力函数空间"),
-        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界")
+        PortConf("equation", DataType.LIST, title="方程"),
+        PortConf("boundary", DataType.LIST, title="边界条件"),
+        PortConf("is_boundary", DataType.LIST, title="边界"),
+        PortConf("u", DataType.TENSOR, title="速度"),
+        PortConf("p", DataType.TENSOR, title="压力")
     ]
     OUTPUT_SLOTS = [
         PortConf("bform", DataType.TENSOR, title="算子"),
@@ -37,18 +21,28 @@ class StokesEquation(CNodeType):
     ]
 
     @staticmethod
-    def run(uspace, pspace, velocity_dirichlet, pressure_dirichlet, is_velocity_boundary, is_pressure_boundary):
+    def run(equation, boundary, is_boundary, u, p):
         from fealpy.fem import LinearForm, BilinearForm, BlockForm, LinearBlockForm
         from fealpy.fem import ScalarDiffusionIntegrator as DiffusionIntegrator
         from fealpy.fem import PressWorkIntegrator
 
+        equation = equation[0]
+        bd = boundary[0]
+        is_boundary = is_boundary[0]
+        uspace = u.space
+        pspace = p.space
+        velocity_dirichlet = bd["velocity_boundary"]
+        pressure_dirichlet = bd["pressure_boundary"]
+        is_velocity_boundary = is_boundary["is_velocity_boundary"]
+        is_pressure_boundary = is_boundary["is_pressure_boundary"]
+
         A00 = BilinearForm(uspace)
         BD = DiffusionIntegrator()
-        BD.coef = 1.0
+        BD.coef = equation["diffusion"]
         A00.add_integrator(BD)
         A01 = BilinearForm((pspace, uspace))
         BP = PressWorkIntegrator()
-        BP.coef = -1.0
+        BP.coef = equation["pressure"]
         A01.add_integrator(BP)
         bform = BlockForm([[A00, A01], [A01.T, None]])
 
@@ -65,7 +59,6 @@ class StokesEquation(CNodeType):
             threshold=(is_velocity_boundary, is_pressure_boundary),
             method='interp')
         A, F = BC.apply(A, F)
-
 
         return A, F
     

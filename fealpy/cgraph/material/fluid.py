@@ -7,8 +7,12 @@ class RTIMaterial(CNodeType):
     TITLE: str = "RTI 现象流体材料属性"
     PATH: str = "examples.CFD"
     INPUT_SLOTS = [
-        PortConf("rho_up", DataType.FLOAT, 0, title="上层流体密度", default=3.0),
-        PortConf("rho_down", DataType.FLOAT, 0, title="下层流体密度", default=1.0),
+        PortConf("rho0", DataType.FLOAT, 0, title="第一液相密度", default=3.0),
+        PortConf("rho1", DataType.FLOAT, 0, title="第二液相密度", default=1.0),
+        PortConf("mu0", DataType.FLOAT, 0, title="第一液相粘度"),
+        PortConf("mu1", DataType.FLOAT, 0, title="第二液相粘度"),
+        PortConf("lam", DataType.FLOAT, 0, title="应力系数"),
+        PortConf("gamma", DataType.FLOAT, 0, title="迁移率参数"),
         PortConf("Re", DataType.FLOAT, 0, title="雷诺数", default=3000.0),
         PortConf("Fr", DataType.FLOAT, 0, title="弗劳德数", default=1.0),
         PortConf("epsilon", DataType.FLOAT, 0, title="界面厚度参数", default=0.01)
@@ -17,19 +21,32 @@ class RTIMaterial(CNodeType):
         PortConf("material", DataType.LIST, title="物理属性")
     ]
     @staticmethod
-    def run(rho_up, rho_down, Re, Fr, epsilon):
+    def run(rho0, rho1, mu0, mu1, lam, gamma, Re, Fr, epsilon):
         from fealpy.backend import backend_manager as bm
         bm.set_backend('pytorch')
         bm.set_default_device('cpu')
         def rho(phi):
             result = phi.space.function()
-            result[:] = (rho_up - rho_down)/2 * phi[:]
-            result[:] += (rho_up + rho_down)/2 
+            result[:] = (rho0 - rho1)/2 * phi[:]
+            result[:] += (rho0 + rho1)/2 
             return result
+        
+        def mu(phi):
+            tag0 = phi[:] >1
+            tag1 = phi[:] < -1
+            phi[tag0] = 1
+            phi[tag1] = -1
+            mu = phi.space.function()
+            mu[:] = 0.5 * (mu0 + mu1) + 0.5 * (mu0 - mu1) * phi
+            return mu
+
         Pe = 1/epsilon
 
         material = [{
             'rho': rho, 
+            'mu': mu,
+            'lam': lam, 
+            'gamma': gamma,
             'Re': Re, 
             'Fr': Fr, 
             'epsilon': epsilon,
@@ -68,5 +85,23 @@ class IncompressibleFluid(CNodeType):
                 }]
         return mp
 
-
+class RasingBubbleMaterial(CNodeType):
+    TITLE: str = "上升气泡流体材料属性"
+    PATH: str = "examples.CFD"
+    INPUT_SLOTS = [
+        PortConf("rho0", DataType.FLOAT, title="第一液相密度"),
+        PortConf("rho1", DataType.FLOAT, title="第二液相密度"),
+        PortConf("mu0", DataType.FLOAT, title="第一液相粘度"),
+        PortConf("mu1", DataType.FLOAT, title="第二液相粘度"),
+        PortConf("lam", DataType.FLOAT, title="应力系数"),
+        PortConf("gamma", DataType.FLOAT, title="迁移率参数"),
+    ]
+    OUTPUT_SLOTS = [
+        PortConf("material", DataType.LIST, title="物理属性")
+    ]
+    @staticmethod
+    def run(rho0, rho1, mu0, mu1, lam, gamma):
+        from fealpy.backend import backend_manager as bm
+        pass
+        # return material
 

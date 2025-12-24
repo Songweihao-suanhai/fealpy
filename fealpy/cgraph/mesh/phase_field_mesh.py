@@ -1,9 +1,9 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ['RTIMesher2d']
+__all__ = ['PhaseFieldMesher2d']
 
-class RTIMesher2d(CNodeType):
-    TITLE: str = "二维 RTI 问题网格建模"
+class PhaseFieldMesher2d(CNodeType):
+    TITLE: str = "相场模型矩形网格建模"
     PATH: str = "examples.CFD"
     INPUT_SLOTS= [
         PortConf("material", DataType.LIST, title="材料属性"),
