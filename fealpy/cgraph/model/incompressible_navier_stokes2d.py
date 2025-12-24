@@ -152,14 +152,20 @@ class IncompressibleNSMathematics(CNodeType):
 
         @cartesian
         def is_velocity_boundary(p):
-            return ~mesh.geo.is_outlet_boundary(p)
+            if hasattr(mesh, 'geo') is False:
+               return ~mesh.is_outlet_boundary(p) 
+            else:
+                return ~mesh.geo.is_outlet_boundary(p)
         
         @cartesian
         def is_pressure_boundary(p=None):
             if p is None:
                 return 1
             else:
-                return mesh.geo.is_outlet_boundary(p) 
+                if hasattr(mesh, 'geo') is False:
+                    return mesh.is_outlet_boundary(p) 
+                else:
+                    return mesh.geo.is_outlet_boundary(p) 
             
         def is_boundary():
             is_u_boundary = is_velocity_boundary
@@ -197,7 +203,10 @@ class IncompressibleNSMathematics(CNodeType):
             x = p[...,0]
             y = p[...,1]
 
-            index = mesh.geo.is_inlet_boundary(p)
+            if hasattr(mesh, 'geo') is False:
+                index = mesh.is_inlet_boundary(p)
+            else:
+                index = mesh.geo.is_inlet_boundary(p)
             result = bm.zeros_like(p)
             result[index] = u_dirichlet(p[index])
             return result
