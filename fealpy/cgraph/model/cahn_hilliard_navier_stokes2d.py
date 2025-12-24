@@ -1,7 +1,7 @@
 from typing import Union, Type
 from ..nodetype import CNodeType, PortConf, DataType
 
-__all__ = ["CHNSPhysics", "CHNSMathmatics"]
+__all__ = ["MultiphaseFlowPhysics", "CHNSMathmatics"]
 
 SPACE_CLASSES = {
     "bernstein": ("bernstein_fe_space", "BernsteinFESpace"),
@@ -15,9 +15,9 @@ def get_space_class(space_type: str) -> Type:
     )
     return getattr(m, SPACE_CLASSES[space_type][1])
 
-class CHNSPhysics(CNodeType):
+class MultiphaseFlowPhysics(CNodeType):
 
-    TITLE: str = "CHNS 物理量定义"
+    TITLE: str = "两相流物理量定义"
     PATH: str = "preprocess.modeling"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),

@@ -21,8 +21,8 @@ class VPDecoupling(CNodeType):
                 便于后续的流体力学结果分析与可视化处理。"""
     INPUT_SLOTS = [
         PortConf("out", DataType.TENSOR, title="结果"),
-        PortConf("uspace", DataType.SPACE, title="速度函数空间"),
-        PortConf("mesh", DataType.MESH, title="网格")
+        PortConf("u", DataType.TENSOR, title="速度"),
+        PortConf("p", DataType.TENSOR, title="压力")
     ]
     OUTPUT_SLOTS = [
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
@@ -30,8 +30,10 @@ class VPDecoupling(CNodeType):
     ]
 
     @staticmethod
-    def run(out, uspace, mesh):
+    def run(out, u, p):
         from fealpy.backend import backend_manager as bm
+        uspace = u.space
+        mesh = uspace.mesh
         ugdof = uspace.number_of_global_dofs()
         NN = mesh.number_of_nodes()
         uh = out[:ugdof]

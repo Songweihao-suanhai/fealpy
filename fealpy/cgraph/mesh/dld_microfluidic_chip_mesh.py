@@ -129,16 +129,11 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
         PortConf("tan_angle", DataType.FLOAT, 1, default=1/7, title="偏转角正切值"),
         PortConf("n_stages", DataType.INT, 1, default=2, title="微柱阵列周期数"),
         PortConf("stage_length", DataType.FLOAT, 1, default=1.4, title="单周期长度"),
-        PortConf("lc", DataType.FLOAT, 1, default=0.02, title="网格尺寸")
+        PortConf("lc", DataType.FLOAT, 1, default=0.02, title="网格尺寸"),
+        PortConf("material", DataType.LIST, 1, title="材料属性")
     ]
     OUTPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("thickness", DataType.FLOAT, title="芯片厚度"),
-        PortConf("radius", DataType.FLOAT, title="微柱半径"),
-        PortConf("centers", DataType.TENSOR, title="微柱圆心坐标"),
-        PortConf("inlet_boundary", DataType.TENSOR, title="入口边界"),
-        PortConf("outlet_boundary", DataType.TENSOR, title="出口边界"),
-        PortConf("wall_boundary", DataType.TENSOR, title="通道壁面边界")
+        PortConf("mesh", DataType.MESH, title="网格")
     ]
 
     @staticmethod
@@ -159,7 +154,9 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
             "tan_angle" : options.get("tan_angle"),
             "n_stages" : options.get("n_stages"),
             "stage_length" : options.get("stage_length"),
-            "lc" : options.get("lc")
+            "lc" : options.get("lc"),
+            "local_refine": True,
+            "material": options.get("material")[0]
         }
 
         gmsh.initialize()
@@ -170,5 +167,11 @@ class DLDMicrofluidicChipMesh3d(CNodeType):
         mesher.generate(modeler, gmsh)
         gmsh.finalize()
 
-        return (mesher.mesh, mesher.options.get('thickness'),mesher.radius, mesher.centers, mesher.inlet_boundary, 
-                mesher.outlet_boundary, mesher.wall_boundary)
+        material = options.get("material")
+        print("material:", material)
+        mesh = mesher.mesh
+        mesh.mesher = mesher
+        mesh.mu = material["mu"]
+        mesh.rho = material["rho"]
+
+        return mesh

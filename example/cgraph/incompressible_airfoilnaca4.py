@@ -6,7 +6,7 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 material = cgraph.create("IncompressibleFluid")
 geometry = cgraph.create("NACA4Geometry2d")
 mesher = cgraph.create("NACA4Mesh2d")
-physics = cgraph.create("IncompressibleNSPhysics")
+physics = cgraph.create("IncompressibleFluidPhysics")
 mathmatics = cgraph.create("IncompressibleNSMathematics")
 IncompressibleNSRun = cgraph.create("IncompressibleNSFEMModel")
 to_vtk = cgraph.create("TO_VTK")
@@ -56,7 +56,7 @@ IncompressibleNSRun(
     i = 0,
     method_name = "IPCS",
     equation = mathmatics().equation,
-    dirichlet_boundary = mathmatics().dirichlet_boundary,
+    boundary = mathmatics().boundary,
     is_boundary = mathmatics().is_boundary,
     q = 3,
     uh0 = mathmatics().u0,

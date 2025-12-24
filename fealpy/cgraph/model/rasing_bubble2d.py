@@ -104,7 +104,7 @@ class RasingBubble2D(CNodeType):
                 self.area /= ref_length**2
                 self.box = [x / ref_length for x in self.box]
                 self.epsilon /= ref_length
-
+                
                 self.rho0 /= ref_rho
                 self.rho1 /= ref_rho
                 self.mu0 /= ref_mu

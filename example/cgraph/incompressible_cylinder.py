@@ -45,7 +45,7 @@ model(
     i = 0,
     method_name = "IPCS",
     equation = mathmatics().equation,
-    dirichlet_boundary = mathmatics().dirichlet_boundary,
+    boundary = mathmatics().boundary,
     is_boundary = mathmatics().is_boundary,
     uh0 = mathmatics().u0,
     ph0 = mathmatics().p0

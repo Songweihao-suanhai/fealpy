@@ -1,60 +1,37 @@
 
 from ..nodetype import CNodeType, PortConf, DataType
 
+__all__ = ["StokesMathematics"]
 
-class DLDMicrofluidicChip3D(CNodeType):
-    r"""Construct a 3D fluid mathematical model for a DLD (Deterministic Lateral Displacement) microfluidic chip.
-
-    Inputs:
-        thickness (float): Chip thickness in the z-direction.
-        radius (float): Radius of each micropillar obstacle.
-        centers (Tensor): Coordinates of micropillar centers in the channel plane.
-        inlet_boundary (Tensor): Nodal or edge coordinates defining the inlet boundary.
-        outlet_boundary (Tensor): Nodal or edge coordinates defining the outlet boundary.
-        wall_boundary (Tensor): Nodal or edge coordinates defining the lateral wall boundaries.
-
-    Outputs:
-        velocity_dirichlet (function): Function defining Dirichlet boundary conditions for velocity.
-        pressure_dirichlet (function): Function defining Dirichlet boundary conditions for pressure.
-        is_velocity_boundary (function): Logical function that identifies velocity (no-slip or inlet) boundaries.
-        is_pressure_boundary (function): Logical function that identifies pressure (outlet) boundaries.
-    """
-    TITLE: str = "三维 DLD 微流控芯片流体数学模型"
+class StokesMathematics(CNodeType):
+    TITLE: str = "Stokes数学模型"
     PATH: str = "preprocess.modeling"
-    DESC: str = """该节点基于DLD微流控芯片几何参数构建三维流体数学模型, 定义速度与压力的Dirichlet边界条
-                件及其识别函数，用于后续流场有限元或有限体积求解。"""
     INPUT_SLOTS = [
-        PortConf("thickness", DataType.FLOAT, title = "芯片厚度"),
-        PortConf("radius", DataType.FLOAT, title="微柱半径"),
-        PortConf("centers", DataType.TENSOR, title="微柱圆心坐标"),
-        PortConf("inlet_boundary", DataType.TENSOR, title="入口边界"),
-        PortConf("outlet_boundary", DataType.TENSOR, title="出口边界"),
-        PortConf("wall_boundary", DataType.TENSOR, title="通道壁面边界"),
+        PortConf("u", DataType.TENSOR, title="速度"),
+        PortConf("p", DataType.TENSOR, title="压力")
     ]
     OUTPUT_SLOTS = [
-        PortConf("velocity_dirichlet", DataType.FUNCTION, title="速度边界条件"),
-        PortConf("pressure_dirichlet", DataType.FUNCTION, title="压力边界条件"),
-        PortConf("is_velocity_boundary", DataType.FUNCTION, title="速度边界"),
-        PortConf("is_pressure_boundary", DataType.FUNCTION, title="压力边界")
+        PortConf("equation", DataType.LIST, title="方程"),
+        PortConf("boundary", DataType.LIST, title="边界条件"),
+        PortConf("is_boundary", DataType.LIST, title="边界标记")
     ]
 
     @staticmethod
-    def run(**options):
+    def run(u, p):
         from fealpy.backend import backend_manager as bm
         from fealpy.backend import TensorLike
         from fealpy.decorator import cartesian
 
         class DLD3D():
-            def __init__(self, **options):
+            def __init__(self, mesh):
                 self.eps = 1e-10
-                self.mu = 1e-3
-                self.rho = 1.0
-                self.thickness = options.get('thickness', 0.1)
-                self.radius = options.get('radius')
-                self.centers = options.get('centers')
-                self.inlet_boundary = options.get('inlet_boundary')
-                self.outlet_boundary = options.get('outlet_boundary')
-                self.wall_boundary = options.get('wall_boundary')
+                mesher = mesh.mesher
+                self.thickness = mesher.options.get("thickness")
+                self.radius = mesher.radius
+                self.centers = mesher.centers
+                self.inlet_boundary = mesher.inlet_boundary
+                self.outlet_boundary = mesher.outlet_boundary
+                self.wall_boundary = mesher.wall_boundary
 
             def get_dimension(self) -> int: 
                 """Return the geometric dimension of the domain."""
@@ -169,10 +146,23 @@ class DLDMicrofluidicChip3D(CNodeType):
                 dot = bm.einsum('ijk,ijk->ij', v0, v1) # (NN, NI)
                 cond = (bm.abs(cross) < atol) & (dot < atol)
                 return bm.any(cond, axis=1)
-            
-        model = DLD3D(**options)
-        return tuple(
-            getattr(model, name)
-            for name in ["velocity_dirichlet", "pressure_dirichlet", "is_velocity_boundary", "is_pressure_boundary"]
-        )
+        
+        mesh = u.space.mesh
+        model = DLD3D(mesh)
+
+        equation = [{
+            "diffusion" : mesh.mu,
+            "pressure" : -1.0,
+            "source" : model.source
+        }]
+        boundary = [{
+            "velocity_boundary" : model.velocity_dirichlet,
+            "pressure_boundary" : model.pressure_dirichlet
+        }]
+        is_boundary = [{
+            "is_velocity_boundary" : model.is_velocity_boundary,
+            "is_pressure_boundary" : model.is_pressure_boundary
+        }]
+    
+        return (equation, boundary, is_boundary)
 

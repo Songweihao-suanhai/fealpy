@@ -4,7 +4,7 @@ from .linear_elasticity2d import LinearElasticity2d
 from .helmholtz2d import Helmholtz2d
 from .stationary_navier_stokes2d import StationaryNS2d
 from .dld_microfluidic_chip2d import DLDMicrofluidicChip2D
-from .dld_microfluidic_chip3d import DLDMicrofluidicChip3D
+from .stokes import *
 from .incompressible_navier_stokes2d import *
 from .dipole_antenna3d import DipoleAntenna3D
 from .beam2d import Beam2d
