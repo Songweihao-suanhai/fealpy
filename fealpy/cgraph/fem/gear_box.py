@@ -4,13 +4,12 @@ __all__ = ["GearBox"]
 
 class GearBox(CNodeType):
     
-    TITLE: str = "变速箱（矩阵装配）"
+    TITLE: str = "变速箱.数值离散"
     PATH: str = "simulation.discreatization"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, title ="网格"),
         PortConf("shaftmatrix", DataType.MENU, title= "轴系矩阵"),
-        PortConf("space", DataType.SPACE, title = "函数空间"),
-        PortConf("q", DataType.INT, title="积分精度", default=3, min_val=1, max_val=17),
+        PortConf("type", DataType.STRING, title="分析对象", default='box', items=["box",'shift', "all"]),
     ]
     OUTPUT_SLOTS = [
         PortConf("stiffness", DataType.TENSOR, title="刚度矩阵S"),
@@ -188,15 +187,16 @@ class GearBox(CNodeType):
     
 
     @staticmethod
-    def box_linear_system(mesh, space,G):
+    def box_linear_system(mesh,G):
         
         from ...fem import BilinearForm
         from ...fem import LinearElasticityIntegrator
         from ...fem import ScalarMassIntegrator as MassIntegrator
         from ...backend import backend_manager as bm
         from ...material import LinearElasticMaterial
-        from ...functionspace import TensorFunctionSpace
-        space = TensorFunctionSpace(space,shape=(-1,3))
+        from ...functionspace import functionspace
+        GD = mesh.geo_dimension()
+        space = functionspace(mesh, ('Lagrange', 1), shape=(-1, GD))
         """
         Construct the linear system for the gearbox shell model.
         """
@@ -221,7 +221,6 @@ class GearBox(CNodeType):
         S = (S + S.T)/2.0
         M = (M + M.T)/2.0
 
-
         # the flag of free nodes 
         isRNode = mesh.data.get_node_data('isRNode')
         isFNode = mesh.data.get_node_data('isFNode')
@@ -241,7 +240,6 @@ class GearBox(CNodeType):
         S11 = S1[:, isCSDof] @ G 
         S11 = G.T @ S11  
 
-
         M0 = M[isFreeDof, :]
         M1 = M[isCSDof, :]
 
@@ -255,28 +253,50 @@ class GearBox(CNodeType):
         S11 = (S11 + S11.T)/2.0  # ensure symmetry
         M11 = (M11 + M11.T)/2.0  # ensure symmetry
 
-        return [[S00, S01], [S01.T, S11]], [[M00, M01], [M01.T, M11]] 
+        return [[S00, S01], [S01.T, S11]], [[M00, M01], [M01.T, M11]] ,mesh
     
     @staticmethod
-    def run(mesh, shaftmatrix, space, q):
+    def run(mesh, shaftmatrix, type):
+
         from scipy.sparse import bmat
         S0, M0, BS, BM, mesh = GearBox.shaft_linear_system(shaftmatrix, mesh)
         G,mesh = GearBox.rbe2_matrix(mesh)
-        S1, M1 = GearBox.box_linear_system(mesh, space,G)
-        
-        N0 = S0[0][0].shape[0]  # number of free dofs in the shaft system
-        N1 = S0[1][1].shape[0]  # number of coupling dofs
-        N2 = S1[0][0].shape[0]  # number of free dofs in the gearbox shell model
-        N3 = S1[1][1].shape[0]  # number of coupling dofs
+        S1, M1 ,mesh = GearBox.box_linear_system(mesh,G)
 
-        S = bmat([[S0[0][0],     S0[0][1],    None,         None],
-                  [S0[1][0],  S0[1][1]+BS,    None,          -BS],
-                  [    None,         None, S1[0][0],    S1[0][1]],
-                  [    None,          -BS, S1[1][0], S1[1][1]+BS]]).tocsr()
+        if type == 'all':
+            N0 = S0[0][0].shape[0]  # number of free dofs in the shaft system
+            N1 = S0[1][1].shape[0]  # number of coupling dofs
+            N2 = S1[0][0].shape[0]  # number of free dofs in the gearbox shell model
+            N3 = S1[1][1].shape[0]  # number of coupling dofs
+
+            S = bmat([[S0[0][0],     S0[0][1],    None,         None],
+                    [S0[1][0],  S0[1][1]+BS,    None,          -BS],
+                    [    None,         None, S1[0][0],    S1[0][1]],
+                    [    None,          -BS, S1[1][0], S1[1][1]+BS]]).tocsr()
+            
+            M = bmat([[M0[0][0],     M0[0][1],           None,     None],
+                    [M0[1][0],     M0[1][1]+BM,        None,     None],
+                    [    None,         None,    M1[0][0],    M1[0][1]],
+                    [    None,         None,    M1[1][0], M1[1][1]+BM]]).tocsr()
+            
+            return S, M, [N0, N1, N2, N3], G,mesh
         
-        M = bmat([[M0[0][0],     M0[0][1],           None,     None],
-                  [M0[1][0],     M0[1][1]+BM,        None,     None],
-                  [    None,         None,    M1[0][0],    M1[0][1]],
-                  [    None,         None,    M1[1][0], M1[1][1]+BM]]).tocsr()
+        elif type == 'box':
+            N0 = 0  # without shaft system
+            N1 = S1[0][0].shape[0]  # number of free dofs in the gearbox shell model
+            N2 = S1[1][1].shape[0]  # number of coupling dofs
+
+            S = bmat(S1, format='csr')
+            M = bmat(M1, format='csr')
+
+            return S, M, [N0, N1, N2],G,mesh
         
-        return S, M, [N0, N1, N2, N3], G,mesh
+        elif type == 'shift':
+            N0 = S0[0][0].shape[0]  # number of free dofs in the shaft system
+            N1 = 0 # without gearbox shell model
+            N2 = S0[1][1].shape[0]  # number of coupling dofs
+
+            S = bmat(S0, format='csr')
+            M = bmat(M0, format='csr')
+
+            return S, M, [N0, N1, N2],G,mesh

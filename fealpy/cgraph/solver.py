@@ -126,7 +126,7 @@ class SLEPcEigenSolver(CNodeType):
         PortConf("S", DataType.TENSOR, title="刚度矩阵 S"),
         PortConf("M", DataType.TENSOR, title="质量矩阵 M"),
         PortConf("neigen", DataType.INT, title="求取特征值个数", default=6, min_val=1),
-        PortConf("sigma", DataType.FLOAT, title="目标值", default=0.0),
+        PortConf("sigma", DataType.FLOAT, title="目标值", default=1e-04),
     ]
     OUTPUT_SLOTS = [
         PortConf("val", DataType.TENSOR, title="特征值"),
@@ -170,20 +170,12 @@ class SLEPcEigenSolver(CNodeType):
         ksp.setType('preonly')
         pc = ksp.getPC()
         pc.setType('lu')
-        try:
-            pc.setFactorSolverType('mumps')
-        except Exception:
-            pc.setFactorSolverType('superlu')
+        pc.setFactorSolverType('mumps')
         vec = PS.getVecRight()
         vec.setRandom()
         eps.setInitialSpace([vec])
         eps.setDimensions(nev=neigen, ncv=min(8*neigen, 200))
-        eps.setTolerances(tol=1e-6, max_it=10000)
-        
-        nn = S.shape[0]
-        v0 = bm.random.rand(nn) + 10000
-        v0 = PETSc.Vec().createWithArray(v0)
-        eps.setInitialSpace([v0])       
+        eps.setTolerances(tol=1e-6, max_it=10000)  
         
         eps.solve()
         

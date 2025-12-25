@@ -135,7 +135,7 @@ class AntennaPostprocess(CNodeType):
 
 
 class GearboxPostprocess(CNodeType):
-    TITLE: str = "变速箱后处理"
+    TITLE: str = "变速箱模态后处理"
     PATH: str = "postprocess"
     DESC: str = "将模态特征向量映射到网格节点并计算固有频率"
 
@@ -157,7 +157,7 @@ class GearboxPostprocess(CNodeType):
     @staticmethod
     def run(mesh, vals, vecs, NS, G, output_file):
         from ..backend import backend_manager as bm
-
+        
         freqs = bm.sqrt(vals) / (2 * bm.pi)
 
         NN = mesh.number_of_nodes()
