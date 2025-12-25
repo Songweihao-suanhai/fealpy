@@ -19,11 +19,7 @@ class LinearElasticMaterial(CNodeType):
         rho (FLOAT): Density [kg/m³] (only effective when property='custom-input').
 
     Outputs:
-        E (FLOAT): Elastic modulus [Pa].
-        nu (FLOAT): Poisson's ratio.
-        rho (FLOAT): Density [kg/m³].
-        mu (FLOAT): Shear modulus [Pa], calculated as mu = E / (2 * (1 + nu)).
-        lambda_ (FLOAT): Lamé's first parameter [Pa].
+        mp (LIST): Material properties list containing E, nu, rho, mu, and lambda_. 
     """
     TITLE: str = "线弹性材料"
     PATH: str = "material.solid"
@@ -31,14 +27,14 @@ class LinearElasticMaterial(CNodeType):
         PortConf("property", DataType.MENU, 0, 
                 desc="材料类型选择", 
                 title="材料类型", 
-                default="structural-steel", 
+                default="custom-input", 
                 items=["structural-steel", "stainless-steel", "aluminum", "aluminum-alloy", 
                        "titanium", "titanium-alloy", "brass", "copper", "concrete", "wood", 
                        "carbon-fiber", "fiberglass", "custom-input"]),
         PortConf("E", DataType.FLOAT, 0, 
                 desc="弹性模量(仅当材料类型为'custom-input'时有效)", 
                 title="弹性模量", 
-                default=2.0e11),
+                default=2.1e5),
         PortConf("nu", DataType.FLOAT, 0, 
                 desc="泊松比 (仅当材料类型为'custom-input'时有效)", 
                 title="泊松比", 
@@ -50,16 +46,13 @@ class LinearElasticMaterial(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("E", DataType.FLOAT, title="弹性模量"),
-        PortConf("nu", DataType.FLOAT, title="泊松比"),
-        PortConf("rho", DataType.FLOAT, title="密度"),
-        PortConf("mu", DataType.FLOAT, title="剪切模量"),
-        PortConf("lambda_", DataType.FLOAT, title="拉梅常数")
+        PortConf("mp", DataType.LIST, title="材料属性")
     ]
     
     @staticmethod
     def run(**options):
         property_type = options.get("property")
+        
         # 材质数据库
         material_database = {
             # 金属材料
@@ -93,10 +86,17 @@ class LinearElasticMaterial(CNodeType):
             nu = options.get("nu")
             rho = options.get("rho")
         
-        # 计算剪切模量: mu = E / (2 * (1 + nu))
+        # 剪切模量: mu = E / (2 * (1 + nu))
         mu = E / (2.0 * (1.0 + nu))
         
-        # 计算拉梅第一参数: lambda = E * nu / ((1 + nu) * (1 - 2 * nu))
+        # 拉梅第一参数: lambda = E * nu / ((1 + nu) * (1 - 2 * nu))
         lambda_ = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
-
-        return E, nu, rho, mu, lambda_
+        
+        mp = [{
+            'E': E,
+            'nu': nu,
+            'rho': rho,
+            'mu': mu,
+            'lambda_': lambda_
+        }]
+        return mp

@@ -5,7 +5,7 @@ WORLD_GRAPH = cgraph.WORLD_GRAPH
 # 创建电磁场问题定义节点
 pde = cgraph.create("PointSourceMaxwell")
 # 创建网格节点
-mesh_gen = cgraph.create("YeeUniformMesh")
+mesh_gen = cgraph.create("YeeMesh")
 # 创建FDTD求解器节点
 fdtd_solver = cgraph.create("PointSourceMaxwellFDTDModel")
 
