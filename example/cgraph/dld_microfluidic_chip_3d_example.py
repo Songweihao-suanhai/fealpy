@@ -18,7 +18,7 @@ material(
     mu = 1.0,
     rho = 1.0
 )
-mesher(lc = 0.07,
+mesher(lc = 0.04,
        material = material().mp
        )
 physics(mesh = mesher(),

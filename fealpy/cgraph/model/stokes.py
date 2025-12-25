@@ -8,7 +8,9 @@ class StokesMathematics(CNodeType):
     PATH: str = "preprocess.modeling"
     INPUT_SLOTS = [
         PortConf("u", DataType.TENSOR, title="速度"),
-        PortConf("p", DataType.TENSOR, title="压力")
+        PortConf("p", DataType.TENSOR, title="压力"),
+        PortConf("velocity_boundary", DataType.TEXT, title="速度边界条件"),
+        PortConf("pressure_boundary", DataType.TEXT, title="压力边界条件")
     ]
     OUTPUT_SLOTS = [
         PortConf("equation", DataType.LIST, title="方程"),
@@ -17,7 +19,7 @@ class StokesMathematics(CNodeType):
     ]
 
     @staticmethod
-    def run(u, p):
+    def run(u, p, velocity_boundary, pressure_boundary):
         from fealpy.backend import backend_manager as bm
         from fealpy.backend import TensorLike
         from fealpy.decorator import cartesian
@@ -49,11 +51,25 @@ class StokesMathematics(CNodeType):
             @cartesian
             def inlet_velocity(self, p: TensorLike) -> TensorLike:
                 """Compute exact solution of velocity."""
+                def ubd(x, y, z):
+                    return eval(
+                        velocity_boundary,
+                        {
+                            "bm": bm,
+                            "x": x,
+                            "y": y,
+                            "z": z
+                        }
+                    )
                 x = p[..., 0]
                 y = p[..., 1]
                 z = p[..., 2]
+                u_bd = ubd(x, y, z)
                 result = bm.zeros(p.shape, dtype=bm.float64)
-                result[..., 0] = 16*0.45*y*z*(1-y)*(0.1-z)/(0.41**4)
+                # result[..., 0] = 16*0.45*y*z*(1-y)*(0.1-z)/(0.41**4)
+                result[..., 0] = u_bd[0]
+                result[..., 1] = u_bd[1]
+                result[..., 2] = u_bd[2]
                 return result
             
             @cartesian

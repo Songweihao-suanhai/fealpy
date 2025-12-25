@@ -66,7 +66,7 @@ class IncompressibleNS2dbenchmark(CNodeType):
 
 class IncompressibleFluidPhysics(CNodeType):
     TITLE: str = "不可压缩流体物理量定义"
-    PATH: str = "preprocess.modeling"
+    PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
 
