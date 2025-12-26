@@ -5,7 +5,7 @@ __all__ = ["GearBox"]
 class GearBox(CNodeType):
     
     TITLE: str = "变速箱.数值离散"
-    PATH: str = "simulation.discreatization"
+    PATH: str = "simulation.discretization"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, title ="网格"),
         PortConf("shaftmatrix", DataType.MENU, title= "轴系矩阵"),
