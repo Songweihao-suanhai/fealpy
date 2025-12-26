@@ -20,6 +20,7 @@ class DataType(IntEnum):
     FUNCTION = 11
     TEXT     = 12
     CODE     = 13
+    DICT     = 14
 
 
 @dataclass(slots=True)
