@@ -18,11 +18,7 @@ class MicrostripPatchMesher3d(CNodeType):
         PortConf("l_sub", DataType.FLOAT, 1, title="基板长度(mm)", default=100.0)
     ]
     OUTPUT_SLOTS = [
-        PortConf("mesh", DataType.MESH, title="网格"),
-        PortConf("sub", DataType.TENSOR, title="基板单元"),
-        PortConf("air", DataType.TENSOR, title="空气单元"),
-        PortConf("pec", DataType.TENSOR, title="PEC 边界"),
-        PortConf("lumped", DataType.TENSOR, title="集总端口边界")
+        PortConf("mesh", DataType.MESH, title="网格")
     ]
 
     @staticmethod
@@ -39,7 +35,7 @@ class MicrostripPatchMesher3d(CNodeType):
         n_thk=2
         plate_shell_ratio=2
         n_radial_inner=3
-        n_radial_shell=2
+        n_radial_shell=3
         hpi, hps, hsi, hss, hmin, hmax = PatchAntennaMesher.recommend_mesh_sizes(
             t=d, r=r, R=R,
             n_thk=n_thk,                # 厚度方向建议≥2
@@ -56,7 +52,15 @@ class MicrostripPatchMesher3d(CNodeType):
             is_optimize=True, h_min=hmin, h_max=hmax
         )
         mesh, info = mesher.init_mesh(*(True,)*6)
+        mesh.celldata = {
+            "subIndex": info["plate_whole"],
+            "airIndex": info["air"]
+        }
+        mesh.facedata = {
+            "PECIndex": bm.concat([info["plate_bottom"], info["plate_inner_top"]])
+        }
+        mesh.edgedata = {
+            "lumpedPortIndex": info["bridge_head_edges"]
+        }
 
-        return mesh, info["plate_whole"], info["air"], \
-            bm.concat([info["plate_bottom"], info["plate_inner_top"]]), \
-            info["bridge_head_edges"]
+        return mesh
