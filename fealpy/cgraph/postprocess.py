@@ -155,7 +155,7 @@ class GearboxPostprocess(CNodeType):
     @staticmethod
     def run(mesh, vals, vecs, output_file):
         from ..backend import backend_manager as bm
-
+        
         freqs = bm.sqrt(vals) / (2 * bm.pi)
 
         NN = mesh.number_of_nodes()

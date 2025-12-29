@@ -3,6 +3,8 @@ from fealpy import logger
 import fealpy.cgraph as cgraph
 
 logger.setLevel("DEBUG")
+air_material = cgraph.create("ElectromagneticMaterial")
+sub_material = cgraph.create("ElectromagneticMaterial")
 mesher = cgraph.create("MicrostripPatchMesher3d")
 msa = cgraph.create("TimeHarmonicMaxwellWithLumpedPort")
 solver = cgraph.create("IterativeSolver")
@@ -12,17 +14,17 @@ msa(
     mesh=mesher().mesh,
     p=0,
     f=1.575,
-    sub_region=mesher().sub,
-    air_region=mesher().air,
-    pec_face=mesher().pec,
-    lumped_edge=mesher().lumped,
+    air_material=air_material(mu=1.0, eps=1.0),
+    sub_material=sub_material(mu=1.0, eps=3.38),
     r0=100.0,
     r1=120.0
 )
 solver(
     A=msa().operator,
     b=msa().vector,
-    solver="minres"
+    solver="minres",
+    rtol=1e-8,
+    atol=1e-12
 )
 postprocess(
     uh=solver(),

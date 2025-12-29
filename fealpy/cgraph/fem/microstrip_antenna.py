@@ -13,14 +13,8 @@ class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
         PortConf("space", DataType.MENU, 0, title="函数空间类型", items=["First Nédélec"]),
         PortConf("p", DataType.INT, 1, title="空间阶数", default=0),
         PortConf("f", DataType.FLOAT, 1, title="频率(GHz)", default=1.575),
-        PortConf("sub_region", DataType.TENSOR, 1, title="基板单元"),
-        PortConf("air_region", DataType.TENSOR, 1, title="空气单元"),
-        PortConf("pec_face", DataType.TENSOR, 1, title="PEC 边界"),
-        PortConf("lumped_edge", DataType.TENSOR, 1, title="集总端口"),
-        PortConf("mu_sub", DataType.FLOAT, 1, title="基板相对磁导率", default=1.0),
-        PortConf("epsilon_sub", DataType.FLOAT, 1, title="基板相对介电常数", default=3.38),
-        PortConf("mu_air", DataType.FLOAT, 1, title="空气相对磁导率", default=1.0),
-        PortConf("epsilon_air", DataType.FLOAT, 1, title="空气相对介电常数", default=1.0),
+        PortConf("air_material", DataType.DICT, 1, title="空气材料"),
+        PortConf("sub_material", DataType.DICT, 1, title="基板材料"),
         PortConf("r0", DataType.FLOAT, 1, title="PML 内径(mm)", default=100.0),
         PortConf("r1", DataType.FLOAT, 1, title="PML 外径(mm)", default=120.0),
         PortConf("s", DataType.FLOAT, 1, title="PML 多项式系数", default=5.0),
@@ -38,17 +32,29 @@ class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
         from fealpy.functionspace import FirstNedelecFESpace
         from fealpy.decorator import barycentric, cartesian
 
+        # Fetch parameters
+        mesh = options["mesh"]
+        air_material = options["air_material"]
+        sub_material = options["sub_material"]
+        air_region = mesh.celldata["airIndex"]
+        sub_region = mesh.celldata["subIndex"]
+        pec_face = mesh.facedata["PECIndex"]
+        lumped_edge = mesh.edgedata["lumpedPortIndex"]
+        mu_air = air_material.get("mu", 1.0)
+        eps_air = air_material.get("eps", 1.0)
+        mu_sub = sub_material.get("mu", 1.0)
+        eps_sub = sub_material.get("eps", 3.38)
+
         pml = CurlCurlSpherePML(
             r0=options['r0'],
             r1=options['r1'],
             omega=2*bm.pi*options['f']*1e9,
-            mu=options['mu_air'],
-            epsilon=options['epsilon_air'],
+            mu=mu_air,
+            epsilon=eps_air,
             s=options['s'],
             p=options['pp'],
         ) # PML is in the air
         k = 2*bm.pi*options['f']*1e1 / 3 / 1000 # unit for length is mm
-        mesh = options['mesh']
         p = options['p']
         space = FirstNedelecFESpace(mesh, p)
         ALL = slice(None)
@@ -69,16 +75,13 @@ class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
             isInPML = r > options['r0']
             F       = pml.jacobi(pp[isInPML])
             detF    = pml.detjacobi(pp[isInPML])
-
             NC = mesh.number_of_cells()
             NQ = bcs.shape[0]
-            is_air, is_sub = options["air_region"], options["sub_region"]
-            mu_air, mu_sub = options["mu_air"], options["mu_sub"]
-
             val = bm.zeros((NC, NQ, 3, 3), dtype=bm.complex128, device=mesh.device)
+
             for i in range(3):
-                val = bm.set_at(val, (is_air, ALL, i, i), 1/mu_air)
-                val = bm.set_at(val, (is_sub, ALL, i, i), 1/mu_sub)
+                val = bm.set_at(val, (air_region, ALL, i, i), 1/mu_air)
+                val = bm.set_at(val, (sub_region, ALL, i, i), 1/mu_sub)
 
             FTF = bm.einsum("...ij, ...ik -> ...jk", F, F)
             val = bm.set_at(val, isInPML, FTF / detF[..., None, None] / mu_air)
@@ -92,16 +95,13 @@ class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
             isInPML = r > options['r0']
             F       = pml.jacobi(pp[isInPML])
             detF    = pml.detjacobi(pp[isInPML])
-
             NC = mesh.number_of_cells()
             NQ = bcs.shape[0]
-            is_air, is_sub = options["air_region"], options["sub_region"]
-            eps_air, eps_sub = options["epsilon_air"], options["epsilon_sub"]
-
             val = bm.zeros((NC, NQ, 3, 3), dtype=bm.complex128, device=mesh.device)
+
             for i in range(3):
-                val = bm.set_at(val, (is_air, ALL, i, i), k**2 * eps_air)
-                val = bm.set_at(val, (is_sub, ALL, i, i), k**2 * eps_sub)
+                val = bm.set_at(val, (air_region, ALL, i, i), k**2 * eps_air)
+                val = bm.set_at(val, (sub_region, ALL, i, i), k**2 * eps_sub)
 
             FTF    = bm.einsum("...ij, ...ik -> ...jk", F, F)
             invFTF = bm.linalg.inv(FTF)
@@ -131,11 +131,15 @@ class TimeHarmonicMaxwellWithLumpedPort(CNodeType):
 
         A = bform.assembly(format='coo')
         F = lform.assembly()
-        isDFace = options["pec_face"]
+        print(pec_face)
+        DFaceIndex = bm.concat(
+            [pec_face, mesh.boundary_face_index()],
+            axis=0
+        )
 
         dbc = MSA.BCProcess(space)
-        F, isDDof = dbc.apply_vector(F, A, dirichlet, isDFace, 1.0)
-        A = dbc.apply_matrix(A, isDDof, options["lumped_edge"]).tocsr()
+        F, isDDof = dbc.apply_vector(F, A, dirichlet, DFaceIndex, 1.0)
+        A = dbc.apply_matrix(A, isDDof, lumped_edge).tocsr()
 
         return A, F
 
