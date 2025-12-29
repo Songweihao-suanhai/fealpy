@@ -6,7 +6,7 @@ from .cahn_hilliard_fem_simulation import CahnHilliardFEMSimulation
 from .timeline import CFDTimeline
 from .gnbc_main import GNBCSimulation
 from .dam_break import DamBreakParticleGeneration,DamBreakParticleIterativeUpdate
-from .dam_break3d import DamBreak3DParticleGeneration,DamBreak3DParticleIterativeUpdate
+from .dam_break3d import DamBreak3DParticleGeneration, SPHQueryDam, DamBreak3DParticleIterativeUpdate
 from .heat_transfer import HeatTransferParticleGeneration,HeatTransferParticleIterativeUpdate
 from .allen_cahn_fem_simulation import AllenCahnFEMSimulation
 from .gauge_uzawa_ns_simulation import GaugeUzawaNSSimulation
