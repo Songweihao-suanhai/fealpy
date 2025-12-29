@@ -143,8 +143,6 @@ class GearboxPostprocess(CNodeType):
         PortConf("mesh", DataType.SPACE, 1, desc="有限元网格", title="网格"),
         PortConf("vals", DataType.TENSOR, 1, desc="特征值", title="特征值"),
         PortConf("vecs", DataType.TENSOR, 1, desc="特征向量", title="特征向量"),
-        PortConf("NS", DataType.TENSOR, 1, desc="自由度划分信息", title="自由度划分"),
-        PortConf("G", DataType.TENSOR, 1, desc="耦合矩阵", title="耦合矩阵"),
         PortConf("output_file", DataType.STRING, 0, desc="输出文件路径", title="输出文件路径", default="/home"),
     ]
 
@@ -155,7 +153,7 @@ class GearboxPostprocess(CNodeType):
     ]
 
     @staticmethod
-    def run(mesh, vals, vecs, NS, G, output_file):
+    def run(mesh, vals, vecs, output_file):
         from ..backend import backend_manager as bm
         
         freqs = bm.sqrt(vals) / (2 * bm.pi)
@@ -163,28 +161,20 @@ class GearboxPostprocess(CNodeType):
         NN = mesh.number_of_nodes()
         isFreeNode = mesh.data.get_node_data('isFreeNode')
         isFreeDof = bm.repeat(isFreeNode, 3)
-        isCSNode = mesh.data.get_node_data('isCSNode')
-        isCSDof = bm.repeat(isCSNode, 3)
 
         mapped_eigvecs = []
-        start = sum(NS[0:-2])
-        end = start + NS[-2]
         from pathlib import Path
         export_dir = Path(output_file).expanduser().resolve()
         export_dir.mkdir(parents=True, exist_ok=True)
         fname = export_dir / f"test_{str(0).zfill(10)}.vtu"
         for i, val in enumerate(vecs):
-            phi = bm.zeros((NN * 3,), dtype=bm.float64)
-
+            
+            phi = bm.zeros((NN * 3,))
             idx, = bm.where(isFreeDof)
-            if (end - start) == idx.shape[0]:
-                phi = bm.set_at(phi, idx, val[start:end])
+            phi = bm.set_at(phi, idx, val)
 
-            idx, = bm.where(isCSDof)
-            phi = bm.set_at(phi, idx, G @ val[end:])
             phi = phi.reshape((NN, 3))
             mapped_eigvecs.append(phi)
-     
             mesh.nodedata[f'eigenvalue-{i}-{vals[i]:0.5e}'] = phi
 
         eigvecs = bm.array(mapped_eigvecs)
