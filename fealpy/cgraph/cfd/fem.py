@@ -2,7 +2,8 @@ from fealpy.backend import backend_manager as bm
 from fealpy.decorator import barycentric, cartesian, variantmethod
 from fealpy.fem import (BilinearForm, ScalarMassIntegrator, ScalarDiffusionIntegrator, BlockForm,
                         FluidBoundaryFrictionIntegrator,ScalarConvectionIntegrator, ViscousWorkIntegrator,
-                        PressWorkIntegrator, LinearBlockForm, LinearForm, SourceIntegrator)
+                        PressWorkIntegrator, LinearBlockForm, LinearForm, SourceIntegrator, DirichletBC)
+from fealpy.sparse import COOTensor
 
 class FEMBase:
     def lagrange_multiplier(pspace, A, b, c=0):
@@ -10,9 +11,6 @@ class FEMBase:
         Constructs the augmented system matrix for Lagrange multipliers.
         c is the integral of pressure, default is 0.
         """
-        from fealpy.backend import backend_manager as bm
-        from fealpy.sparse import COOTensor
-        from fealpy.fem import LinearForm, SourceIntegrator, BlockForm
         LagLinearForm = LinearForm(pspace)
         LagLinearForm.add_integrator(SourceIntegrator(source=1))
         LagA = LagLinearForm.assembly()
@@ -26,10 +24,8 @@ class FEMBase:
         b  = bm.concatenate([b, b0], axis=0)
         return A, b
     
-    def apply_bc(space, dirichlet, is_boundary, t):
+    def apply_bc(space, dirichlet, is_boundary , t):
         r"""Dirichlet boundary conditions for unsteady Navier-Stokes equations."""
-        from fealpy.fem import DirichletBC
-        from fealpy.decorator import cartesian
         BC = DirichletBC(space=space,
                 gd = cartesian(lambda p : dirichlet(p, t)),
                 threshold = is_boundary,
@@ -352,8 +348,236 @@ class CahnHilliard(FEMBase):
     
 
 class AllenCahn(FEMBase):
-    pass
+    def method(phispace, init_phase, q):
+        mesh = phispace.mesh
+        init_mass = mesh.integral(init_phase)
+
+        def update_ac(u_n, phi_n, t, dt, cm, cd, cc, source, mv: None):
+            # 移动网格行为产生的速度场 mv 可选
+            if mv is None:
+                def mv(bcs):
+                    NC = mesh.number_of_cells()
+                    GD = mesh.geo_dimension()
+                    shape = (NC, bcs.shape[0], GD)
+                    return bm.zeros(shape, dtype=bm.float64)
+                
+            bform = BilinearForm(phispace)
+            lform = LinearForm(phispace)
+            
+            SMI = ScalarMassIntegrator(coef=1.0+dt*(cm), q=q)
+            SDI = ScalarDiffusionIntegrator(coef=dt*cd, q=q)
+            SCI = ScalarConvectionIntegrator(q=q)
+            SSI = SourceIntegrator(q=q)
+            
+            bform.add_integrator(SMI, SDI, SCI)
+            lform.add_integrator(SSI)
+            
+            @barycentric
+            def convection_coef(bcs, index):
+                result = dt * (u_n(bcs, index) - mv(bcs, index))
+                return result
+
+            source = source(phi_n, dt, t)
+            
+            SCI.coef = convection_coef
+            SSI.source = source
+            A = bform.assembly()
+            b = lform.assembly()
+
+            def lagrange_multiplier(A, b):
+                LagLinearForm = LinearForm(phispace)
+                Lag_SSI = SourceIntegrator(source=1, q=q)
+                LagLinearForm.add_integrator(Lag_SSI)
+                LagA = LagLinearForm.assembly()
+                A0 = -dt * cd * bm.ones(phispace.number_of_global_dofs())
+                A0 = COOTensor(bm.array([bm.arange(len(A0), dtype=bm.int32), 
+                                        bm.zeros(len(A0), dtype=bm.int32)]), A0, spshape=(len(A0), 1))
+                A1 = COOTensor(bm.array([bm.zeros(len(LagA), dtype=bm.int32),
+                                        bm.arange(len(LagA), dtype=bm.int32)]), LagA,
+                                        spshape=(1, len(LagA)))
+                b0 = bm.array([init_mass], dtype=bm.float64)
+                A_block = BlockForm([[A, A0], [A1, None]])
+                A_block = A_block.assembly_sparse_matrix(format='csr')
+                b_block = bm.concat([b, b0], axis=0)
+                return A_block, b_block
+            
+            A_block, b_block = lagrange_multiplier(A, b)
+            return A_block, b_block
+        
+        return update_ac
 
 
 class GaugeUzawaNS(FEMBase):
-    pass
+    
+    def method(uspace, pspace, 
+               boundary, 
+               is_boundary, 
+               q = 3, 
+               apply_bc = None):  
+
+        mesh = uspace.mesh
+        us_bform = BilinearForm(uspace)
+        ps_bform = BilinearForm(pspace)
+        u_bform = BilinearForm(uspace)
+        s_bform = BilinearForm(pspace)
+        p_bform = BilinearForm(pspace)
+        
+        us_lform = LinearForm(uspace)
+        ps_lform = LinearForm(pspace)
+        u_lform = LinearForm(uspace)
+        s_lform = LinearForm(pspace)
+        p_lform = LinearForm(pspace)
+        
+        us_SMI = ScalarMassIntegrator(q=q)
+        us_SMI_phiphi = ScalarMassIntegrator(q=q)
+        us_VWI = ViscousWorkIntegrator(q=q)
+        us_SCI = ScalarConvectionIntegrator(q=q)
+        us_SSI = SourceIntegrator(q=q)
+        
+        ps_SDI = ScalarDiffusionIntegrator(q=q)
+        ps_SSI = SourceIntegrator(q=q)
+        
+        u_SMI = ScalarMassIntegrator(coef=1.0 , q=q)
+        u_SSI = SourceIntegrator(q=q)
+        
+        s_SMI = ScalarMassIntegrator(coef=1.0 , q=q)
+        s_SSI = SourceIntegrator(q=q)
+        
+        p_SMI = ScalarMassIntegrator(coef=1.0+1e-8 , q=q)
+        p_SSI = SourceIntegrator(q=q)
+        
+        us_bform.add_integrator(us_SMI, us_VWI, us_SCI , us_SMI_phiphi)
+        us_lform.add_integrator(us_SSI)
+        ps_bform.add_integrator(ps_SDI)
+        ps_lform.add_integrator(ps_SSI)
+        u_bform.add_integrator(u_SMI)
+        u_lform.add_integrator(u_SSI)
+        s_bform.add_integrator(s_SMI)
+        s_lform.add_integrator(s_SSI)
+        p_bform.add_integrator(p_SMI)
+        p_lform.add_integrator(p_SSI)
+        
+        # bc = DirichletBC(uspace)
+        
+        def update_us(phi_n, phi, t, dt, u_n, s_n, cm, cphi, cv, cc, us_source, mv = None, apply_bc = apply_bc):
+            # 移动网格行为产生的速度场 mv 可选
+            if mv is None:
+                def mv(bcs):
+                    NC = mesh.number_of_cells()
+                    GD = mesh.geo_dimension()
+                    shape = (NC, bcs.shape[0], GD)
+                    return bm.zeros(shape, dtype=bm.float64)
+                
+            cm = cm(phi)
+            cv = cv(phi)
+            cc = cc(phi)
+
+            # mu = viscosity(phi)
+            # rho = density(phi)
+            # rho_n = density(phi_n)
+
+            @barycentric
+            def mass_coef(bcs,index):
+                uh0_val = u_n(bcs, index)
+                guh0_val = u_n.grad_value(bcs, index)
+                rho1_val = cm(bcs, index)
+                grho1_val = cm.grad_value(bcs, index)
+                div_u_rho = bm.einsum('cqii,cq->cq', guh0_val, rho1_val) 
+                div_u_rho += bm.einsum('cqd,cqd->cq', grho1_val, uh0_val) 
+                result0 = rho1_val + 0.5 * dt * div_u_rho
+                
+                # 添加移动网格项
+                result1 = 0.5*dt*bm.einsum('cqi,cqi->cq', grho1_val, mv(bcs, index))
+                result = result0 - result1
+                return result
+            
+            @barycentric
+            def phiphi_mass_coef(bcs, index):
+                gphi_n = phi_n.grad_value(bcs, index)
+                gphi_gphi = bm.einsum('cqi,cqj->cqij', gphi_n, gphi_n)
+                result = (cphi * dt) * gphi_gphi
+                return result
+            
+            @barycentric
+            def convection_coef(bcs, index):
+                uh_n_val = u_n(bcs, index)
+                rho1_val = cc(bcs, index)
+                result = rho1_val[...,None] * (uh_n_val - mv(bcs, index))
+                return dt * result
+            
+            source = us_source(phi_n, phi, u_n, s_n, dt, t, mv)
+            
+            us_SMI.coef = mass_coef
+            us_SMI_phiphi.coef = phiphi_mass_coef
+            us_VWI.coef = dt * cv
+            us_SCI.coef = convection_coef
+            us_SSI.source = source
+                        
+            A = us_bform.assembly()
+            b = us_lform.assembly()
+            
+            if apply_bc is None:
+                apply = FEMBase.apply_bc(uspace, boundary, is_boundary, t)
+                A , b = apply(A, b)
+            return A , b
+        
+        def update_ps(phi, us, cd):
+            cd = cd(phi)
+
+            @barycentric
+            def diffusion_coef(bcs, index):
+                result = 1 / cd(bcs, index)
+                return result
+            
+            @barycentric
+            def source_coef(bcs, index):
+                uh_grad_val = us.grad_value(bcs, index)
+                div_u = bm.einsum('cqii->cq', uh_grad_val)
+                return div_u
+            
+            ps_SDI.coef = diffusion_coef
+            ps_SSI.source = source_coef
+            
+            A = ps_bform.assembly()
+            b = ps_lform.assembly()
+            return A , b
+        
+        def update_velocity(phi, us, ps, cl):
+            cl = cl(phi)
+            
+            @barycentric
+            def source_coef(bcs, index):
+                result = us(bcs, index)
+                result += (1/cl(bcs, index)[..., None] )* ps.grad_value(bcs, index)
+                return result
+            
+            u_SSI.source = source_coef
+            
+            A = u_bform.assembly()
+            b = u_lform.assembly()
+            return A , b
+        
+        def update_gauge(s_n, us):
+            @barycentric
+            def source_coef(bcs,index):
+                result = s_n(bcs,index) - bm.einsum('cqii->cq', us.grad_value(bcs,index))
+                return result
+            s_SSI.source = source_coef
+
+            A = s_bform.assembly()
+            b = s_lform.assembly()
+            return A , b
+        
+        def update_pressure(s, ps, dt, cl):
+            @barycentric
+            def source_coef(bcs, index):
+                result = -1/dt * ps(bcs, index)
+                result +=  cl * s(bcs, index)
+                return result
+            p_SSI.source = source_coef
+            
+            A = p_bform.assembly()
+            b = p_lform.assembly()
+            return A , b
+        
+        return update_us, update_ps, update_velocity, update_gauge, update_pressure

@@ -18,7 +18,7 @@ def get_space_class(space_type: str) -> Type:
 class MultiphaseFlowPhysics(CNodeType):
 
     TITLE: str = "两相流物理量定义"
-    PATH: str = "preprocess.modeling"
+    PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, 1, title="网格"),
 
@@ -46,8 +46,8 @@ class MultiphaseFlowPhysics(CNodeType):
         from fealpy.backend import backend_manager as bm
         from fealpy.functionspace import functionspace
 
-        bm.set_backend('pytorch')
-        bm.set_default_device('cpu')
+        # bm.set_backend('pytorch')
+        # bm.set_default_device('cpu')
 
         mesh = options.get('mesh')
         

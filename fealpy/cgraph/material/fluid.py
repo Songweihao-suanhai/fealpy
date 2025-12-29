@@ -1,18 +1,18 @@
 from ..nodetype import CNodeType, PortConf, DataType
 
 
-__all__ = ['RTIMaterial', 'IncompressibleFluid']
+__all__ = ['MultiphaseFlowMaterial', 'IncompressibleFluid']
 
-class RTIMaterial(CNodeType):
-    TITLE: str = "RTI 现象流体材料属性"
+class MultiphaseFlowMaterial(CNodeType):
+    TITLE: str = "两相流体材料属性"
     PATH: str = "examples.CFD"
     INPUT_SLOTS = [
         PortConf("rho0", DataType.FLOAT, 0, title="第一液相密度", default=3.0),
         PortConf("rho1", DataType.FLOAT, 0, title="第二液相密度", default=1.0),
-        PortConf("mu0", DataType.FLOAT, 0, title="第一液相粘度"),
-        PortConf("mu1", DataType.FLOAT, 0, title="第二液相粘度"),
-        PortConf("lam", DataType.FLOAT, 0, title="应力系数"),
-        PortConf("gamma", DataType.FLOAT, 0, title="迁移率参数"),
+        PortConf("mu0", DataType.FLOAT, 0, title="第一液相粘度", default=0.0011),
+        PortConf("mu1", DataType.FLOAT, 0, title="第二液相粘度", default=0.0011),
+        PortConf("lam", DataType.FLOAT, 0, title="应力系数", default=0.001),
+        PortConf("gamma", DataType.FLOAT, 0, title="迁移率参数", default=0.02),
         PortConf("Re", DataType.FLOAT, 0, title="雷诺数", default=3000.0),
         PortConf("Fr", DataType.FLOAT, 0, title="弗劳德数", default=1.0),
         PortConf("epsilon", DataType.FLOAT, 0, title="界面厚度参数", default=0.01)
@@ -23,8 +23,8 @@ class RTIMaterial(CNodeType):
     @staticmethod
     def run(rho0, rho1, mu0, mu1, lam, gamma, Re, Fr, epsilon):
         from fealpy.backend import backend_manager as bm
-        bm.set_backend('pytorch')
-        bm.set_default_device('cpu')
+        # bm.set_backend('pytorch')
+        # bm.set_default_device('cpu')
         def rho(phi):
             result = phi.space.function()
             result[:] = (rho0 - rho1)/2 * phi[:]
@@ -43,7 +43,11 @@ class RTIMaterial(CNodeType):
         Pe = 1/epsilon
 
         material = [{
+            'rho0': rho0,
+            'rho1': rho1,
             'rho': rho, 
+            'mu0': mu0,
+            'mu1': mu1,
             'mu': mu,
             'lam': lam, 
             'gamma': gamma,

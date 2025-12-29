@@ -10,17 +10,21 @@ class PhaseFieldMesher2d(CNodeType):
         PortConf("box", DataType.TEXT, 0, title="求解域"),
         PortConf("nx", DataType.INT, 0, default=64, title="x方向单元数"),
         PortConf("ny", DataType.INT, 0, default=256, title="y方向单元数"),
+        PortConf("dimensionless", DataType.BOOL, 0, default=False, title="无量纲化")
     ]
     OUTPUT_SLOTS = [
         PortConf("mesh", DataType.MESH, title="网格")
     ]
     @staticmethod
-    def run(material, box, nx, ny):
+    def run(material, box, nx, ny, dimensionless):
         from fealpy.backend import backend_manager as bm
         from fealpy.mesh import TriangleMesh
         from fealpy.decorator import cartesian
         import math
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
+        if dimensionless is True:
+            L_ref = box[1] - box[0]
+            box = box / L_ref
         mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
         mesh.box = box
         NN = mesh.number_of_nodes()
