@@ -50,10 +50,25 @@ class VTKWriter2:
                 continue
 
             v = np.asarray(value)
-
-            # 标量 → (N,)
-            if v.ndim == 0:
-                v = np.full((N,), float(v))
+            
+            # 检查数据的维度
+            # 如果v是标量（0维）或者形状为(1,)的数组
+            if v.ndim == 0 or (v.ndim == 1 and v.shape[0] == 1):
+                # 将标量值应用到所有点
+                scalar_value = float(v) if v.ndim == 0 else float(v[0])
+                arr = vtk.vtkDoubleArray()
+                arr.SetName(key)
+                arr.SetNumberOfComponents(1)
+                arr.SetNumberOfTuples(N)
+                for i in range(N):
+                    arr.SetValue(i, scalar_value)
+                poly.GetPointData().AddArray(arr)
+                continue
+            
+            # 对于非标量数据，检查第一维是否与点数匹配
+            if v.shape[0] != N:
+                print(f"Warning: Field '{key}' has length {v.shape[0]}, expected {N}. Skipping.")
+                continue
 
             # 一维 → 标量
             if v.ndim == 1:
