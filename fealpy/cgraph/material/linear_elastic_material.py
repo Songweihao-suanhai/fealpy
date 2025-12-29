@@ -46,7 +46,7 @@ class LinearElasticMaterial(CNodeType):
     ]
     
     OUTPUT_SLOTS = [
-        PortConf("mp", DataType.LIST, title="材料属性")
+        PortConf("mp", DataType.DICT, title="材料属性")
     ]
     
     @staticmethod
@@ -92,11 +92,11 @@ class LinearElasticMaterial(CNodeType):
         # 拉梅第一参数: lambda = E * nu / ((1 + nu) * (1 - 2 * nu))
         lambda_ = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
         
-        mp = [{
+        mp = {
             'E': E,
             'nu': nu,
             'rho': rho,
             'mu': mu,
             'lambda_': lambda_
-        }]
+        }
         return mp

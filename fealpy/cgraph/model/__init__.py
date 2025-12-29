@@ -13,4 +13,3 @@ from .cahn_hilliard_navier_stokes2d import *
 from .linear_elasticity_eigen3d import LinearElasticityEigen3d
 from .rasing_bubble2d import RasingBubble2D
 from .water_purification_reactor import *
-from .point_source_maxwell import *
