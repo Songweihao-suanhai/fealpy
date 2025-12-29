@@ -22,9 +22,9 @@ class PhaseFieldMesher2d(CNodeType):
         from fealpy.decorator import cartesian
         import math
         box = bm.tensor(eval(box, None, vars(math)), dtype=bm.float64)
+        d = 0.005
         if dimensionless is True:
-            L_ref = box[1] - box[0]
-            box = box / L_ref
+            box = [x / d for x in box]
         mesh = TriangleMesh.from_box(box = box, nx = nx, ny = ny)
         mesh.box = box
         NN = mesh.number_of_nodes()
