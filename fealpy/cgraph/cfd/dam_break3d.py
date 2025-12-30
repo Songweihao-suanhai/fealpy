@@ -198,12 +198,16 @@ class DamBreak3DParticleIterativeUpdate(CNodeType):
         
         mesh.nodedata["dxdt"] = sphsolver.change_r_dam(mesh.nodedata, self_node, neighbors, w)
         mesh.nodedata["position"] = bm.where((mesh.nodedata["tag"] == 0)[:, None], mesh.nodedata["position"] + dt * mesh.nodedata["dxdt"], mesh.nodedata["position"],)
-    
+
+        current_data = {
+            "position": mesh.nodedata["position"].tolist(),  # ndarray -> list
+            "velocity": mesh.nodedata["u"].tolist(),  # ndarray -> list
+            "pressure": mesh.nodedata["pressure"].tolist(),  # ndarray -> list
+            }     
         writer = VTKWriter2()
-        export_dir = Path(output_dir).expanduser().resolve()
-        export_dir.mkdir(parents=True, exist_ok=True)
-        fname = export_dir / f"test_{str(i+1).zfill(10)}.vtk"
-        writer.write_vtk(mesh.nodedata, fname)           
+        path = "/home/peter/"
+        zfname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'    
+        writer.write_vtk(current_data, zfname)           
 
         velocity = mesh.nodedata["u"]
         pressure = mesh.nodedata["pressure"]

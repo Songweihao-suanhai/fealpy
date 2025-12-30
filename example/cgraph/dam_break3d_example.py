@@ -18,7 +18,6 @@ generation(
 SPHQuery1(
     mesh = generation().mesh,
     kernel = "wendlandc2",
-    h=0.02,
     space = False,
     box_size = generation().box_size,
 )
@@ -31,11 +30,10 @@ iterative1(mesh = generation().mesh,
         dist=SPHQuery1().dist,
         w=SPHQuery1().w,
         grad_w=SPHQuery1().grad_w,
-        output_dir="/home/pete/output")
+        output_dir="/home/peter/")
 SPHQuery2(
     mesh = iterative1().mesh,
     kernel = "wendlandc2",
-    h=0.02,
     space = False,
     box_size = generation().box_size,
 )
@@ -48,12 +46,11 @@ iterative2(mesh = iterative1().mesh,
         dist=SPHQuery2().dist,
         w=SPHQuery2().w,
         grad_w=SPHQuery2().grad_w,
-        output_dir="/home/pete/output")
+        output_dir="/home/peter/")
 
 SPHQuery3(
     mesh = iterative2().mesh,
     kernel = "wendlandc2",
-    dx=0.02,
     space = False,
     box_size = generation().box_size,
 )
@@ -66,13 +63,11 @@ iterative3(mesh = iterative2().mesh,
         dist=SPHQuery3().dist,
         w=SPHQuery3().w,
         grad_w=SPHQuery3().grad_w,
-        grad_w_norm=SPHQuery3().grad_w_norm,
-        output_dir="/home/pete/output")
+        output_dir="/home/peter/")
 
 
 WORLD_GRAPH.output(velocity=iterative3().velocity, 
-                   pressure=iterative3().pressure,
-                   temperature=iterative3().temperature)
+                   pressure=iterative3().pressure,)
 
 # 最终连接到图输出节点上
 WORLD_GRAPH.register_error_hook(print)
