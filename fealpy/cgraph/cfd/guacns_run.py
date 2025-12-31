@@ -47,41 +47,42 @@ class MMGUACNSFEMModel(CNodeType):
         PortConf("boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("x0", DataType.LIST, title="初始值"),
+        PortConf("xn", DataType.DICT, title="前置值"),
+        
     ]
     OUTPUT_SLOTS = [
         PortConf("u", DataType.FUNCTION, title="速度场"),
         PortConf("p", DataType.FUNCTION, title="压力场"),
-        PortConf("phi", DataType.FUNCTION, title="相场函数")
+        PortConf("phi", DataType.FUNCTION, title="相场函数"),
+        PortConf("xn", DataType.DICT, title="前置值"),
     ]
     
     @staticmethod
     def run(i, dt,
             phi, u, p,
             equation, boundary, 
-            is_boundary, x0):
+            is_boundary, x0, xn):
         from fealpy.backend import bm
         from fealpy.solver import spsolve
         from fealpy.functionspace import TensorFunctionSpace
-        from pathlib import Path
 
         uspace = u.space
         pspace = p.space
         phispace = phi.space
-        equation = equation[0]
-        ac_cm = equation.get('ac_cm')
-        ac_cd = equation.get('ac_cd')
-        ac_cc = equation.get('ac_cc')
-        ac_source = equation.get('ac_source')
-        ns_cusm = equation.get('ns_cusm')
-        ns_cusphi = equation.get('ns_cusphi')
-        ns_cusv = equation.get('ns_cusv')
-        ns_cusc = equation.get('ns_cusc')
-        ns_cussource = equation.get('ns_cussource')
-        print("ns_cussource:", ns_cussource)
-        ns_cpsd = equation.get('ns_cpsd')
-        ns_cu1l = equation.get('ns_cu1l')
-        ns_cp1l = equation.get('ns_cp1l')
-        x0 = x0[0]
+        # ac_cm = equation.get('ac_cm')
+        # ac_cd = equation.get('ac_cd')
+        # ac_cc = equation.get('ac_cc')
+        # ac_source = equation.get('ac_source')
+        # ns_cusm = equation.get('ns_cusm')
+        # ns_cusphi = equation.get('ns_cusphi')
+        # ns_cusv = equation.get('ns_cusv')
+        # ns_cusc = equation.get('ns_cusc')
+        # ns_cussource = equation.get('ns_cussource')
+        # ns_cpsd = equation.get('ns_cpsd')
+        # ns_cu1l = equation.get('ns_cu1l')
+        # ns_cp1l = equation.get('ns_cp1l')
+        velocity_force = equation.get('velocity_force')
+        phase_force = equation.get('phase_force')
         init_phase = x0["init_phase"]
         init_velocity = x0["init_velocity"]
         init_pressure = x0["init_pressure"]
@@ -182,7 +183,7 @@ class MMGUACNSFEMModel(CNodeType):
         phi[:] = phi_n[:]
         
         mm, mesh_velocity, node_n = set_move_mesher(mesh, phi_n, phispace)
-        t = 0.0
+        # t = 0.0
         t  = dt * (i + 1)
         # Move mesh according to phase field
         if t - dt == 0.0:
@@ -193,57 +194,46 @@ class MMGUACNSFEMModel(CNodeType):
             phi[:] = phi_n[:]
             # save_vtu(step = 0,export_dir=export_dir)
         else:
+            phi_n = xn["phi_n"]
+            u_n = xn["u_n"]
+            s_n = xn["s_n"]
+            node_n = xn["node_n"]
             mm.run()
+            mm.instance.uh = xn["mm.instance.uh"]
+            
             
         mesh_velocity[:] = ((mesh.node - node_n)/dt).T.flatten()
-        # boundary = lambda p: velocity_dirichlet_bc(p, t)
         # Define time-dependent forces and boundary conditions
-        from fealpy.cgraph.cfd.fem import AllenCahn, GaugeUzawaNS
-        update_ac = AllenCahn.method(phispace, init_phase, q = 4)
-        update_us, update_ps, update_velocity, update_gauge, update_pressure = GaugeUzawaNS.method(uspace, 
-                                                                                                    pspace, 
-                                                                                                    boundary, 
-                                                                                                    is_boundary, 
-                                                                                                    q=3)
+        current_v_force = lambda p: velocity_force(p, t)
+        current_phi_force = lambda p: phase_force(p, t)
+        current_v_dirichlet_bc = lambda p: velocity_dirichlet_bc(p, t)
         # Update phase-field using Allen-Cahn equation
-        ac_A , ac_b = update_ac(u_n, phi_n, t, dt, cm = ac_cm, 
-                                cd = ac_cd,
-                                cc = ac_cc,
-                                source = ac_source,
-                                mv = mesh_velocity)   # 此处差一个网格速度
+        from fealpy.cgraph.cfd.fem import AllenCahn
+        update_ac = AllenCahn.method(phispace, init_phase, q=4)
+        from fealpy.cgraph.cfd.fem import GaugeUzawaNS
+        update_us, update_ps, update_velocity, update_gauge, update_pressure = \
+            GaugeUzawaNS.method(mesh, uspace, pspace, phispace, q=3)
+        ac_A , ac_b = update_ac(u_n, phi_n, dt,current_phi_force, mesh_velocity)   # 此处差一个网格速度
         phi_val = spsolve(ac_A, ac_b,solver= 'scipy')
         phi[:] = phi_val[:-1]
+        print(phi)
 
         print("theta:",phi_val[-1])
         # Update auxiliary velocity field
-        us_A , us_b = update_us(phi_n = phi_n, 
-                                phi = phi, 
-                                u_n = u_n,
-                                s_n = s_n,
-                                dt = dt,
-                                t = t,
-                                cm = ns_cusm,
-                                cphi = ns_cusphi,
-                                cv = ns_cusv,
-                                cc = ns_cusc,
-                                us_source = ns_cussource,
-                                mv = mesh_velocity)
+        us_A , us_b = update_us(phi_n , phi , u_n ,s_n ,dt,
+                                current_v_force,current_v_dirichlet_bc,mesh_velocity)
         us[:] = spsolve(us_A, us_b,solver= 'scipy')
-
         # Update intermediate pressure
-        ps_A , ps_b = update_ps(phi, us, cd = ns_cpsd)
+        ps_A , ps_b = update_ps(phi, us)
         ps[:] = spsolve(ps_A, ps_b,solver= 'scipy')
-
         # Update velocity field           
-        u_A , u_b = update_velocity(phi, us, ps, cl = ns_cu1l)
+        u_A , u_b = update_velocity(phi, us, ps)
         u[:] = spsolve(u_A, u_b,solver= 'scipy')
-
         # Update gauge variable
         s_A , s_b = update_gauge(s_n, us)
         s[:] = spsolve(s_A, s_b,solver= 'scipy')
-
         # Update pressure field
-        p_A , p_b = update_pressure(s, ps, dt, cl= ns_cp1l)
+        p_A , p_b = update_pressure(s, ps, dt)
         p[:] = spsolve(p_A, p_b,solver= 'scipy')
                     
         # Prepare for next time step
@@ -252,6 +242,13 @@ class MMGUACNSFEMModel(CNodeType):
         s_n[:] = s[:]
         node_n = mesh.node.copy()
         mm.instance.uh = phi
+        xn = {
+            "phi_n": phi_n,
+            "u_n": u_n,
+            "s_n": s_n,
+            "node_n": node_n,
+            "mm.instance.uh": mm.instance.uh
+        }
         
         # Save results
         # save_vtu(i+1,export_dir)
@@ -259,4 +256,4 @@ class MMGUACNSFEMModel(CNodeType):
         centroid = compute_bubble_centroid()
         print(f"Time step {i+1}, Time {t:.4f}, Bubble Centroid: {centroid}")
             
-        return u, p, phi
+        return u, p, phi, xn

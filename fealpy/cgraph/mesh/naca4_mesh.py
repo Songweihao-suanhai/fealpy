@@ -44,6 +44,8 @@ class NACA4Geometry2d(CNodeType):
                                    dtype=bm.float64)
 
         mesher = NACA4Mesher(m , p , t, c, alpha, N, box, singular_points)
+        airfoil_points = mesher.get_naca4_points(m, p, t, c, N)
+        
 
         eps = 1e-10
         def is_inlet_boundary(p):

@@ -11,7 +11,7 @@ mathmatics = cgraph.create("IncompressibleNSMathematics")
 IncompressibleNSRun = cgraph.create("IncompressibleNSFEMModel")
 to_vtk = cgraph.create("TO_VTK")
 
-box = '[-0.5, 2.7, -0.4, 0.4]'
+box = '[-0.5, 1.3, -1.4, 1.4]'
 material(
     mu = 0.001,
     rho = 1.0
