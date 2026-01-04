@@ -8,14 +8,16 @@ class NACA4Geometry2d(CNodeType):
     DESC: str = """该节点生成二维 NACA4 系列翼型的几何数据，依据翼型参数自动构建翼型几何形状，
                 为翼型流场数值模拟提供几何基础。"""
     INPUT_SLOTS = [
+        PortConf("material", DataType.NONE, 1, title="材料"),
+        PortConf("box", DataType.TEXT, 0, default=[-0.5, 2.7, -0.4, 0.4], title="求解域"),
         PortConf("m", DataType.FLOAT, 0, default=0.0, title="最大弯度"),
         PortConf("p", DataType.FLOAT, 0, default=0.0, title="最大弯度位置"),
         PortConf("t", DataType.FLOAT, 0, default=0.12, title="相对厚度"),
         PortConf("c", DataType.FLOAT, 0, default=1.0, title="弦长"),
         PortConf("alpha", DataType.FLOAT, 0, default=0.0, title="攻角"),
         PortConf("N", DataType.INT, 0, default=200, title="翼型采样点数"),
-        PortConf("box", DataType.TEXT, 0, default=[-0.5, 2.7, -0.4, 0.4], title="求解域"),
-        PortConf("material", DataType.NONE, 1, title="材料"),
+        PortConf("is_velocity_boundary", DataType.TEXT, 0, default="['inlet', 'wall', 'airfoil']", title="速度边界"),
+        PortConf("is_pressure_boundary", DataType.TEXT, 0, default="['outlet']", title="压力边界")
     ]
     OUTPUT_SLOTS = [
         PortConf("geometry", DataType.LIST, title="几何信息")
@@ -24,8 +26,10 @@ class NACA4Geometry2d(CNodeType):
     @staticmethod
     def run(**options):
         import math
+        import ast
         from fealpy.backend import backend_manager as bm
         from fealpy.mesher.naca4_mesher import NACA4Mesher
+        from fealpy.decorator import variantmethod, cartesian
 
         m = options.get("m", 0.0)
         p = options.get("p", 0.0)
@@ -43,34 +47,119 @@ class NACA4Geometry2d(CNodeType):
                                     [c * bm.cos(theta), c * bm.sin(theta)]], 
                                    dtype=bm.float64)
 
-        mesher = NACA4Mesher(m , p , t, c, alpha, N, box, singular_points)
-        airfoil_points = mesher.get_naca4_points(m, p, t, c, N)
-        
+        model = NACA4Mesher(m , p , t, c, alpha, N, box, singular_points)
+
+        # def is_airfoil_boundary(p):
+        #     x = p[..., 0]
+        #     y = p[..., 1]
+        #     # 余弦分布采样（前缘点更密集）
+        #     beta = bm.linspace(0, bm.pi, N)
+
+        #     if x>=0 and x<=c:
+        #         # 厚度分布
+        #         yt = 5 * t * c * (0.2969 * bm.sqrt(x / c) - 0.1260 * (x / c)
+        #                         - 0.3516 * (x / c) ** 2 + 0.2843 * (x / c) ** 3 - 0.1015 * (x / c) ** 4)
+
+        #         # 弯度线和斜率
+        #         if p != 0 and p != 1:
+        #             yc = bm.where(x < p * c,
+        #                         m * (x / (p ** 2)) * (2 * p - x / c),
+        #                         m * ((c - x) / ((1 - p) ** 2)) * (1 + x / c - 2 * p))
+        #             dyc_dx = bm.where(x < p * c,
+        #                             2 * m / p ** 2 * (p - x / c),
+        #                             2 * m / (1 - p) ** 2 * (p - x / c))
+
+        #         if p == 0:
+        #             yc = m * ((c - x) / ((1 - p) ** 2)) * (1 + x / c - 2 * p)
+        #             dyc_dx = 2 * m / (1 - p) ** 2 * (p - x / c)
+
+        #         if p == 1:
+        #             yc = m * (x / (p ** 2)) * (2 * p - x / c)
+        #             dyc_dx = 2 * m / p ** 2 * (p - x / c)
+
+        #         theta = bm.arctan(dyc_dx)
+
+        #         # 上下表面
+        #         x_u = x - yt * bm.sin(theta)
+        #         y_u = yc + yt * bm.cos(theta)
+        #         x_l = x + yt * bm.sin(theta)
+        #         y_l = yc - yt * bm.cos(theta)
+
+        #         alpha = alpha / 180.0 * bm.pi
+        #         ca, sa = bm.cos(-alpha), bm.sin(-alpha)
+        #         def rotate(x, y):
+        #             return ca*x - sa*y, sa*x + ca*y
+
+        #         x, y = rotate(x, y)
+        #         cond_u = bm.abs(y - y_u) < 1e-6            
+        #         cond_l = bm.abs(y - y_l) < 1e-6
+
+        #     return cond_u | cond_l
 
         eps = 1e-10
-        def is_inlet_boundary(p):
+
+        @variantmethod("inlet")
+        def is_boundary(p):
             x = p[..., 0]
             return bm.abs(x - box[0]) < eps
-        def is_outlet_boundary(p):
+        
+        @is_boundary.register("outlet")
+        def is_boundary(p):
             x = p[...,0]
             y = p[...,1]
             cond1 = bm.abs(x - box[1]) < eps
             cond2 = bm.abs(y-box[2])>eps
             cond3 = bm.abs(y-box[3])>eps
             return (cond1) & (cond2 & cond3) 
-        def is_wall_boundary(p):
+        
+        @is_boundary.register("wall")
+        def is_boundary(p):
             y = p[..., 1]
             return (bm.abs(y - box[2]) < eps) | (bm.abs(y - box[3]) < eps)
         
-        mesher.is_inlet_boundary = is_inlet_boundary
-        mesher.is_outlet_boundary = is_outlet_boundary
-        mesher.is_wall_boundary = is_wall_boundary
-        mesher.material = material
+        @is_boundary.register("airfoil")
+        def is_boundary(p):
+            x = p[..., 0]
+            y = p[..., 1]
+            is_inlet_boundary = is_boundary["inlet"]
+            is_outlet_boundary = is_boundary["outlet"]
+            is_wall_boundary = is_boundary["wall"]
+            cond = ~(is_inlet_boundary(p) | is_outlet_boundary(p) | is_wall_boundary(p))
+            return cond
+        
+        @cartesian
+        def is_u_boundary(p):
+            is_u_bd = options.get("is_velocity_boundary")
+            is_u_bd = ast.literal_eval(is_u_bd)
 
-        geometry = [
-            {"mesher": mesher}
-        ]
-
+            for bd in is_u_bd:
+                bd_func = is_boundary[bd]
+                if bd == is_u_bd[0]:
+                    value = bd_func(p)
+                else:
+                    value = value | bd_func(p)
+            return value
+        
+        @cartesian
+        def is_p_boundary(p = None):
+            if p is None:
+                return 1
+            is_p_bd = options.get("is_pressure_boundary")
+            is_p_bd = ast.literal_eval(is_p_bd)
+            for bd in is_p_bd:
+                bd_func = is_boundary[bd]
+                if bd == is_p_bd[0]:
+                    value = bd_func(p)
+                else:
+                    value = value | bd_func(p)
+            return value
+        
+        model.is_boundary = is_boundary
+        model.is_velocity_boundary = is_u_boundary
+        model.is_pressure_boundary = is_p_boundary
+        model.material = material
+        geometry = {"model": model}
+    
         return geometry
 
 class NACA4Mesh2d(CNodeType):
@@ -94,7 +183,7 @@ class NACA4Mesh2d(CNodeType):
         from fealpy.backend import backend_manager as bm
 
         geometry = options.get("geometry", None)
-        mesher = geometry[0]['mesher']
+        mesher = geometry.get("model")
         material = mesher.material
         h = options.get("h", 0.02)
         thickness = options.get("thickness", h/10)

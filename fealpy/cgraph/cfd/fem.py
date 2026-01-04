@@ -36,10 +36,18 @@ class FEMBase:
 class IncompressibleNS(FEMBase):
 
     @variantmethod("IPCS")
-    def method(self, uspace, pspace, boundary_condition, is_boundary, q, apply_bc):
+    def method(self, uspace, pspace, 
+               boundary: dict, 
+               q: int , 
+               apply_bc: callable = None):
 
-        (velocity_dirichlet, pressure_dirichlet) = boundary_condition()
-        (is_velocity_boundary, is_pressure_boundary) = is_boundary()
+        velocity_dirichlet = boundary["velocity"]
+        pressure_dirichlet = boundary["pressure"]
+
+        mesh = uspace.mesh
+        is_velocity_boundary = mesh.geo.is_velocity_boundary
+        is_pressure_boundary = mesh.geo.is_pressure_boundary
+
         if apply_bc is None:
             apply_bc = FEMBase.apply_bc
         
