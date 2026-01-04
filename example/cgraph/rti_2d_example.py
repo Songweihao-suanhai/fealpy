@@ -7,17 +7,17 @@ from fealpy.backend import backend_manager as bm
 
 WORLD_GRAPH = cgraph.WORLD_GRAPH
 
-material = cgraph.create("RTIMaterial")
-mesher = cgraph.create("RTIMesher2d")
-physics = cgraph.create("CHNSPhysics")
+material = cgraph.create("MultiphaseFlowMaterial")
+mesher = cgraph.create("PhaseFieldMesher2d")
+physics = cgraph.create("MultiphaseFlowPhysics")
 mathmatics = cgraph.create("CHNSMathmatics")
 chnsrun = cgraph.create("CHNSFEMModel")
 to_vtk = cgraph.create("TO_VTK")
 
 box = "[0.0, 1.0, 0.0, 4.0]"
 material(
-    rho_up = 3.0,
-    rho_down = 1.0,
+    rho0 = 3.0,
+    rho1 = 1.0,
     Re = 3000.0,
     Fr = 1.0,
     epsilon = 0.01

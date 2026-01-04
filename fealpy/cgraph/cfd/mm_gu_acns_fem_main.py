@@ -222,6 +222,7 @@ class MMGUACNSFEMSolver(CNodeType):
             ac_A , ac_b = update_ac(u_n, phi_n, dt,current_phi_force, mesh_velocity)   # 此处差一个网格速度
             phi_val = spsolve(ac_A, ac_b,solver= 'scipy')
             phi[:] = phi_val[:-1]
+            print("phi:", phi)
 
             print("theta:",phi_val[-1])
             # Update auxiliary velocity field

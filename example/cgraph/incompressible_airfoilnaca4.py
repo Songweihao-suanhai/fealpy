@@ -47,7 +47,7 @@ mathmatics(
     u = physics().u,
     p = physics().p,
     velocity_boundary = "[(y+0.4)*(0.4-y), 0.0]",
-    pressure_boundary = 0.0,
+    pressure_boundary = "0.0",
     velocity_0 = 0.0,
     pressure_0 = 0.0,
 )
@@ -57,10 +57,8 @@ IncompressibleNSRun(
     method_name = "IPCS",
     equation = mathmatics().equation,
     boundary = mathmatics().boundary,
-    is_boundary = mathmatics().is_boundary,
     q = 3,
-    uh0 = mathmatics().u0,
-    ph0 = mathmatics().p0,
+    x0 = mathmatics().x0
 )
 to_vtk(mesh = mesher(),
         uh = (IncompressibleNSRun().uh, IncompressibleNSRun().ph),

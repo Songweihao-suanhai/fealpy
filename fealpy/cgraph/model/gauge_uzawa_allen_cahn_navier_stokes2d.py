@@ -12,10 +12,10 @@ class ACNSMathmatics(CNodeType):
         PortConf("p", DataType.TENSOR, title="压力")
     ]
     OUTPUT_SLOTS = [
-        PortConf("equation", DataType.LIST, title="方程"),
+        PortConf("equation", DataType.DICT, title="方程"),
         PortConf("boundary", DataType.FUNCTION, title="边界条件"),
         PortConf("is_boundary", DataType.FUNCTION, title="边界"),
-        PortConf("x0", DataType.LIST, title="初始值")
+        PortConf("x0", DataType.DICT, title="初始值")
     ]
     @staticmethod
     def run(phi, u, p):
@@ -40,7 +40,7 @@ class ACNSMathmatics(CNodeType):
         ref_mu = ref_rho*ref_length*ref_velocity
         
         area /= ref_length**2
-        # box = [x / ref_length for x in box]
+        box = mesh.box
         epsilon /= ref_length
         
         rho0 /= ref_rho
@@ -182,26 +182,16 @@ class ACNSMathmatics(CNodeType):
             return source
 
 
-        equation = [{
-            "ac_cm": gamma/epsilon**2,
-            "ac_cd": gamma,
-            "ac_cc": 1.0,
-            "ac_source": phi_source,
-            "ns_cusm": rho,
-            "ns_cusphi": lam/gamma,
-            "ns_cusv": mu,
-            "ns_cusc": rho,
-            "ns_cussource": us_source,
-            "ns_cpsd": rho,
-            "ns_cu1l": rho,
-            "ns_cp1l": bar_mu
-        }]
+        equation = {
+            "velocity_force": velocity_force,
+            "phase_force" : phase_force
+        }
 
-        x0 = [{
+        x0 = {
             "init_phase": init_phase,
             "init_velocity": init_velocity,
             "init_pressure": init_pressure
-        }]
+        }
 
         return (equation, boundary, is_boundary, x0)
         

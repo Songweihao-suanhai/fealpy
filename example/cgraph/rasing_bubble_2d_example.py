@@ -17,7 +17,9 @@ mesh = cgraph.create("PhaseFieldMesher2d")
 physics = cgraph.create("MultiphaseFlowPhysics")
 mathematics = cgraph.create("ACNSMathmatics")
 model = cgraph.create("MMGUACNSFEMModel")
+model1 = cgraph.create("MMGUACNSFEMModel")
 to_vtk = cgraph.create("TO_VTK")
+to_vtk1 = cgraph.create("TO_VTK")
 
 
 d  = 0.005
@@ -60,30 +62,46 @@ to_vtk(mesh = mesh(),
               model().p,
               model().phi),
         path = "/home/libz/rasing_bubble_2d",
-        i = None)
+        i = 0)
+model1(i = 1,
+      dt = 0.001,
+      phi = physics().phi,
+      u = physics().u,
+      p = physics().p,
+      equation = mathematics().equation,
+      boundary = mathematics().boundary,
+      is_boundary = mathematics().is_boundary,
+      x0 = mathematics().x0,
+      xn = model().xn)
+to_vtk1(mesh = mesh(),
+        uh = (model1().u,
+              model1().p,
+              model1().phi),
+        path = "/home/libz/rasing_bubble_2d",
+        i = 1)
 
 
-d = 0.005
-domain = [-d,d,-2*d,2*d]
-area = 2*d * 4*d
-rho0 = 1.0
-rho1 = 10.0
-mu0 = 0.0011
-mu1 = 0.0011
-gamma = 0.02
-epsilon = 0.02 * d
-lam = 0.001
-q = 4
-options = {
-    "domain": domain,
-    "d": 0.005,
-    "area": area,
-    "rho0": rho0,
-    "rho1": rho1,
-    "mu0": mu0,
-    "mu1": mu1,
-    "epsilon": epsilon,
-}
+# d = 0.005
+# domain = [-d,d,-2*d,2*d]
+# area = 2*d * 4*d
+# rho0 = 1.0
+# rho1 = 10.0
+# mu0 = 0.0011
+# mu1 = 0.0011
+# gamma = 0.02
+# epsilon = 0.02 * d
+# lam = 0.001
+# q = 4
+# options = {
+#     "domain": domain,
+#     "d": 0.005,
+#     "area": area,
+#     "rho0": rho0,
+#     "rho1": rho1,
+#     "mu0": mu0,
+#     "mu1": mu1,
+#     "epsilon": epsilon,
+# }
 # pde(**options)
 # mesher(mesh_type = "triangle" ,domain = pde().box ,nx = 32 , ny = 64)
 # phispacer(mesh = mesher(), p=2)

@@ -30,15 +30,6 @@ class MultiphaseFlowMaterial(CNodeType):
             result[:] = (rho0 - rho1)/2 * phi[:]
             result[:] += (rho0 + rho1)/2 
             return result
-        
-        def mu(phi):
-            tag0 = phi[:] >1
-            tag1 = phi[:] < -1
-            phi[tag0] = 1
-            phi[tag1] = -1
-            mu = phi.space.function()
-            mu[:] = 0.5 * (mu0 + mu1) + 0.5 * (mu0 - mu1) * phi
-            return mu
 
         Pe = 1/epsilon
 
@@ -48,7 +39,6 @@ class MultiphaseFlowMaterial(CNodeType):
             'rho': rho, 
             'mu0': mu0,
             'mu1': mu1,
-            'mu': mu,
             'lam': lam, 
             'gamma': gamma,
             'Re': Re, 

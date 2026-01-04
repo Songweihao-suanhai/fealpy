@@ -123,28 +123,28 @@ class IncompressibleNSFEMModel(CNodeType):
         PortConf("i", DataType.FLOAT, title="迭代步"),
         PortConf("dt", DataType.FLOAT, 0, title="时间步长"),
         PortConf("method_name", DataType.MENU, 0, title="算法", default="IPCS", items=["IPCS", "Newton"]),
-        PortConf("equation", DataType.LIST, 1, title="方程"),
-        PortConf("boundary", DataType.FUNCTION, title="边界条件"),
-        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
-        PortConf("apply_bc", DataType.FUNCTION, title="边界处理函数"),
         PortConf("q", DataType.INT, 0, default = 3, min_val=3, title="积分精度"),
-        PortConf("uh0", DataType.TENSOR, title="上一时间步速度"),
-        PortConf("ph0", DataType.TENSOR, title="上一时间步压力")
+        PortConf("equation", DataType.DICT, 1, title="方程"),
+        PortConf("boundary", DataType.DICT, 1, title="边界条件"),
+        PortConf("apply_bc", DataType.DICT, 1, title="边界处理函数"),
+        PortConf("x0", DataType.DICT, title="已知解")
     ]
     OUTPUT_SLOTS = [
         PortConf("uh", DataType.TENSOR, title="速度数值解"),
         PortConf("ph", DataType.TENSOR, title="压力数值解"),
+        PortConf("x0", DataType.DICT, title="已知解")
     ]
-    def run(i, dt, method_name, equation, boundary, is_boundary, apply_bc, q, uh0, ph0):
+    def run(i, dt, method_name, q, equation, boundary, apply_bc, x0):
         from fealpy.solver import cg
         from fealpy.decorator import cartesian, variantmethod
         
-        equation = equation[0]
         time_derivative = equation["time_derivative"]
         convection = equation["convection"]
         pressure = equation["pressure"]
         viscosity = equation["viscosity"]   
         source = equation["source"]
+        uh0 = x0["uh0"]
+        ph0 = x0["ph0"]
 
         class IncompressibleNSFEM:
             def __init__(self):
@@ -152,7 +152,6 @@ class IncompressibleNSFEMModel(CNodeType):
                 self.pspace = ph0.space
                 self.q = q
                 self.dirichlet_boundary = boundary
-                self.is_boundary = is_boundary
 
             @variantmethod("IPCS")
             def method(self):
@@ -160,13 +159,12 @@ class IncompressibleNSFEMModel(CNodeType):
                 uspace = self.uspace
                 pspace = self.pspace
                 dirichlet_boundary = self.dirichlet_boundary
-                is_boundary = self.is_boundary
                 q = self.q
                 from fealpy.cgraph.cfd.fem import IncompressibleNS
                 model = IncompressibleNS()
                 model.method.set("IPCS")
                 method = model.method
-                return method(uspace, pspace, dirichlet_boundary, is_boundary, q, apply_bc)
+                return method(uspace, pspace, dirichlet_boundary, q, apply_bc)
 
             def run(self):
                 if self.method_name == "IPCS":
@@ -206,5 +204,6 @@ class IncompressibleNSFEMModel(CNodeType):
         model = IncompressibleNSFEM()
         model.method[method_name]()
         uh, ph = model.run()
-        return uh, ph
+        x0 = {"uh0": uh, "ph0": ph}
+        return uh, ph, x0
                     
