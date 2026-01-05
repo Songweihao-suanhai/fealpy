@@ -96,9 +96,19 @@ class FlowPastCylinder2d(CNodeType):
             y = p[..., 1]
             return (bm.abs(y - box[2]) < eps) | (bm.abs(y - box[3]) < eps)
         
+        def is_velocity_boundary(p):
+            return ~is_outlet_boundary(p)
+        
+        def is_pressure_boundary(p = None):
+            if p is None:
+                return 1
+            return is_outlet_boundary(p)
+        
         mesh.is_inlet_boundary = is_inlet_boundary
         mesh.is_outlet_boundary = is_outlet_boundary
         mesh.is_wall_boundary = is_wall_boundary
+        mesh.is_velocity_boundary = is_velocity_boundary
+        mesh.is_pressure_boundary = is_pressure_boundary
         mesh.material = material
 
         if material is not None:

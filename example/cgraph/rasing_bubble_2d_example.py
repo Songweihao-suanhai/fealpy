@@ -55,7 +55,6 @@ model(i = 0,
       p = physics().p,
       equation = mathematics().equation,
       boundary = mathematics().boundary,
-      is_boundary = mathematics().is_boundary,
       x0 = mathematics().x0)
 to_vtk(mesh = mesh(),
         uh = (model().u,
@@ -70,7 +69,6 @@ model1(i = 1,
       p = physics().p,
       equation = mathematics().equation,
       boundary = mathematics().boundary,
-      is_boundary = mathematics().is_boundary,
       x0 = mathematics().x0,
       xn = model().xn)
 to_vtk1(mesh = mesh(),
@@ -139,7 +137,7 @@ to_vtk1(mesh = mesh(),
 
 # WORLD_GRAPH.output(u = solver().u ,ux = solver().ux ,uy = solver().uy, 
 #                    p = solver().p ,phi = solver().phi)
-WORLD_GRAPH.output(path = to_vtk().path)
+WORLD_GRAPH.output(path = to_vtk().path, path1 = to_vtk1().path)
 WORLD_GRAPH.register_error_hook(print)
 WORLD_GRAPH.execute()
 print(WORLD_GRAPH.get())
