@@ -45,7 +45,6 @@ class MMGUACNSFEMModel(CNodeType):
         PortConf("p", DataType.FUNCTION, title="压力场"),
         PortConf("equation", DataType.LIST, title="方程"),
         PortConf("boundary", DataType.FUNCTION, title="边界条件"),
-        PortConf("is_boundary", DataType.FUNCTION, title="边界"),
         PortConf("x0", DataType.LIST, title="初始值"),
         PortConf("xn", DataType.DICT, title="前置值"),
         
@@ -61,7 +60,7 @@ class MMGUACNSFEMModel(CNodeType):
     def run(i, dt,
             phi, u, p,
             equation, boundary, 
-            is_boundary, x0, xn):
+            x0, xn):
         from fealpy.backend import bm
         from fealpy.solver import spsolve
         from fealpy.functionspace import TensorFunctionSpace
@@ -69,24 +68,12 @@ class MMGUACNSFEMModel(CNodeType):
         uspace = u.space
         pspace = p.space
         phispace = phi.space
-        # ac_cm = equation.get('ac_cm')
-        # ac_cd = equation.get('ac_cd')
-        # ac_cc = equation.get('ac_cc')
-        # ac_source = equation.get('ac_source')
-        # ns_cusm = equation.get('ns_cusm')
-        # ns_cusphi = equation.get('ns_cusphi')
-        # ns_cusv = equation.get('ns_cusv')
-        # ns_cusc = equation.get('ns_cusc')
-        # ns_cussource = equation.get('ns_cussource')
-        # ns_cpsd = equation.get('ns_cpsd')
-        # ns_cu1l = equation.get('ns_cu1l')
-        # ns_cp1l = equation.get('ns_cp1l')
         velocity_force = equation.get('velocity_force')
         phase_force = equation.get('phase_force')
         init_phase = x0["init_phase"]
         init_velocity = x0["init_velocity"]
         init_pressure = x0["init_pressure"]
-        velocity_dirichlet_bc = boundary
+        velocity_dirichlet_bc = boundary['velocity']
         mesh = uspace.mesh
         # export_dir = Path(output_dir).expanduser().resolve()
         # export_dir.mkdir(parents=True, exist_ok=True)
@@ -173,21 +160,23 @@ class MMGUACNSFEMModel(CNodeType):
         ps = pspace.function()  # Intermediate pressure
         
         ugdof = uspace.number_of_global_dofs()
-        # Set initial velocity
-        u_n[:] = uspace.interpolate(lambda p: init_velocity(p))
-        u[:] = u_n[:]
-        # Set initial pressure
-        p[:] = pspace.interpolate(lambda p: init_pressure(p))
-        # Set initial phase-field
-        phi_n[:] = phispace.interpolate(lambda p: init_phase(p))
-        phi[:] = phi_n[:]
-        
-        mm, mesh_velocity, node_n = set_move_mesher(mesh, phi_n, phispace)
+         
         # t = 0.0
         t  = dt * (i + 1)
         # Move mesh according to phase field
-        if t - dt == 0.0:
+        if i == 0:
+            # Set initial velocity
+            u_n[:] = uspace.interpolate(lambda p: init_velocity(p))
+            u[:] = u_n[:]
+            # Set initial pressure
+            p[:] = pspace.interpolate(lambda p: init_pressure(p))
+            # Set initial phase-field
+            phi_n[:] = phispace.interpolate(lambda p: init_phase(p))
+            phi[:] = phi_n[:]
+
+            mm, mesh_velocity, node_n = set_move_mesher(mesh, phi_n, phispace)
             # First time step, need to initialize the mesh movement
+
             mm.run()
             node_n = mesh.node.copy()
             phi_n = phispace.interpolate(lambda p: init_phase(p))
@@ -198,9 +187,9 @@ class MMGUACNSFEMModel(CNodeType):
             u_n = xn["u_n"]
             s_n = xn["s_n"]
             node_n = xn["node_n"]
+            mesh_velocity = xn["mesh_velocity"]
+            mm = xn["mm"]
             mm.run()
-            mm.instance.uh = xn["mm.instance.uh"]
-            
             
         mesh_velocity[:] = ((mesh.node - node_n)/dt).T.flatten()
         # Define time-dependent forces and boundary conditions
@@ -247,7 +236,8 @@ class MMGUACNSFEMModel(CNodeType):
             "u_n": u_n,
             "s_n": s_n,
             "node_n": node_n,
-            "mm.instance.uh": mm.instance.uh
+            "mesh_velocity": mesh_velocity,
+            "mm": mm
         }
         
         # Save results

@@ -45,8 +45,12 @@ class IncompressibleNS(FEMBase):
         pressure_dirichlet = boundary["pressure"]
 
         mesh = uspace.mesh
-        is_velocity_boundary = mesh.geo.is_velocity_boundary
-        is_pressure_boundary = mesh.geo.is_pressure_boundary
+        if hasattr(mesh, 'geo') is False:
+            is_velocity_boundary = mesh.is_velocity_boundary
+            is_pressure_boundary = mesh.is_pressure_boundary
+        else:
+            is_velocity_boundary = mesh.geo.is_velocity_boundary
+            is_pressure_boundary = mesh.geo.is_pressure_boundary
 
         if apply_bc is None:
             apply_bc = FEMBase.apply_bc
@@ -368,7 +372,7 @@ class AllenCahn(FEMBase):
         def update_ac(u_n, phi_n, dt,phase_force, mv: None):
             # 移动网格行为产生的速度场 mv 可选
             if mv is None:
-                def mv(bcs):
+                def mv(bcs, index):
                     NC = mesh.number_of_cells()
                     GD = mesh.geo_dimension()
                     shape = (NC, bcs.shape[0], GD)
@@ -447,24 +451,6 @@ class GaugeUzawaNS(FEMBase):
         gamma = mesh.gamma
         bar_mu = min(mu0, mu1)
 
-        d = 0.005
-        g = 9.8
-        ref_length = d
-        ref_velocity = (g*d)**0.5
-        ref_rho = min(rho0,rho1)
-        ref_mu = ref_rho*ref_length*ref_velocity
-        
-        box = mesh.box
-        # epsilon /= ref_length
-        
-        rho0 /= ref_rho
-        rho1 /= ref_rho
-        mu0 /= ref_mu
-        mu1 /= ref_mu
-        
-        d /= ref_length
-        g = 1.0
-
         us_bform = BilinearForm(uspace)
         ps_bform = BilinearForm(pspace)
         u_bform = BilinearForm(uspace)
@@ -530,7 +516,7 @@ class GaugeUzawaNS(FEMBase):
                       velocity_force,velocity_dirichlet_bc, mv = None):
             # 移动网格行为产生的速度场 mv 可选
             if mv is None:
-                def mv(bcs):
+                def mv(bcs, index):
                     NC = mesh.number_of_cells()
                     GD = mesh.geo_dimension()
                     shape = (NC, bcs.shape[0], GD)

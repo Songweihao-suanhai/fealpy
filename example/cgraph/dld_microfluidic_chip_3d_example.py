@@ -19,7 +19,19 @@ material(
     rho = 1.0
 )
 mesher(lc = 0.04,
-       material = material().mp
+       material = material().mp,
+       chip_height = 0.6,
+       inlet_length = 0.2,
+       outlet_length = 0.2,
+       thickness = 0.1,
+       radius = 0.015,
+       n_rows = 1,
+       n_cols = 3,
+       tan_angle = 1/7,
+       n_stages = 2,
+       stage_length = 20.0,
+       init_point_x = 0.0,
+       init_point_y = 0.0
        )
 physics(mesh = mesher(),
         utype = "lagrange",

@@ -9,7 +9,7 @@ class StokesMathematics(CNodeType):
     INPUT_SLOTS = [
         PortConf("u", DataType.TENSOR, title="速度"),
         PortConf("p", DataType.TENSOR, title="压力"),
-        PortConf("velocity_boundary", DataType.TEXT, title="速度边界条件"),
+        PortConf("velocity_boundary", DataType.TEXT, default='[16*0.45*y*z*(1-y)*(0.1-z)/(0.41**4), 0, 0]', title="速度边界条件"),
         PortConf("pressure_boundary", DataType.TEXT, title="压力边界条件")
     ]
     OUTPUT_SLOTS = [

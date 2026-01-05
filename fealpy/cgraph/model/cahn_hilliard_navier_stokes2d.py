@@ -24,7 +24,7 @@ class MultiphaseFlowPhysics(CNodeType):
 
         PortConf("phitype", DataType.MENU, 0, title="界面函数空间类型", default="lagrange", 
                                             items=["lagrange", "bernstein", "first_nedelec"]),
-        PortConf("phi_p", DataType.INT, 0, title="界面函数空间次数", default=1, min_val=1, max_val=10),
+        PortConf("phi_p", DataType.INT, 0, title="界面函数空间次数", default=2, min_val=1, max_val=10),
 
         PortConf("utype", DataType.MENU, 0, title="速度空间类型", default="lagrange", 
                                             items=["lagrange", "bernstein", "first_nedelec"]),
