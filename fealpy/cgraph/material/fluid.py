@@ -12,16 +12,20 @@ class MultiphaseFlowMaterial(CNodeType):
         PortConf("mu0", DataType.FLOAT, 0, title="第一液相粘度", default=0.0011),
         PortConf("mu1", DataType.FLOAT, 0, title="第二液相粘度", default=0.0011),
         PortConf("lam", DataType.FLOAT, 0, title="应力系数", default=0.001),
+        #相场迁移率（mobility）
         PortConf("gamma", DataType.FLOAT, 0, title="迁移率参数", default=0.02),
         PortConf("Re", DataType.FLOAT, 0, title="雷诺数", default=3000.0),
         PortConf("Fr", DataType.FLOAT, 0, title="弗劳德数", default=1.0),
-        PortConf("epsilon", DataType.FLOAT, 0, title="界面厚度参数", default=0.01)
+        PortConf("epsilon", DataType.FLOAT, 0, title="界面厚度参数", default=0.01),
+        
+        PortConf("L_s", DataType.FLOAT, 0, title="缩放无量纲滑移长度", default=0.0000025),
+        PortConf("V_s", DataType.FLOAT, 0, title="接触线松弛速度系数", default=200.0),
     ]
     OUTPUT_SLOTS = [
         PortConf("material", DataType.DICT, title="物理属性")
     ]
     @staticmethod
-    def run(rho0, rho1, mu0, mu1, lam, gamma, Re, Fr, epsilon):
+    def run(rho0, rho1, mu0, mu1, lam, gamma, Re, Fr, epsilon,L_s,V_s):
         from fealpy.backend import backend_manager as bm
         # bm.set_backend('pytorch')
         # bm.set_default_device('cpu')
@@ -44,7 +48,9 @@ class MultiphaseFlowMaterial(CNodeType):
             'Re': Re, 
             'Fr': Fr, 
             'epsilon': epsilon,
-            'Pe': Pe
+            'Pe': Pe,
+            'L_s': L_s,
+            'V_s': V_s
             }
 
         return material

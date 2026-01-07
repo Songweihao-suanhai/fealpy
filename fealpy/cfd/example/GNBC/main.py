@@ -142,9 +142,10 @@ for i in range(nt):
     timeline.advance()
     time.send(f"第{i+1}次画图用时")
     uuu = u2.reshape(2,-1).T
-    print("上边界最大值",bm.max(uuu[is_up,0]))
-    print("上边界最小值",bm.min(uuu[is_up,0]))
-    print("下边界最大值",bm.max(uuu[is_down,0]))
-    print("下边界最小值",bm.min(uuu[is_down,0]))
+    print("检验正确性:",uuu[12,0])
+    # print("上边界最大值",bm.max(uuu[is_up,0]))
+    # print("上边界最小值",bm.min(uuu[is_up,0]))
+    # print("下边界最大值",bm.max(uuu[is_down,0]))
+    # print("下边界最小值",bm.min(uuu[is_down,0]))
 #next(time)
 
