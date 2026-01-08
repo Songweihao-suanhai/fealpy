@@ -18,7 +18,7 @@ class MultiphaseFlowMaterial(CNodeType):
         PortConf("epsilon", DataType.FLOAT, 0, title="界面厚度参数", default=0.01)
     ]
     OUTPUT_SLOTS = [
-        PortConf("material", DataType.DICT, title="物理属性")
+        PortConf("material", DataType.DICT, title="材料")
     ]
     @staticmethod
     def run(rho0, rho1, mu0, mu1, lam, gamma, Re, Fr, epsilon):
