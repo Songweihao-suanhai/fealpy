@@ -35,23 +35,16 @@ class GNBCSimulation(CNodeType):
     • 采用分步求解策略：先更新相场与化学势，再更新速度与压力
     • 自动施加上下壁面运动速度（Dirichlet 条件）
     • 支持任意阶有限元空间与积分精度
-    • 每步自动导出 VTU 结果（支持 ParaView 可视化）
-    • 实时输出并返回上下壁面速度极值，用于滑移规律分析与模型验证
     适用于两相不可压流体的层流模拟、界面滑移研究及润湿动力学分析。
 """
     INPUT_SLOTS = [
         PortConf("dt", DataType.FLOAT, title="时间步长"),
         PortConf("i", DataType.INT, title="当前时间步"),
-        # PortConf("param_list", DataType.LIST, title="参数列表"),
         PortConf("equation", DataType.LIST, title="方程"),
-        # PortConf("init_phi", DataType.FUNCTION, 1, title="定义初始相场分布"),
         PortConf("is_wall_boundary", DataType.FUNCTION, 1, title="判断是否为壁面边界"),
-        # PortConf("u_w", DataType.FUNCTION, 1, title="定义壁面速度边界条件"),
         PortConf("phi", DataType.TENSOR, title="相场"),
         PortConf("u", DataType.TENSOR, title="速度"),
         PortConf("p", DataType.TENSOR, title="压力"),
-        
-        
         PortConf("NS_BC", DataType.FUNCTION, title="边界处理函数"),
         PortConf("u0", DataType.FUNCTION, title="第0步速度"),
         PortConf("u1", DataType.FUNCTION, title="第1步速度"),
@@ -101,6 +94,7 @@ class GNBCSimulation(CNodeType):
         p1 = pspace.function()
         p2 = pspace.function()
         phi2 = phispace.function() 
+        print("i =", i)
         if i == 0:  
             u0 = uspace.function()
             u1 = uspace.function()
@@ -142,6 +136,4 @@ class GNBCSimulation(CNodeType):
             phi1[:] = phi2[:]
             mu1[:] = mu2[:]
             p1[:] = p2[:]
-            uuu = u2.reshape(2,-1).T
-            print("检验正确性:",uuu[12,0])
         return u0,u1,phi0,phi1,mu1,p1

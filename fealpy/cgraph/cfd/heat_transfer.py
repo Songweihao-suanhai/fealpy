@@ -67,8 +67,8 @@ class SPHQuery(CNodeType):
         PortConf("box_size", dtype=DataType.TENSOR, title="模拟区域"),
     ]
     OUTPUT_SLOTS = [
-        PortConf("neighbors", dtype=DataType.TENSOR, title="当前粒子"),
-        PortConf("self_node", dtype=DataType.TENSOR, title="临近粒子"),
+        PortConf("self_node", dtype=DataType.TENSOR, title="当前粒子"),
+        PortConf("neighbors", dtype=DataType.TENSOR, title="临近粒子"),
         PortConf("dr", dtype=DataType.TENSOR, title="位移差向量"),
         PortConf("dist", dtype=DataType.TENSOR, title="节点间距离"),
         PortConf("w", dtype=DataType.TENSOR, title="核函数值"),
@@ -142,8 +142,8 @@ class HeatTransferParticleIterativeUpdate(CNodeType):
         PortConf("box_size", dtype=DataType.TENSOR, title="模拟区域"),
         PortConf("dx", DataType.FLOAT, 0, title="核函数的平滑长度",default=0.02),
         PortConf("dt", DataType.FLOAT, 0, title="时间步长",default=0.00045454545454545455),
-        PortConf("neighbors", dtype=DataType.TENSOR, title="当前粒子"),
-        PortConf("self_node", dtype=DataType.TENSOR, title="临近粒子"),
+        PortConf("self_node", dtype=DataType.TENSOR, title="当前粒子"),
+        PortConf("neighbors", dtype=DataType.TENSOR, title="临近粒子"),
         PortConf("dr", dtype=DataType.TENSOR, title="位移差向量"),
         PortConf("dist", dtype=DataType.TENSOR, title="节点间距离"),
         PortConf("w", dtype=DataType.TENSOR, title="核函数值"),
