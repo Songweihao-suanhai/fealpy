@@ -201,7 +201,7 @@ class MMGUACNSFEMModel(CNodeType):
         update_ac = AllenCahn.method(phispace, init_phase, q=4)
         from fealpy.cgraph.cfd.fem import GaugeUzawaNS
         update_us, update_ps, update_velocity, update_gauge, update_pressure = \
-            GaugeUzawaNS.method(mesh, uspace, pspace, phispace, q=3)
+            GaugeUzawaNS.method(mesh, uspace, pspace, phispace, q=4)
         ac_A , ac_b = update_ac(u_n, phi_n, dt,current_phi_force, mesh_velocity)   # 此处差一个网格速度
         phi_val = spsolve(ac_A, ac_b,solver= 'scipy')
         phi[:] = phi_val[:-1]

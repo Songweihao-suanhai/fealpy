@@ -9,7 +9,10 @@ class ACNSMathmatics(CNodeType):
     INPUT_SLOTS = [
         PortConf("phi", DataType.TENSOR, title="相场"),
         PortConf("u", DataType.TENSOR, title="速度"),
-        PortConf("p", DataType.TENSOR, title="压力")
+        PortConf("p", DataType.TENSOR, title="压力"),
+        PortConf("init_phase", DataType.TEXT, default="tanh(sqrt(x**2 + y**2) - 0.5*d)/epsilon", title="初始相场"),
+        PortConf("init_velocity", DataType.TEXT, default="0.0", title="初始速度"),
+        PortConf("init_pressure", DataType.TEXT, default="0.0", title="初始压力")
     ]
     OUTPUT_SLOTS = [
         PortConf("equation", DataType.DICT, title="方程"),
@@ -17,7 +20,7 @@ class ACNSMathmatics(CNodeType):
         PortConf("x0", DataType.DICT, title="初始值")
     ]
     @staticmethod
-    def run(phi, u, p):
+    def run(phi, u, p, init_phase, init_velocity, init_pressure):
         from fealpy.backend import backend_manager as bm
         from fealpy.decorator import barycentric, cartesian
         mesh = phi.space.mesh
@@ -78,6 +81,7 @@ class ACNSMathmatics(CNodeType):
             return val
 
         equation = {
+            "ac_ctd": 1.0,
             "velocity_force": velocity_force,
             "phase_force" : phase_force
         }
