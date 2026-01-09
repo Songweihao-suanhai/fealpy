@@ -3,12 +3,11 @@ import fealpy.cgraph as cgraph
 from fealpy.backend import backend_manager as bm
 bm.set_backend("pytorch")
 WORLD_GRAPH = cgraph.WORLD_GRAPH
-pde = cgraph.create("CouetteFlow")
-mesher = cgraph.create("Box2d")
-phispace = cgraph.create("FunctionSpace")   
-pspace = cgraph.create("P0FunctionSpace")
-space = cgraph.create("FunctionSpace")
-uspace = cgraph.create("TensorFunctionSpace")
+mesher = cgraph.create("PhaseFieldMesher2d")
+physics = cgraph.create("MultiphaseFlowPhysics")
+material = cgraph.create("MultiphaseFlowMaterial")
+mathmatics = cgraph.create("CHNSMathmatics")
+
 simulation = cgraph.create("GNBCSimulation")
 simulation2 = cgraph.create("GNBCSimulation")
 simulation3 = cgraph.create("GNBCSimulation")
@@ -16,37 +15,62 @@ GNBC = cgraph.create("GNBC")
 to_vtk = cgraph.create("TO_VTK")
 to_vtk2 = cgraph.create("TO_VTK")
 to_vtk3 = cgraph.create("TO_VTK")
-pde(
-    eps = 1e-10,
-    T = 2,
-    h = 1/256,
-    theta = 77.6
+
+
+box = "[-0.5, 0.5, -0.125, 0.125]"
+
+
+material(
+    Re = 5.0,
+    lam = 12.0,
+    gamma = 0.0005,
+    epsilon = 0.004,
+    L_s = 0.0000025,
+    V_s = 200.0 
 )
+
 mesher(
-    domain = pde().domain,
-    nx = pde().nx,
-    ny = pde().ny
+    material = material().material,
+    box = box,
+    nx = 256,
+    ny = 64
 )
-phispace(mesh = mesher(), p=1)
-pspace(mesh = mesher(), ctype='D')
-space(mesh = mesher(), p=2)
-uspace(mesh = mesher(), p=2, gd = 2)
-GNBC(Dirichlet = pde().is_uy_Dirichlet,
-    space = space(),
-    pspace = pspace(),
-    uspace = uspace()
-    )
+
+
+physics(
+    mesh = mesher().mesh,
+    phitype = "lagrange",
+    phi_p = 1,
+    utype = "lagrange",
+    u_p = 2,
+    u_gd = 2,
+    ptype = "lagrange",
+    p_p = 0,
+    p_ctype = 'D'
+)
+mathmatics(
+    phi = physics().phi,
+    u = physics().u,
+    p = physics().p,
+    VariableDensity = False
+)
+
+
+GNBC(equation = mathmatics().equation,
+    u = physics().u,
+    p = physics().p,
+    dt = 0.000390625,
+    is_wall_boundary = mathmatics().is_boundary,
+    q = 5
+)
 simulation(
-    dt = pde().dt,
+    dt = 0.000390625,
     i = 0,
-    param_list = pde().param_list,
-    init_phi = pde().init_phi,
-    is_wall_boundary = pde().is_wall_boundary,
-    u_w = pde().u_w,
-    phispace = phispace(),
-    space = space(),
-    pspace = pspace(),
-    uspace = uspace(),
+    equation = mathmatics().equation,
+    is_wall_boundary = mathmatics().is_boundary,
+    phi = physics().phi,
+    p = physics().p,
+    u = physics().u,
     NS_BC = GNBC().apply_bc, 
     q = 5)
 
@@ -56,16 +80,13 @@ to_vtk(mesh = mesher(),
         i = 0)
 
 simulation2(
-    dt = pde().dt,
+    dt = 0.000390625,
     i = 1,
-    param_list = pde().param_list,
-    init_phi = pde().init_phi,
-    is_wall_boundary = pde().is_wall_boundary,
-    u_w = pde().u_w,
-    phispace = phispace(),
-    space = space(),
-    pspace = pspace(),
-    uspace = uspace(),
+    equation = mathmatics().equation,
+    is_wall_boundary = mathmatics().is_boundary,
+    phi = physics().phi,
+    p = physics().p,
+    u = physics().u,
     NS_BC = GNBC().apply_bc,
     u0 = simulation().u0,
     u1 = simulation().u1,
@@ -80,16 +101,13 @@ to_vtk2(mesh = mesher(),
         i = 1)
 
 simulation3(
-    dt = pde().dt,
-    i = 1,
-    param_list = pde().param_list,
-    init_phi = pde().init_phi,
-    is_wall_boundary = pde().is_wall_boundary,
-    u_w = pde().u_w,
-    phispace = phispace(),
-    space = space(),
-    pspace = pspace(),
-    uspace = uspace(),
+    dt = 0.000390625,
+    i = 2,
+    equation = mathmatics().equation,
+    is_wall_boundary = mathmatics().is_boundary,
+    phi = physics().phi,
+    p = physics().p,
+    u = physics().u,
     NS_BC = GNBC().apply_bc,
     u0 = simulation2().u0,
     u1 = simulation2().u1,
@@ -101,7 +119,7 @@ simulation3(
 to_vtk3(mesh = mesher(),
         uh = (simulation3().u1, simulation3().p1, simulation3().phi1, simulation3().mu1),
         path = "/home/edwin/output",
-        i = 2)
+        i = 0)
 
 WORLD_GRAPH.output(path = to_vtk3().path)
                 

@@ -8,7 +8,6 @@ from .stokes import *
 from .incompressible_navier_stokes2d import *
 from .dipole_antenna3d import DipoleAntenna3D
 from .beam2d import Beam2d
-from .couette_flow import CouetteFlow
 from .cahn_hilliard_navier_stokes2d import *
 from .linear_elasticity_eigen3d import LinearElasticityEigen3d
 from .rasing_bubble2d import RasingBubble2D
