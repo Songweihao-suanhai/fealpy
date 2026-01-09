@@ -34,7 +34,7 @@ class MultiphaseFlowPhysics(CNodeType):
         PortConf("ptype", DataType.MENU, 0, title="压力空间类型", default="lagrange", 
                                             items=["lagrange", "bernstein", "first_nedelec"]), 
         PortConf("p_p", DataType.INT, 0, title="压力空间次数", default=1, min_val=0, max_val=10),
-        PortConf("p_ctype", DataType.INT, 0, title="压力空间连续性类型", default="D", items=["C", "D"]),
+        PortConf("p_ctype", DataType.MENU, 0, title="压力空间连续性类型", default="D", items=["C", "D"]),
     ]
     OUTPUT_SLOTS = [
         PortConf("phi", DataType.TENSOR, title="相场"),

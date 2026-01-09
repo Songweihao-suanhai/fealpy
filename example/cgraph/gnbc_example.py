@@ -102,7 +102,7 @@ to_vtk2(mesh = mesher(),
 
 simulation3(
     dt = 0.000390625,
-    i = 1,
+    i = 2,
     equation = mathmatics().equation,
     is_wall_boundary = mathmatics().is_boundary,
     phi = physics().phi,
