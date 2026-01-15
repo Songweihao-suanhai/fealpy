@@ -365,9 +365,6 @@ class AllenCahn(FEMBase):
         init_mass = mesh.integral(init_phase)
         gamma = mesh.gamma
         epsilon = mesh.epsilon
-        d = 0.005
-        epsilon /= d
-
 
         def update_ac(u_n, phi_n, dt,phase_force, mv: None):
             # 移动网格行为产生的速度场 mv 可选
