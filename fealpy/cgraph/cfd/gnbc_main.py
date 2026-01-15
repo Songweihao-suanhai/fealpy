@@ -35,21 +35,16 @@ class GNBCSimulation(CNodeType):
     • 采用分步求解策略：先更新相场与化学势，再更新速度与压力
     • 自动施加上下壁面运动速度（Dirichlet 条件）
     • 支持任意阶有限元空间与积分精度
-    • 每步自动导出 VTU 结果（支持 ParaView 可视化）
-    • 实时输出并返回上下壁面速度极值，用于滑移规律分析与模型验证
     适用于两相不可压流体的层流模拟、界面滑移研究及润湿动力学分析。
 """
     INPUT_SLOTS = [
         PortConf("dt", DataType.FLOAT, title="时间步长"),
         PortConf("i", DataType.INT, title="当前时间步"),
-        PortConf("param_list", DataType.LIST, title="参数列表"),
-        PortConf("init_phi", DataType.FUNCTION, 1, title="定义初始相场分布"),
+        PortConf("equation", DataType.LIST, title="方程"),
         PortConf("is_wall_boundary", DataType.FUNCTION, 1, title="判断是否为壁面边界"),
-        PortConf("u_w", DataType.FUNCTION, 1, title="定义壁面速度边界条件"),
-        PortConf("phispace", DataType.SPACE, 1, title="相场函数空间"),
-        PortConf("space", DataType.SPACE, 1, title="函数空间"),
-        PortConf("pspace", DataType.SPACE, 1, title="压力函数空间"),
-        PortConf("uspace", DataType.SPACE, 1, title="速度函数空间"),
+        PortConf("phi", DataType.TENSOR, title="相场"),
+        PortConf("u", DataType.TENSOR, title="速度"),
+        PortConf("p", DataType.TENSOR, title="压力"),
         PortConf("NS_BC", DataType.FUNCTION, title="边界处理函数"),
         PortConf("u0", DataType.FUNCTION, title="第0步速度"),
         PortConf("u1", DataType.FUNCTION, title="第1步速度"),
@@ -67,28 +62,30 @@ class GNBCSimulation(CNodeType):
     ]
     
     @staticmethod
-    def run(dt, i, param_list, init_phi,is_wall_boundary,u_w,
-            phispace,space,pspace,uspace,NS_BC,
-            u0 = None,u1=None,phi0=None,phi1=None,q=5) -> Union[object]:
+    def run(dt, i, equation,is_wall_boundary,
+            phi,u,p,
+            NS_BC,u0 = None,u1=None,phi0=None,phi1=None,q=5) -> Union[object]:
+                
         from fealpy.solver import spsolve
-        from fealpy.cfd.example.GNBC.solver import Solver
+        from .fem import GNBCSolver
         class PDE:
-            def __init__(self, param_list, is_wall_boundary,
-                        u_w, init_phi):
-                self.R = param_list[0]
-                self.L_s = param_list[1]
-                self.epsilon = param_list[2]
-                self.L_d = param_list[3]
-                self.lam = param_list[4]
-                self.V_s = param_list[5]
-                self.s = param_list[6]
-                self.theta_s = param_list[7]
+            def __init__(self, equation, is_wall_boundary):
+                equation = equation[0]
+                self.Re = equation["Re"]
+                self.L_d = equation["gamma"]
+                self.epsilon = equation["epsilon"]
+                self.lam = equation["lam"]
+                self.L_s = equation["L_s"]
+                self.V_s = equation["V_s"]
+                
+                self.s = 2.5
                 self.is_wall_boundary = is_wall_boundary
-                self.u_w = u_w
-                self.init_phi = init_phi
-        pde = PDE(param_list, is_wall_boundary,u_w,init_phi) 
-        mesh = getattr(space, 'mesh', None)
-        solver = Solver(pde, mesh, pspace, phispace, uspace, dt, q)
+        pde = PDE(equation, is_wall_boundary) 
+        uspace = u.space
+        pspace = p.space
+        phispace = phi.space
+        mesh = getattr(uspace, 'mesh', None)
+        solver = GNBCSolver(pde, mesh, pspace, phispace, uspace, dt, q)
         ugdof = uspace.number_of_global_dofs()
         phigdof = phispace.number_of_global_dofs()
         u2 = uspace.function()
@@ -97,11 +94,13 @@ class GNBCSimulation(CNodeType):
         p1 = pspace.function()
         p2 = pspace.function()
         phi2 = phispace.function() 
+        print("i =", i)
         if i == 0:  
             u0 = uspace.function()
             u1 = uspace.function()
-            # u2 = uspace.function()
-            phi0 = phispace.interpolate(pde.init_phi)
+            equation = equation[0]
+            init_phi = equation["init_phi"]
+            phi0 = phispace.interpolate(init_phi)
             phi1 = phispace.function()
             # TODO:第一步求解
             phi1[:] = phi0[:]
@@ -137,5 +136,4 @@ class GNBCSimulation(CNodeType):
             phi1[:] = phi2[:]
             mu1[:] = mu2[:]
             p1[:] = p2[:]
-            
         return u0,u1,phi0,phi1,mu1,p1
