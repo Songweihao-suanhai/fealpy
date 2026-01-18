@@ -58,7 +58,7 @@ to_vtk(mesh = mesh(),
         uh = (model().u,
               model().p,
               model().phi),
-        path = "/home/libz/rasing_bubble_2d",
+        path = "/home/li-benzhen/rasing_bubble_2d",
         i = 0)
 model1(i = 1,
       dt = 0.001,
@@ -73,7 +73,7 @@ to_vtk1(mesh = mesh(),
         uh = (model1().u,
               model1().p,
               model1().phi),
-        path = "/home/libz/rasing_bubble_2d",
+        path = "/home/li-benzhen/rasing_bubble_2d",
         i = 1)
 
 
