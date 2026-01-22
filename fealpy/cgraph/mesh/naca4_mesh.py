@@ -48,54 +48,6 @@ class NACA4Geometry2d(CNodeType):
                                    dtype=bm.float64)
 
         model = NACA4Mesher(m , p , t, c, alpha, N, box, singular_points)
-
-        # def is_airfoil_boundary(p):
-        #     x = p[..., 0]
-        #     y = p[..., 1]
-        #     # 余弦分布采样（前缘点更密集）
-        #     beta = bm.linspace(0, bm.pi, N)
-
-        #     if x>=0 and x<=c:
-        #         # 厚度分布
-        #         yt = 5 * t * c * (0.2969 * bm.sqrt(x / c) - 0.1260 * (x / c)
-        #                         - 0.3516 * (x / c) ** 2 + 0.2843 * (x / c) ** 3 - 0.1015 * (x / c) ** 4)
-
-        #         # 弯度线和斜率
-        #         if p != 0 and p != 1:
-        #             yc = bm.where(x < p * c,
-        #                         m * (x / (p ** 2)) * (2 * p - x / c),
-        #                         m * ((c - x) / ((1 - p) ** 2)) * (1 + x / c - 2 * p))
-        #             dyc_dx = bm.where(x < p * c,
-        #                             2 * m / p ** 2 * (p - x / c),
-        #                             2 * m / (1 - p) ** 2 * (p - x / c))
-
-        #         if p == 0:
-        #             yc = m * ((c - x) / ((1 - p) ** 2)) * (1 + x / c - 2 * p)
-        #             dyc_dx = 2 * m / (1 - p) ** 2 * (p - x / c)
-
-        #         if p == 1:
-        #             yc = m * (x / (p ** 2)) * (2 * p - x / c)
-        #             dyc_dx = 2 * m / p ** 2 * (p - x / c)
-
-        #         theta = bm.arctan(dyc_dx)
-
-        #         # 上下表面
-        #         x_u = x - yt * bm.sin(theta)
-        #         y_u = yc + yt * bm.cos(theta)
-        #         x_l = x + yt * bm.sin(theta)
-        #         y_l = yc - yt * bm.cos(theta)
-
-        #         alpha = alpha / 180.0 * bm.pi
-        #         ca, sa = bm.cos(-alpha), bm.sin(-alpha)
-        #         def rotate(x, y):
-        #             return ca*x - sa*y, sa*x + ca*y
-
-        #         x, y = rotate(x, y)
-        #         cond_u = bm.abs(y - y_u) < 1e-6            
-        #         cond_l = bm.abs(y - y_l) < 1e-6
-
-        #     return cond_u | cond_l
-
         eps = 1e-10
 
         @variantmethod("inlet")

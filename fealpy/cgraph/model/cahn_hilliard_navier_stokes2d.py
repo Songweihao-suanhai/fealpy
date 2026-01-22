@@ -101,7 +101,6 @@ class CHNSMathmatics(CNodeType):
         from fealpy.decorator import barycentric, cartesian
         if VariableDensity is True:
             mesh = phi.space.mesh
-            box = mesh.box
             rho = mesh.rho
             Re = mesh.Re
             Fr = mesh.Fr
